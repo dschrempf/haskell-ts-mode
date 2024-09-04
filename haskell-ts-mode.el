@@ -53,7 +53,7 @@
 (defcustom haskell-ts-use-indent t
   "Set to non-nil to use the indentation provided by haskell-ts-mode"
   :group 'haskell-ts-mode
-  :type 'bool)
+  :type 'boolean)
 
 (defcustom haskell-ts-font-lock-level 4
   "Level of font lock, 1 for minimum highlghting and 4 for maximum."
@@ -136,7 +136,7 @@
    `(["(" ")" "[" "]"] @font-lock-operator-face
      (infix operator: (_) @font-lock-operator-face))))
 
-(setq haskell-ts-indent-rules
+(defvar haskell-ts-indent-rules
   (let ((p-prev-sib
 	 (lambda (node _ _)
 	   (let ((n (treesit-node-prev-sibling node)))
