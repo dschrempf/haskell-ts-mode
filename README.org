@@ -66,21 +66,25 @@ implement indentation, so I thought why not use tree sitter?
 The package is avaiable on elpa, you can install it using:
 M-x package-install RET haskell-ts-mode RET
 
-#+BEGIN_SRC: elisp
+#+begin_src elisp
 (add-to-list 'load-path "path/to/haskell-ts-mode")
 (require 'haskell-ts-mode)
-#+END_SRC
+#+end_src
 
 * Customization
 
-if colour is too much or too less for you, adjust
+If colour is too much or too less for you, adjust
 treesit-font-lock-level accordingly.
 
-If that is not enough, you can customize haskell-ts-font-lock-feature-list
+If you want to highlight signature declarations (disabled by default),
+add the following to your init file:
+#+begin_src emacs-lisp
+(setq haskell-ts-highlight-signature t)
+#+end_src
 
 ** how to disable haskell-ts-mode indentation
 
-#+begin_src: emacs-lisp
+#+begin_src emacs-lisp
 (setq haskell-ts-use-indent nil)
 #+end_src
 
@@ -88,7 +92,7 @@ If that is not enough, you can customize haskell-ts-font-lock-feature-list
 prettify symbols mode can be used to replace common symbols with
 unicode alternatives.
 
-#+begin_src: emacs-lisp
+#+begin_src emacs-lisp
 (add-hook 'haskell-ts-mode 'prettify-symbols-mode)
 #+end_src
 
@@ -98,7 +102,7 @@ set haskell-ts-font-lock-level accordingly.
 ** Language server
 haskell-ts-mode is not compatiable with lsp-haskell. To enable eglot
 support, use the following function:
-#+begin_src: emacs-lisp
+#+begin_src emacs-lisp
 (with-eval-after-load 'eglot (haskell-ts-setup-eglot))
 #+end_src
 

@@ -44,8 +44,17 @@
   "Group that contains haskell-ts-mode variables"
   :group 'langs)
 
+(defcustom haskell-ts-highlight-signature nil
+  "Set to non-nil to enable highlighting of signature names."
+  :type 'boolean
+  :group 'haskell-ts-mode)
+
 (defvar haskell-ts-font-lock-feature-list
-  '((comment str pragma parens)
+  `(,(funcall
+      (if haskell-ts-highlight-signature
+	  (lambda (ls) (append ls '(type-sig)))
+	'identity)
+      '(comment str pragma parens))
     (type definition function args)
     (match keyword)
     (otherwise signature)))
@@ -82,6 +91,10 @@
    :override t
    `(((match (guards guard: (boolean (variable) @font-lock-keyword-face)))
       (:match "otherwise" @font-lock-keyword-face)))
+   :language 'haskell
+   :feature 'type-sig
+   "(signature (binding_list (variable) @font-lock-doc-markup-face))
+    (signature (variable) @font-lock-doc-markup-face)"
    :language 'haskell
    :feature 'args
    :override 'keep
@@ -159,7 +172,7 @@
        
        ;; in
        ((node-is "^in$") parent 0)
-     
+       
        ;; list
        ((node-is "]") parent 0)
        ((parent-is "list") parent 1)
@@ -188,7 +201,7 @@
        (no-node prev-adaptive-prefix 0)
        
        ((parent-is "data_constructors") parent 0)
-     
+       
        ;; where
        ((lambda (node _ _)
 	  (let ((n (treesit-node-prev-sibling node)))
