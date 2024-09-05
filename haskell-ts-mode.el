@@ -154,9 +154,12 @@
        ;; Lambda
        ((parent-is "lambda") standalone-parent 2)
 
+       ((parent-is "class_declarations") prev-sibling 0)
+       ;; ((lambda (a b c) (message (treesit-node-type b)) nil))
+       
        ;; in
        ((node-is "^in$") parent 0)
-       
+     
        ;; list
        ((node-is "]") parent 0)
        ((parent-is "list") parent 1)
@@ -185,7 +188,7 @@
        (no-node prev-adaptive-prefix 0)
        
        ((parent-is "data_constructors") parent 0)
-
+     
        ;; where
        ((lambda (node _ _)
 	  (let ((n (treesit-node-prev-sibling node)))
@@ -230,7 +233,7 @@
        ((parent-is "haskell") column-0 0)
        ((parent-is "declarations") column-0 0)
 
-       ((parent-is "record") grand-parent 0)
+       ((parent-is "record") standalone-parent 2)
 
        ((parent-is "exports")
 	(lambda (_ b _) (treesit-node-start (treesit-node-prev-sibling b)))
@@ -295,7 +298,7 @@
   (interactive "d")
   (let ((node (treesit-node-at pos)))
     (while (not (string-match
-		 "declarations\\|haskell"
+		 "^declarations$\\|haskell"
 		 (treesit-node-type (treesit-node-parent node))))
       (setq node (treesit-node-parent node)))
     (indent-region (treesit-node-start node) (treesit-node-end node))))
