@@ -136,7 +136,7 @@
    `(["(" ")" "[" "]"] @font-lock-operator-face
      (infix operator: (_) @font-lock-operator-face))))
 
-(defvar haskell-ts-indent-rules
+(setq haskell-ts-indent-rules
   (let ((p-prev-sib
 	 (lambda (node _ _)
 	   (let ((n (treesit-node-prev-sibling node)))
@@ -196,7 +196,7 @@
 	  (+ 1 (treesit-node-start (treesit-node-prev-sibling b))))
 	3)
        ((parent-is "local_binds\\|instance_declarations") ,p-prev-sib 0)
-       ((node-is "^where$") parent 2)
+       ((node-is "^where$") parent 4)
        
        ;; Match
        ;; ((match "match" nil 2 2 nil) ,p-prev-sib 0)
