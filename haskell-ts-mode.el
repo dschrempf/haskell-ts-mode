@@ -149,7 +149,7 @@
    `(["(" ")" "[" "]"] @font-lock-operator-face
      (infix operator: (_) @font-lock-operator-face))))
 
-(defvar haskell-ts-indent-rules
+(setq haskell-ts-indent-rules
   (let ((p-prev-sib
 	 (lambda (node _ _)
 	   (let ((n (treesit-node-prev-sibling node)))
@@ -168,7 +168,6 @@
        ((parent-is "lambda") standalone-parent 2)
 
        ((parent-is "class_declarations") prev-sibling 0)
-       ;; ((lambda (a b c) (message (treesit-node-type b)) nil))
        
        ;; in
        ((node-is "^in$") parent 0)
@@ -185,7 +184,7 @@
        ((node-is "quasiquote") grand-parent 2)
        ((parent-is "quasiquote_body") (lambda (_ _ c) c) 0)
        ((lambda (node parent bol)
-	  (let ((n (treesit-node-prev-sibling node)))
+	  (if-let ((n (treesit-node-prev-sibling node)))
 	    (while (string= "comment" (treesit-node-type n))
 	      (setq n (treesit-node-prev-sibling n)))
 	    (string= "do" (treesit-node-type n))))
@@ -198,10 +197,17 @@
 	4)
        ((parent-is "alternatives") ,p-prev-sib 0)
 
-       (no-node prev-adaptive-prefix 0)
+       ;; prev-adaptive-prefix is broken sometimes
+       (no-node
+	(lambda (_ _ _)
+	  (save-excursion
+	    (goto-char (line-beginning-position 0))
+	    (back-to-indentation)
+	    (point)))
+	0)
        
        ((parent-is "data_constructors") parent 0)
-       
+
        ;; where
        ((lambda (node _ _)
 	  (let ((n (treesit-node-prev-sibling node)))
@@ -213,7 +219,7 @@
 	3)
        ((parent-is "local_binds\\|instance_declarations") ,p-prev-sib 0)
        ((node-is "^where$") parent 4)
-       
+
        ;; Match
        ;; ((match "match" nil 2 2 nil) ,p-prev-sib 0)
        ((lambda (node _ _)
@@ -242,7 +248,6 @@
 		 (eq pos 0))))
 	,p-prev-sib 0)
        ((parent-is "match") standalone-parent 2)
-       
        ((parent-is "haskell") column-0 0)
        ((parent-is "declarations") column-0 0)
 
@@ -420,6 +425,8 @@
 
 (when (treesit-ready-p 'haskell)
   (add-to-list 'auto-mode-alist '("\\.hs\\'" . haskell-ts-mode)))
+
+
 
 (provide 'haskell-ts-mode)
 
