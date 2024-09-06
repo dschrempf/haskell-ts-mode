@@ -304,7 +304,6 @@
      (string-to-list "\r\n\f\v"))
     table))
 
-
 (defmacro haskell-ts-imenu-name-function (check-func)
   `(lambda (node)
      (if (funcall ,check-func node)
@@ -425,9 +424,6 @@
 
 (when (treesit-ready-p 'haskell)
   (add-to-list 'auto-mode-alist '("\\.hs\\'" . haskell-ts-mode)))
-
-
-
 
 (provide 'haskell-ts-mode)
 
