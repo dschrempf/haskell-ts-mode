@@ -149,7 +149,7 @@
    `(["(" ")" "[" "]"] @font-lock-operator-face
      (infix operator: (_) @font-lock-operator-face))))
 
-(setq haskell-ts-indent-rules
+(defvar haskell-ts-indent-rules
   (let ((p-prev-sib
 	 (lambda (node _ _)
 	   (let ((n (treesit-node-prev-sibling node)))
@@ -425,6 +425,7 @@
 
 (when (treesit-ready-p 'haskell)
   (add-to-list 'auto-mode-alist '("\\.hs\\'" . haskell-ts-mode)))
+
 
 
 
