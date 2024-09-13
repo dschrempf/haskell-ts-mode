@@ -157,7 +157,19 @@
 	       (setq n (treesit-node-prev-sibling n)))
 	     (treesit-node-start n)))))
     `((haskell
-       ((node-is "comment") prev-sibling 0)
+       ((node-is "comment")
+	;; Indenting comments by priorites:
+	;; 1. next sibling if exists
+	;; 2. pev sibling if exists
+	;; 3. parent
+	(lambda (node parent _)
+	  (treesit-node-start
+	   (if-let ((next-sib (treesit-node-next-sibling node)))
+	       next-sib
+	     (if-let ((prev-sib (treesit-node-next-sibling node)))
+	       prev-sib
+	     parent))))
+	0)
        ((node-is "cpp") column-0 0)
        ((parent-is "comment") column-0 0)
        ((parent-is "imports") column-0 0)
@@ -173,8 +185,8 @@
        ((node-is "^in$") parent 0)
        
        ;; list
-       ((node-is "]") parent 0)
-       ((parent-is "list") parent 1)
+       ((node-is "]") prev-sibling -2)
+       ((parent-is "list") standalone-parent 2)
        
        ;; If then else
        ((node-is "then") parent 2)
@@ -184,11 +196,13 @@
        ((node-is "quasiquote") grand-parent 2)
        ((parent-is "quasiquote_body") (lambda (_ _ c) c) 0)
        ((lambda (node parent bol)
-	  (if-let ((n (treesit-node-prev-sibling node)))
-	    (while (string= "comment" (treesit-node-type n))
+	  (let ((n (treesit-node-prev-sibling node)))
+	    (unless (null n)
+		(while (string= "comment" (treesit-node-type n))
 	      (setq n (treesit-node-prev-sibling n)))
-	    (string= "do" (treesit-node-type n))))
-	standalone-parent 3)
+	    (string= "do" (treesit-node-type n)))))
+	standalone-parent
+	3)
        ((parent-is "do") ,p-prev-sib 0)
 
        ((node-is "alternatives")
@@ -221,7 +235,6 @@
        ((node-is "^where$") parent 4)
 
        ;; Match
-       ;; ((match "match" nil 2 2 nil) ,p-prev-sib 0)
        ((lambda (node _ _)
 	  (and (string= (treesit-node-type node) "match")
 	       (let ((pos 3)
@@ -233,7 +246,7 @@
 		   (unless (string= "comment" (treesit-node-type n))
 		     (setq pos (- pos 1))))
 		 (and (null n) (eq pos 0)))))
-	parent 2)
+	parent 1)
        ;; ((match "match" nil nil 3 nil) ,p-prev-sib 0)
        ((lambda (node _ _)
 	  (and (string= (treesit-node-type node) "match")
