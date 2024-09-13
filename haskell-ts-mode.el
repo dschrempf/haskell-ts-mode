@@ -78,8 +78,7 @@
     ("<=" . "≥")
     (">=" . "≤")))
 
-(defun haskell-ts-font-lock ()
-  "A function that returns the treesit font lock lock settings for haskell."
+(defvar haskell-ts-font-lock
   (treesit-font-lock-rules
    :language 'haskell
    :feature 'keyword
@@ -114,15 +113,6 @@
    `((signature (function) @haskell-ts-fontify-type)
      (context (function) @haskell-ts-fontify-type))
    :language 'haskell
-   :feature 'function
-   :override t
-   `((function name: (variable) @font-lock-function-name-face)
-     (function (infix (operator)  @font-lock-function-name-face))
-     (declarations (type_synomym (name) @font-lock-function-name-face))
-     (bind (variable) @font-lock-function-name-face)
-     (function (infix (infix_id (variable) @font-lock-function-name-face)))
-     (bind (as (variable) @font-lock-function-name-face)))
-   :language 'haskell
    :feature 'match
    `((match ("|" @font-lock-doc-face) ("=" @font-lock-doc-face))
      (list_comprehension ("|" @font-lock-doc-face
@@ -147,7 +137,17 @@
    :feature 'parens
    :override t
    `(["(" ")" "[" "]"] @font-lock-operator-face
-     (infix operator: (_) @font-lock-operator-face))))
+     (infix operator: (_) @font-lock-operator-face))
+   :language 'haskell
+   :feature 'function
+   :override t
+   `((function name: (variable) @font-lock-function-name-face)
+     (function (infix (operator)  @font-lock-function-name-face))
+     (declarations (type_synomym (name) @font-lock-function-name-face))
+     (bind (variable) @font-lock-function-name-face)
+     (function (infix (infix_id (variable) @font-lock-function-name-face)))
+     (bind (as (variable) @font-lock-function-name-face))))
+  "A function that returns the treesit font lock lock settings for haskell.")
 
 (defvar haskell-ts-indent-rules
   (let ((p-prev-sib
@@ -374,7 +374,7 @@
 		   (treesit-node-text (treesit-node-child node 1))))))
   ;; font-lock
   (setq-local treesit-font-lock-level haskell-ts-font-lock-level)
-  (setq-local treesit-font-lock-settings (haskell-ts-font-lock))
+  (setq-local treesit-font-lock-settings haskell-ts-font-lock)
   (setq-local treesit-font-lock-feature-list
 	      haskell-ts-font-lock-feature-list)
   (treesit-major-mode-setup))
