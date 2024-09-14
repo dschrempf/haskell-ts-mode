@@ -168,7 +168,8 @@
   (let ((p-prev-sib
 	 (lambda (node _ _)
 	   (let ((n (treesit-node-prev-sibling node)))
-	     (while (string= "comment" (treesit-node-type n))
+	     (while (string-match (regexp-opt '("comment" "cpp" "haddock"))
+				  (treesit-node-type n))
 	       (setq n (treesit-node-prev-sibling n)))
 	     (treesit-node-start n)))))
     `((haskell
@@ -187,6 +188,7 @@
 	0)
        ((node-is "cpp") column-0 0)
        ((parent-is "comment") column-0 0)
+       ((parent-is "haddock") column-0 0)
        ((parent-is "imports") column-0 0)
        ;; Infix
        ((node-is "infix") standalone-parent 1)
@@ -252,8 +254,7 @@
        ((lambda (node _ _)
 	  (and (string= (treesit-node-type node) "match")
 	       (let ((pos 3)
-		     (n node)
-		     (ch (lambda () )))
+		     (n node))
 		 (while (and (not (null n))
 			     (not (eq pos 0)))
 		   (setq n (treesit-node-prev-sibling n))
@@ -264,8 +265,7 @@
        ((lambda (node _ _)
 	  (and (string= (treesit-node-type node) "match")
 	       (let ((pos 4)
-		     (n node)
-		     (ch (lambda () )))
+		     (n node))
 		 (while (and (not (null n))
 			     (not (eq pos 0)))
 		   (setq n (treesit-node-prev-sibling n))
