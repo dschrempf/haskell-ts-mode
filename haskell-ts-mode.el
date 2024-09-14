@@ -149,6 +149,21 @@
      (bind (as (variable) @font-lock-function-name-face))))
   "A function that returns the treesit font lock lock settings for haskell.")
 
+(defun haskell-ts--stand-alone-parent (_ parent bol)
+  (save-excursion
+    (goto-char (treesit-node-start parent))
+    (let ((type (treesit-node-type parent)))
+	(if (and (looking-back "^[ \t]*" (line-beginning-position))
+		 (not (seq-some
+		       (lambda (kw) 
+			 (string= type kw))
+		       '("when" "do" "let"))))
+	(treesit-node-start parent)
+	(haskell-ts--stand-alone-parent 1 (funcall
+					   (if bol 'treesit-node-parent 'identity)
+					   (treesit-node-parent parent))
+					nil)))))
+
 (defvar haskell-ts-indent-rules
   (let ((p-prev-sib
 	 (lambda (node _ _)
@@ -175,7 +190,7 @@
        ((parent-is "imports") column-0 0)
        ;; Infix
        ((node-is "infix") standalone-parent 1)
-       ((parent-is "infix") grand-parent 0)
+       ((parent-is "infix") parent 0)
        ;; Lambda
        ((parent-is "lambda") standalone-parent 2)
 
@@ -196,12 +211,11 @@
        ((node-is "quasiquote") grand-parent 2)
        ((parent-is "quasiquote_body") (lambda (_ _ c) c) 0)
        ((lambda (node parent bol)
-	  (let ((n (treesit-node-prev-sibling node)))
-	    (unless (null n)
-		(while (string= "comment" (treesit-node-type n))
+	  (when-let ((n (treesit-node-prev-sibling node)))
+	    (while (string= "comment" (treesit-node-type n))
 	      (setq n (treesit-node-prev-sibling n)))
-	    (string= "do" (treesit-node-type n)))))
-	standalone-parent
+	    (string= "do" (treesit-node-type n))))
+	haskell-ts--stand-alone-parent
 	3)
        ((parent-is "do") ,p-prev-sib 0)
 
@@ -247,7 +261,6 @@
 		     (setq pos (- pos 1))))
 		 (and (null n) (eq pos 0)))))
 	parent 1)
-       ;; ((match "match" nil nil 3 nil) ,p-prev-sib 0)
        ((lambda (node _ _)
 	  (and (string= (treesit-node-type node) "match")
 	       (let ((pos 4)
@@ -319,9 +332,12 @@
 
 (defmacro haskell-ts-imenu-name-function (check-func)
   `(lambda (node)
-     (if (funcall ,check-func node)
-	 (haskell-ts-defun-name node)
-       nil)))
+     (let ((nn (treesit-node-child node 0 node)))
+	 (if (funcall ,check-func node)
+	 (if (string= (treesit-node-type nn) "infix")
+	     (treesit-node-text (treesit-node-child nn 1))
+	     (haskell-ts-defun-name node))
+       nil))))
 
 (defun haskell-ts-indent-defun (pos)
   "Indent the current function."
