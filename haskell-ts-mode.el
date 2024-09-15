@@ -248,7 +248,7 @@
 	  (+ 1 (treesit-node-start (treesit-node-prev-sibling b))))
 	3)
        ((parent-is "local_binds\\|instance_declarations") ,p-prev-sib 0)
-       ((node-is "^where$") parent 4)
+       ((node-is "^where$") parent 2)
 
        ;; Match
        ((lambda (node _ _)
