@@ -98,11 +98,11 @@
    :feature 'args
    :override 'keep
    (concat
-    "(function (infix left_operand: (_) @haskell-ts-fontify-arg))"
-    "(function (infix right_operand: (_) @haskell-ts-fontify-arg))"
-    "(generator . (_) @haskell-ts-fontify-arg)"
-    "(bind (as (variable) . (_) @haskell-ts-fontify-arg))"
-    "(patterns) @haskell-ts-fontify-arg")
+    "(function (infix left_operand: (_) @haskell-ts--fontify-arg))"
+    "(function (infix right_operand: (_) @haskell-ts--fontify-arg))"
+    "(generator . (_) @haskell-ts--fontify-arg)"
+    "(bind (as (variable) . (_) @haskell-ts--fontify-arg))"
+    "(patterns) @haskell-ts--fontify-arg")
    :language 'haskell
    :feature 'type
    `((type) @font-lock-type-face
@@ -110,8 +110,8 @@
    :language 'haskell
    :override t
    :feature 'signature
-   `((signature (function) @haskell-ts-fontify-type)
-     (context (function) @haskell-ts-fontify-type))
+   `((signature (function) @haskell-ts--fontify-type)
+     (context (function) @haskell-ts--fontify-type))
    :language 'haskell
    :feature 'match
    `((match ("|" @font-lock-doc-face) ("=" @font-lock-doc-face))
@@ -157,7 +157,7 @@
 		 (not (seq-some
 		       (lambda (kw) 
 			 (string= type kw))
-		       '("when" "do" "let"))))
+		       '("when" "where" "do" "let"))))
 	(treesit-node-start parent)
 	(haskell-ts--stand-alone-parent 1 (funcall
 					   (if bol 'treesit-node-parent 'identity)
@@ -395,18 +395,18 @@
 	      haskell-ts-font-lock-feature-list)
   (treesit-major-mode-setup))
 
-(defun haskell-ts-fontify-arg (node &optional _ _ _)
+(defun haskell-ts--fontify-arg (node &optional _ _ _)
   (if (string= "variable" (treesit-node-type node))
       (put-text-property
        (treesit-node-start node)
        (treesit-node-end node)
        'face font-lock-variable-name-face)
-    (mapc 'haskell-ts-fontify-arg (treesit-node-children node))))
+    (mapc 'haskell-ts--fontify-arg (treesit-node-children node))))
 
-(defun haskell-ts-fontify-type (node &optional _ _ _)
+(defun haskell-ts--fontify-type (node &optional _ _ _)
   (let ((last-child (treesit-node-child node -1)))
     (if (string= (treesit-node-type last-child) "function")
-	(haskell-ts-fontify-type last-child)
+	(haskell-ts--fontify-type last-child)
       (put-text-property
        (treesit-node-start last-child)
        (treesit-node-end last-child)
