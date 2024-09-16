@@ -169,7 +169,7 @@
   '("comment" "cpp" "haddock")
   "Node types that will be ignored by indentation.")
 
-(setq haskell-ts-indent-rules
+(defvar haskell-ts-indent-rules
   (let* ((p-sib
 	 (lambda (node arg)
 	   (let* ((func (if arg
@@ -281,7 +281,7 @@
 	0)
        ((n-p-gp nil "signature" "foreign_import") grand-parent 3)
 
-       ((parent-is "case") parent 4)
+       ((parent-is "case") haskell-ts--stand-alone-parent 4)
        
        ;; Backup
        (catch-all parent 2)))))
