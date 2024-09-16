@@ -169,15 +169,16 @@
   '("comment" "cpp" "haddock")
   "Node types that will be ignored by indentation.")
 
-(setq haskell-ts-indent-rules
+(defvar haskell-ts-indent-rules
   (let* ((p-sib
 	 (lambda (node arg)
 	   (let ((n (treesit-node-prev-sibling node)))
-	     (while (string-match (regexp-opt haskell-ts--ignore-types)
-				  (treesit-node-type n))
+	     (while (and n (string-match (regexp-opt haskell-ts--ignore-types)
+					 (treesit-node-type n)))
 	       (setq n (if arg (treesit-node-prev-sibling n)
 			 (treesit-node-next-sibling n))))
-	     (treesit-node-start n))))
+	     (if n
+		 (treesit-node-start n) nil))))
 	 (p-prev-sib
 	  (lambda (node _ _) (funcall p-sib node t))))
     `((haskell
@@ -192,7 +193,7 @@
 	       next-sib
 	     (if-let ((prev-sib (funcall ,p-prev-sib node nil nil)))
 	       prev-sib
-	     parent)))
+	     (treesit-node-start parent))))
 	0)
        ((node-is "cpp") column-0 0)
        ((parent-is "comment") column-0 0)
