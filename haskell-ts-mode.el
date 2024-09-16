@@ -186,26 +186,13 @@
 	 (parent-first-child (lambda (_ parent _)
 			       (treesit-node-start (treesit-node-child parent 0)))))
     `((haskell
-       ((node-is "comment")
-	;; Indenting comments by priorites:
-	;; 1. next relevent sibling if exists
-	;; 2. previous relevent sibling if exists
-	;; 3. parent
-	;; (relevent means type not it haskell-ts--ignore-types)
-	(lambda (node parent _)
-	   (if-let ((next-sib (funcall ,p-sib node nil)))
-	       (treesit-node-start next-sib)
-	     (if-let ((prev-sib (funcall ,p-prev-sib node nil nil)))
-	       prev-sib
-	     (treesit-node-start parent))))
-	0)
        ((node-is "cpp") column-0 0)
        ((parent-is "comment") column-0 0)
        ((parent-is "haddock") column-0 0)
        ((parent-is "imports") column-0 0)
        ;; Infix
-       ((node-is "infix") standalone-parent 1)
        ((parent-is "infix") ,parent-first-child 0)
+       ((node-is "infix") standalone-parent 1)
        ;; Lambda
        ((parent-is "lambda") standalone-parent 2)
 
@@ -235,10 +222,6 @@
 	3)
        ((parent-is "do") ,p-prev-sib 0)
 
-       ((node-is "alternatives")
-	(lambda (_ b _)
-	  (treesit-node-start (treesit-node-child b 0)))
-	4)
        ((parent-is "alternatives") ,p-prev-sib 0)
 
        ;; prev-adaptive-prefix is broken sometimes
@@ -258,12 +241,13 @@
 	    (while (string= "comment" (treesit-node-type n))
 	      (setq n (treesit-node-prev-sibling n)))
 	    (string= "where" (treesit-node-type n))))
+	
 	(lambda (_ b _)
 	  (+ 1 (treesit-node-start (treesit-node-prev-sibling b))))
 	3)
        ((parent-is "local_binds\\|instance_declarations") ,p-prev-sib 0)
        ((node-is "^where$") parent 2)
-
+	
        ;; Match
        ((lambda (node _ _)
 	  (and (string= "match" (treesit-node-type node))
@@ -280,9 +264,24 @@
 	(lambda (_ b _) (treesit-node-start (treesit-node-prev-sibling b)))
 	0)
        ((n-p-gp nil "signature" "foreign_import") grand-parent 3)
-
-       ((parent-is "case") haskell-ts--stand-alone-parent 4)
-       
+       ((parent-is "case") standalone-parent 4)
+       ((node-is "alternatives")
+	(lambda (_ b _)
+	  (treesit-node-start (treesit-node-child b 0)))
+	2)
+       ((node-is "comment")
+	;; Indenting comments by priorites:
+	;; 1. next relevent sibling if exists
+	;; 2. previous relevent sibling if exists
+	;; 3. parent
+	;; (relevent means type not it haskell-ts--ignore-types)
+	(lambda (node parent _)
+	   (if-let ((next-sib (funcall ,p-sib node nil)))
+	       (treesit-node-start next-sib)
+	     (if-let ((prev-sib (funcall ,p-prev-sib node nil nil)))
+	       prev-sib
+	     (treesit-node-start parent))))
+	0)
        ;; Backup
        (catch-all parent 2)))))
 
