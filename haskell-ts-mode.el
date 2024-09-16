@@ -172,11 +172,13 @@
 (defvar haskell-ts-indent-rules
   (let* ((p-sib
 	 (lambda (node arg)
-	   (let ((n (treesit-node-prev-sibling node)))
+	   (let* ((func (if arg
+			   'treesit-node-prev-sibling
+			 'treesit-node-next-sibling))
+		 (n (funcall func	 node)))
 	     (while (and n (string-match (regexp-opt haskell-ts--ignore-types)
 					 (treesit-node-type n)))
-	       (setq n (if arg (treesit-node-prev-sibling n)
-			 (treesit-node-next-sibling n))))
+	       (setq n (funcall func n)))
 	     n)))
 	 (p-prev-sib
 	  (lambda (node _ _) (treesit-node-start (funcall p-sib node t))))
@@ -189,7 +191,7 @@
 	;; 3. parent
 	;; (relevent means type not it haskell-ts--ignore-types)
 	(lambda (node parent _)
-	   (if-let ((next-sib (funcall ,p-sib node t)))
+	   (if-let ((next-sib (funcall ,p-sib node nil)))
 	       (treesit-node-start next-sib)
 	     (if-let ((prev-sib (funcall ,p-prev-sib node nil nil)))
 	       prev-sib
