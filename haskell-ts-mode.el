@@ -169,7 +169,7 @@
   '("comment" "cpp" "haddock")
   "Node types that will be ignored by indentation.")
 
-(defvar haskell-ts-indent-rules
+(setq haskell-ts-indent-rules
   (let* ((p-sib
 	 (lambda (node arg)
 	   (let* ((func (if arg
@@ -215,14 +215,15 @@
        ((node-is "^in$") parent 0)
        
        ;; list
-       ((node-is "]") prev-sibling -2)
+       ((node-is "]") parent 0)
        ((parent-is "list") standalone-parent 2)
        
        ;; If then else
        ((node-is "then") parent 2)
        ((node-is "^else$") parent 2)
 
-       ((parent-is "apply") parent -1)
+       ((parent-is "apply") haskell-ts--stand-alone-parent 1)
+       
        ((node-is "quasiquote") grand-parent 2)
        ((parent-is "quasiquote_body") (lambda (_ _ c) c) 0)
        ((lambda (node parent bol)
