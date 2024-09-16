@@ -177,8 +177,7 @@
 					 (treesit-node-type n)))
 	       (setq n (if arg (treesit-node-prev-sibling n)
 			 (treesit-node-next-sibling n))))
-	     (if n
-		 n nil))))
+	     n)))
 	 (p-prev-sib
 	  (lambda (node _ _) (treesit-node-start (funcall p-sib node t))))
 	 (p-n-prev (lambda (node) (funcall p-sib node t))))
