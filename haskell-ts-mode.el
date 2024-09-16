@@ -182,7 +182,9 @@
 	     n)))
 	 (p-prev-sib
 	  (lambda (node _ _) (treesit-node-start (funcall p-sib node t))))
-	 (p-n-prev (lambda (node) (funcall p-sib node t))))
+	 (p-n-prev (lambda (node) (funcall p-sib node t)))
+	 (parent-first-child (lambda (_ parent _)
+			       (treesit-node-start (treesit-node-child parent 0)))))
     `((haskell
        ((node-is "comment")
 	;; Indenting comments by priorites:
@@ -203,11 +205,7 @@
        ((parent-is "imports") column-0 0)
        ;; Infix
        ((node-is "infix") standalone-parent 1)
-       ((parent-is "infix")
-	;; Parent's first child
-	(lambda (_ parent _)
-	  (treesit-node-start (treesit-node-child parent 0)))
-	0)
+       ((parent-is "infix") ,parent-first-child 0)
        ;; Lambda
        ((parent-is "lambda") standalone-parent 2)
 
@@ -268,9 +266,10 @@
        ;; Match
        ((lambda (node _ _)
 	  (and (string= "match" (treesit-node-type node))
-	       (string= "variable" (treesit-node-type (funcall ,p-n-prev node)))))
-	parent 1)
-       ((node-is "match") ,p-prev-sib 0)       
+	       (string= "variable" (treesit-node-type (funcall ,p-n-prev node))) ))
+	,parent-first-child 1)
+       ((node-is "match") ,p-prev-sib 0)
+       ((parent-is "match") standalone-parent 2)
        ((parent-is "haskell") column-0 0)
        ((parent-is "declarations") column-0 0)
 
@@ -280,6 +279,8 @@
 	(lambda (_ b _) (treesit-node-start (treesit-node-prev-sibling b)))
 	0)
        ((n-p-gp nil "signature" "foreign_import") grand-parent 3)
+
+       ((parent-is "case") parent 4)
        
        ;; Backup
        (catch-all parent 2)))))
