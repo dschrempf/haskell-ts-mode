@@ -203,7 +203,11 @@
        ((parent-is "imports") column-0 0)
        ;; Infix
        ((node-is "infix") standalone-parent 1)
-       ((parent-is "infix") parent 0)
+       ((parent-is "infix")
+	;; Parent's first child
+	(lambda (_ parent _)
+	  (treesit-node-start (treesit-node-child parent 0)))
+	0)
        ;; Lambda
        ((parent-is "lambda") standalone-parent 2)
 
