@@ -45,7 +45,7 @@
   "Group that contains haskell-ts-mode variables"
   :group 'langs)
 
-(defcustom haskell-ts-highlight-signature nil
+(defcustom haskell-ts-highlight-signature t
   "Set to non-nil to enable highlighting of signature names."
   :type 'boolean
   :group 'haskell-ts-mode)
