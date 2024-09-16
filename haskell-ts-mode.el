@@ -70,7 +70,7 @@
   :group 'haskell-ts-mode
   :type 'integer)
 
-(defvar haskell-ts-prettify-symbols-alits
+(defvar haskell-ts-prettify-symbols-alist
   '(("\\" . "λ")
     ("/=" . "≠")
     ("->" . "→")
@@ -387,7 +387,7 @@
   ;; Nav
   (setq-local treesit-defun-name-function 'haskell-ts-defun-name)
   (setq-local treesit-defun-type-regexp "function")
-  (setq-local prettify-symbols-alist haskell-ts-prettify-symbols-alits)
+  (setq-local prettify-symbols-alist haskell-ts-prettify-symbols-alist)
   ;; Imenu
   (setq-local treesit-simple-imenu-settings
 	      `((nil haskell-ts-imenu-func-node-p nil
