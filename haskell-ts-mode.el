@@ -178,9 +178,10 @@
 	       (setq n (if arg (treesit-node-prev-sibling n)
 			 (treesit-node-next-sibling n))))
 	     (if n
-		 (treesit-node-start n) nil))))
+		 n nil))))
 	 (p-prev-sib
-	  (lambda (node _ _) (funcall p-sib node t))))
+	  (lambda (node _ _) (treesit-node-start (funcall p-sib node t))))
+	 (p-n-prev (lambda (node) (funcall p-sib node t))))
     `((haskell
        ((node-is "comment")
 	;; Indenting comments by priorites:
@@ -190,7 +191,7 @@
 	;; (relevent means type not it haskell-ts--ignore-types)
 	(lambda (node parent _)
 	   (if-let ((next-sib (funcall ,p-sib node t)))
-	       next-sib
+	       (treesit-node-start next-sib)
 	     (if-let ((prev-sib (funcall ,p-prev-sib node nil nil)))
 	       prev-sib
 	     (treesit-node-start parent))))
@@ -261,28 +262,10 @@
 
        ;; Match
        ((lambda (node _ _)
-	  (and (string= (treesit-node-type node) "match")
-	       (let ((pos 3)
-		     (n node))
-		 (while (and (not (null n))
-			     (not (eq pos 0)))
-		   (setq n (treesit-node-prev-sibling n))
-		   (unless (string= "comment" (treesit-node-type n))
-		     (setq pos (- pos 1))))
-		 (and (null n) (eq pos 0)))))
+	  (and (string= "match" (treesit-node-type node))
+	       (string= "variable" (treesit-node-type (funcall ,p-n-prev node)))))
 	parent 1)
-       ((lambda (node _ _)
-	  (and (string= (treesit-node-type node) "match")
-	       (let ((pos 4)
-		     (n node))
-		 (while (and (not (null n))
-			     (not (eq pos 0)))
-		   (setq n (treesit-node-prev-sibling n))
-		   (unless (string= "comment" (treesit-node-type n))
-		     (setq pos (- pos 1))))
-		 (eq pos 0))))
-	,p-prev-sib 0)
-       ((parent-is "match") standalone-parent 2)
+       ((node-is "match") ,p-prev-sib 0)       
        ((parent-is "haskell") column-0 0)
        ((parent-is "declarations") column-0 0)
 
