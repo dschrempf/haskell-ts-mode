@@ -164,27 +164,34 @@
 					   (treesit-node-parent parent))
 					nil)))))
 
-(defvar haskell-ts-indent-rules
-  (let ((p-prev-sib
-	 (lambda (node _ _)
+(defvar haskell-ts--ignore-types
+  '("comment" "cpp" "haddock")
+  "Node types that will be ignored by indentation.")
+
+(setq haskell-ts-indent-rules
+  (let* ((p-sib
+	 (lambda (node arg)
 	   (let ((n (treesit-node-prev-sibling node)))
-	     (while (string-match (regexp-opt '("comment" "cpp" "haddock"))
+	     (while (string-match (regexp-opt haskell-ts--ignore-types)
 				  (treesit-node-type n))
-	       (setq n (treesit-node-prev-sibling n)))
-	     (treesit-node-start n)))))
+	       (setq n (if arg (treesit-node-prev-sibling n)
+			 (treesit-node-next-sibling n))))
+	     (treesit-node-start n))))
+	 (p-prev-sib
+	  (lambda (node _ _) (funcall p-sib node t))))
     `((haskell
        ((node-is "comment")
 	;; Indenting comments by priorites:
-	;; 1. next sibling if exists
-	;; 2. pev sibling if exists
+	;; 1. next relevent sibling if exists
+	;; 2. previous relevent sibling if exists
 	;; 3. parent
+	;; (relevent means type not it haskell-ts--ignore-types)
 	(lambda (node parent _)
-	  (treesit-node-start
-	   (if-let ((next-sib (treesit-node-next-sibling node)))
+	   (if-let ((next-sib (funcall ,p-sib node t)))
 	       next-sib
-	     (if-let ((prev-sib (treesit-node-next-sibling node)))
+	     (if-let ((prev-sib (funcall ,p-prev-sib node nil nil)))
 	       prev-sib
-	     parent))))
+	     parent)))
 	0)
        ((node-is "cpp") column-0 0)
        ((parent-is "comment") column-0 0)
