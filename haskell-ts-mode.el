@@ -435,8 +435,9 @@
   "Compile the text from START to END in the haskell proc."
   (interactive "r")
   (let ((hs (haskell-ts-haskell-session)))
+    (comint-send-string hs ":{\n")
     (comint-send-region hs start end)
-    (comint-send-string hs "\n")))
+    (comint-send-string hs ":}\n")))
 
 (defun haskell-ts-run-haskell()
   (interactive)
