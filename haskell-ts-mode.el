@@ -375,7 +375,12 @@
 	      '((?` . ?`) (?\( . ?\)) (?{ . ?}) (?\" . ?\") (?\[ . ?\])))
   ;; Nav
   (setq-local treesit-defun-name-function 'haskell-ts-defun-name)
-  (setq-local treesit-defun-type-regexp "function")
+  (setq-local treesit-defun-type-regexp
+	      ;; Since haskell is strict functional, any 2nd level
+	      ;; entity is defintion
+	      (cons ".+"
+		    (lambda (node)
+		      (string= "declarations" (treesit-node-type (treesit-node-parent node))))))
   (setq-local prettify-symbols-alist haskell-ts-prettify-symbols-alist)
   ;; Imenu
   (setq-local treesit-simple-imenu-settings
