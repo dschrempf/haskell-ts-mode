@@ -251,8 +251,10 @@
        ;; Match
        ((lambda (node _ _)
 	  (and (string= "match" (treesit-node-type node))
-	       (string= "variable" (treesit-node-type (funcall ,p-n-prev node))) ))
-	,parent-first-child 1)
+	       (string-match (regexp-opt '("patterns" "variable"))
+			     (treesit-node-type (funcall ,p-n-prev node)))))
+	standalone-parent 2
+	)
        ((node-is "match") ,p-prev-sib 0)
        ((parent-is "match") standalone-parent 2)
        ((parent-is "haskell") column-0 0)
