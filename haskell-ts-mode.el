@@ -45,20 +45,11 @@
   "Group that contains haskell-ts-mode variables"
   :group 'langs)
 
-(defcustom haskell-ts-highlight-signature t
-  "Set to non-nil to enable highlighting of signature names."
-  :type 'boolean
-  :group 'haskell-ts-mode)
-
 (defvar haskell-ts-font-lock-feature-list
-  `(,(funcall
-      (if haskell-ts-highlight-signature
-	  (lambda (ls) (append ls '(type-sig)))
-	'identity)
-      '(comment str pragma parens))
+  `((comment str pragma parens)
     (type definition function args)
     (match keyword)
-    (otherwise signature)))
+    (otherwise signature type-sig)))
 
 (defcustom haskell-ts-use-indent t
   "Set to non-nil to use the indentation provided by haskell-ts-mode"
