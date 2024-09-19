@@ -439,7 +439,7 @@
   (let ((hs (haskell-ts-haskell-session)))
     (comint-send-string hs ":{\n")
     (comint-send-region hs start end)
-    (comint-send-string hs ":}\n")))
+    (comint-send-string hs "\n:}\n")))
 
 (defun haskell-ts-run-haskell()
   (interactive)
