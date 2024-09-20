@@ -456,6 +456,7 @@
 (defvar eglot-server-programs)
 
 (defun haskell-ts-setup-eglot()
+  (interactive)
   (add-to-list 'eglot-server-programs
 	       '(haskell-ts-mode . ("haskell-language-server-wrapper" "--lsp"))))
 
