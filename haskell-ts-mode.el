@@ -177,33 +177,43 @@
 	 (parent-first-child (lambda (_ parent _)
 			       (treesit-node-start (treesit-node-child parent 0)))))
     `((haskell
-       ((node-is "cpp") column-0 0)
-       ((parent-is "comment") column-0 0)
-       ((parent-is "haddock") column-0 0)
-       ((parent-is "imports") column-0 0)
+       ((node-is "^cpp$") column-0 0)
+       ((parent-is "^comment$") column-0 0)
+       ((parent-is "^haddock$") column-0 0)
+       ((parent-is "^imports$") column-0 0)
        ;; Infix
-       ((parent-is "infix") ,parent-first-child 0)
-       ((node-is "infix") standalone-parent 1)
+       ((n-p-gp nil "infix" "infix")
+	(lambda (_ node _)
+	  (let ((first-inf nil))
+	    (while (string= "infix"
+			    (treesit-node-type
+			     (setq node (treesit-node-parent node))))
+	      (setq first-inf node))
+	    (funcall ,parent-first-child nil first-inf nil)))
+	0)
+       ((node-is "^infix$") ,parent-first-child 0)
+       
        ;; Lambda
-       ((parent-is "lambda") standalone-parent 2)
+       ((parent-is "^lambda$") standalone-parent 2)
 
-       ((parent-is "class_declarations") prev-sibling 0)
+       ((parent-is "^class_declarations$") prev-sibling 0)
+
+       ((node-is "^where$") parent 2)
        
        ;; in
        ((node-is "^in$") parent 0)
        
        ;; list
-       ((node-is "]") parent 0)
-       ((parent-is "list") standalone-parent 2)
+       ((node-is "^]$") parent 0)
+       ((parent-is "^list$") standalone-parent 2)
        
        ;; If then else
-       ((node-is "then") parent 2)
+       ((node-is "^then$") parent 2)
        ((node-is "^else$") parent 2)
 
-       ((parent-is "apply") haskell-ts--stand-alone-parent 1)
-       
-       ((node-is "quasiquote") grand-parent 2)
-       ((parent-is "quasiquote_body") (lambda (_ _ c) c) 0)
+       ((parent-is "^apply$") haskell-ts--stand-alone-parent 1)
+       ((node-is "^quasiquote$") grand-parent 2)
+       ((parent-is "^quasiquote_body$") (lambda (_ _ c) c) 0)
        ((lambda (node parent bol)
 	  (when-let ((n (treesit-node-prev-sibling node)))
 	    (while (string= "comment" (treesit-node-type n))
@@ -211,9 +221,9 @@
 	    (string= "do" (treesit-node-type n))))
 	haskell-ts--stand-alone-parent
 	3)
-       ((parent-is "do") ,p-prev-sib 0)
+       ((parent-is "^do$") ,p-prev-sib 0)
 
-       ((parent-is "alternatives") ,p-prev-sib 0)
+       ((parent-is "^alternatives$") ,p-prev-sib 0)
 
        ;; prev-adaptive-prefix is broken sometimes
        (no-node
@@ -224,7 +234,7 @@
 	    (point)))
 	0)
        
-       ((parent-is "data_constructors") parent 0)
+       ((parent-is "^data_constructors$") parent 0)
 
        ;; where
        ((lambda (node _ _)
@@ -237,7 +247,6 @@
 	  (+ 1 (treesit-node-start (treesit-node-prev-sibling b))))
 	3)
        ((parent-is "local_binds\\|instance_declarations") ,p-prev-sib 0)
-       ((node-is "^where$") parent 2)
 	
        ;; Match
        ((lambda (node _ _)
@@ -246,23 +255,25 @@
 			     (treesit-node-type (funcall ,p-n-prev node)))))
 	standalone-parent 2
 	)
-       ((node-is "match") ,p-prev-sib 0)
-       ((parent-is "match") standalone-parent 2)
-       ((parent-is "haskell") column-0 0)
-       ((parent-is "declarations") column-0 0)
+       
+       ;; ((lambda (_ _ _) (message "HERE") nil))
+       ;; ((node-is "match") ,p-prev-sib 0)
+       ;; ((parent-is "match") standalone-parent 2)
+       ((parent-is "^haskell$") column-0 0)
+       ((parent-is "^declarations$") column-0 0)
+       
+       ((parent-is "^record$") standalone-parent 2)
 
-       ((parent-is "record") standalone-parent 2)
-
-       ((parent-is "exports")
+       ((parent-is "^exports$")
 	(lambda (_ b _) (treesit-node-start (treesit-node-prev-sibling b)))
 	0)
        ((n-p-gp nil "signature" "foreign_import") grand-parent 3)
-       ((parent-is "case") standalone-parent 4)
-       ((node-is "alternatives")
+       ((parent-is "^case$") standalone-parent 4)
+       ((node-is "^alternatives$")
 	(lambda (_ b _)
 	  (treesit-node-start (treesit-node-child b 0)))
 	2)
-       ((node-is "comment")
+       ((node-is "^comment$")
 	;; Indenting comments by priorites:
 	;; 1. next relevent sibling if exists
 	;; 2. previous relevent sibling if exists
