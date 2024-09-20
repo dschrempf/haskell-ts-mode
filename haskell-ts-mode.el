@@ -256,9 +256,9 @@
 	standalone-parent 2
 	)
        
-       ;; ((lambda (_ _ _) (message "HERE") nil))
-       ;; ((node-is "match") ,p-prev-sib 0)
-       ;; ((parent-is "match") standalone-parent 2)
+       ((node-is "match") ,p-prev-sib 0)
+       ((parent-is "match") standalone-parent 2)
+       
        ((parent-is "^haskell$") column-0 0)
        ((parent-is "^declarations$") column-0 0)
        
