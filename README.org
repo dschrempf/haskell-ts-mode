@@ -100,8 +100,10 @@ unicode alternatives.
 set haskell-ts-font-lock-level accordingly.
 
 ** Language server
-haskell-ts-mode is not compatiable with lsp-haskell. To enable eglot
-support, use the following function:
+
+haskell-ts-mode is compatiable with lsp-haskell.
+
+To enable eglot support, use the following code in your init.el:
 #+begin_src emacs-lisp
 (with-eval-after-load 'eglot (haskell-ts-setup-eglot))
 #+end_src
