@@ -162,15 +162,15 @@
 
 (defvar haskell-ts-indent-rules
   (let* ((p-sib
-	 (lambda (node arg)
-	   (let* ((func (if arg
-			   'treesit-node-prev-sibling
-			 'treesit-node-next-sibling))
-		 (n (funcall func	 node)))
-	     (while (and n (string-match (regexp-opt haskell-ts--ignore-types)
-					 (treesit-node-type n)))
-	       (setq n (funcall func n)))
-	     n)))
+	  (lambda (node arg)
+	    (let* ((func (if arg
+			     'treesit-node-prev-sibling
+			   'treesit-node-next-sibling))
+		   (n (funcall func	 node)))
+	      (while (and n (string-match (regexp-opt haskell-ts--ignore-types)
+					  (treesit-node-type n)))
+		(setq n (funcall func n)))
+	      n)))
 	 (p-prev-sib
 	  (lambda (node _ _) (treesit-node-start (funcall p-sib node t))))
 	 (p-n-prev (lambda (node) (funcall p-sib node t)))
@@ -202,6 +202,8 @@
        
        ;; in
        ((node-is "^in$") parent 0)
+       
+       ((parent-is "qualifiers") parent 0)
        
        ;; list
        ((node-is "^]$") parent 0)
@@ -247,7 +249,7 @@
 	  (+ 1 (treesit-node-start (treesit-node-prev-sibling b))))
 	3)
        ((parent-is "local_binds\\|instance_declarations") ,p-prev-sib 0)
-	
+       
        ;; Match
        ((lambda (node _ _)
 	  (and (string= "match" (treesit-node-type node))
@@ -280,11 +282,11 @@
 	;; 3. parent
 	;; (relevent means type not it haskell-ts--ignore-types)
 	(lambda (node parent _)
-	   (if-let ((next-sib (funcall ,p-sib node nil)))
-	       (treesit-node-start next-sib)
-	     (if-let ((prev-sib (funcall ,p-prev-sib node nil nil)))
-	       prev-sib
-	     (treesit-node-start parent))))
+	  (if-let ((next-sib (funcall ,p-sib node nil)))
+	      (treesit-node-start next-sib)
+	    (if-let ((prev-sib (funcall ,p-prev-sib node nil nil)))
+		prev-sib
+	      (treesit-node-start parent))))
 	0)
        ;; Backup
        (catch-all parent 2)))))
