@@ -157,7 +157,7 @@
 					nil)))))
 
 (defvar haskell-ts--ignore-types
-  '("comment" "cpp" "haddock")
+  (regexp-opt '("comment" "cpp" "haddock"))
   "Node types that will be ignored by indentation.")
 
 (defvar haskell-ts-indent-rules
@@ -167,7 +167,7 @@
 			     'treesit-node-prev-sibling
 			   'treesit-node-next-sibling))
 		   (n (funcall func	 node)))
-	      (while (and n (string-match (regexp-opt haskell-ts--ignore-types)
+	      (while (and n (string-match haskell-ts--ignore-types
 					  (treesit-node-type n)))
 		(setq n (funcall func n)))
 	      n)))
@@ -386,7 +386,8 @@
 	      ;; entity is defintion
 	      (cons ".+"
 		    (lambda (node)
-		      (string= "declarations" (treesit-node-type (treesit-node-parent node))))))
+		      (and (not (string-match haskell-ts--ignore-types (treesit-node-type node)))
+			   (string= "declarations" (treesit-node-type (treesit-node-parent node)))))))
   (setq-local prettify-symbols-alist haskell-ts-prettify-symbols-alist)
   ;; Imenu
   (setq-local treesit-simple-imenu-settings
