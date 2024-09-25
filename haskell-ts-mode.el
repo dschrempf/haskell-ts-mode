@@ -255,8 +255,7 @@
 	  (and (string= "match" (treesit-node-type node))
 	       (string-match (regexp-opt '("patterns" "variable"))
 			     (treesit-node-type (funcall ,p-n-prev node)))))
-	standalone-parent 2
-	)
+	standalone-parent 2)
        
        ((node-is "match") ,p-prev-sib 0)
        ((parent-is "match") standalone-parent 2)
