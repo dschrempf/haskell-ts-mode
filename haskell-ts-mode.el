@@ -145,12 +145,13 @@
   (save-excursion
     (goto-char (treesit-node-start parent))
     (let ((type (treesit-node-type parent)))
-	(if (and (looking-back "^[ \t]*" (line-beginning-position))
-		 (not (seq-some
-		       (lambda (kw) 
-			 (string= type kw))
-		       '("when" "where" "do" "let"))))
-	(treesit-node-start parent)
+      (if (and (not bol)
+	       (or (looking-back "^[ \t]*" (line-beginning-position))
+		   (seq-some
+		    (lambda (kw) 
+		      (string= type kw))
+		    '("when" "where" "do" "let" "local_binds" "function"))))
+	  (treesit-node-start parent)
 	(haskell-ts--stand-alone-parent 1 (funcall
 					   (if bol 'treesit-node-parent 'identity)
 					   (treesit-node-parent parent))
@@ -194,7 +195,7 @@
        ((node-is "^infix$") ,parent-first-child 0)
        
        ;; Lambda
-       ((parent-is "^lambda$") standalone-parent 2)
+       ((parent-is "^lambda\\(_case\\)?$") standalone-parent 2)
 
        ((parent-is "^class_declarations$") prev-sibling 0)
 
