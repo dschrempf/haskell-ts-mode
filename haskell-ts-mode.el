@@ -292,47 +292,30 @@
        (catch-all parent 2)))))
 
 ;; Copied from haskell-tng-mode, changed a bit
-(defvar haskell-ts-mode-syntax-table
-  (let ((table (make-syntax-table)))
-    (map-char-table
-     (lambda (k v)
-       ;; reset the (surprisingly numerous) defaults
-       (let ((class (syntax-class v)))
-         (when (seq-contains-p '(1 4 5 6 9) class)
-           (modify-syntax-entry k "_" table))))
-     (char-table-parent table))
-    ;; whitechar
-    (mapc
-     (lambda (it) (modify-syntax-entry it " " table))
-     (string-to-list "\r\n\f\v \t"))
-    ;; ascSymbol
-    (mapc
-     (lambda (it) (modify-syntax-entry it "_" table))
-     (string-to-list "!#$%&*+./<=>?\\^|-~:"))
-    (modify-syntax-entry ?_ "_" table)
-    ;; some special (treated like punctuation)
-    (mapc
-     (lambda (it) (modify-syntax-entry it "." table))
-     (string-to-list ",;@"))
-    ;; apostrophe as a word, not delimiter
-    (modify-syntax-entry ?\' "w" table)
-    ;; string delimiter
-    (modify-syntax-entry ?\" "\"" table)
-    ;; parens and pairs (infix functions)
-    (modify-syntax-entry ?\( "()" table)
-    (modify-syntax-entry ?\) ")(" table)
-    (modify-syntax-entry ?\[ "(]" table)
-    (modify-syntax-entry ?\] ")[" table)
-    (modify-syntax-entry ?\` "$`" table)
 
-    ;; comments (subsuming pragmas)
-    (modify-syntax-entry ?\{  "(}1nb" table)
-    (modify-syntax-entry ?\}  "){4nb" table)
-    (modify-syntax-entry ?-  "_ 123" table)
-    (mapc
-     (lambda (it) (modify-syntax-entry it ">" table))
-     (string-to-list "\r\n\f\v"))
-    table))
+(defvar haskell-ts-mode-syntax-table
+      (let ((table (make-syntax-table)))
+	;; The defaults are mostly fine
+	(mapc
+	 (lambda (ls)
+	   (mapc
+	    (lambda (char)
+	      (modify-syntax-entry char (car ls) table))
+	    (cdr ls)))
+	 '(("_" ?! ?_)
+	   ("w" ?')
+	   ;; Haskell has some goofy comment enders like C-q C-l
+	   (">" 13 10 12 11)
+	   ("_ 123" ?-)
+	   ("(}1nb" ?\{)
+	   ("){4nb" ?\})
+	   ("<" ?#)
+	   (">" ?\n)
+	   ;; Special operaters
+	   ("." ?\, ?\; ?@)
+	   ("\"" ?\")
+	   ("$`"  ?\`)))
+	table))
 
 (defmacro haskell-ts-imenu-name-function (check-func)
   `(lambda (node)
