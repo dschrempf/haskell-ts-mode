@@ -337,11 +337,10 @@
     (indent-region (treesit-node-start node) (treesit-node-end node))))
 
 (defvar haskell-ts-mode-map
-  (let ((km (make-sparse-keymap)))
-    (define-key km (kbd "C-c C-c") 'haskell-ts-compile-region-and-go)
-    (define-key km (kbd "C-c C-r") 'haskell-ts-run-haskell)
-    (define-key km (kbd "C-M-q") 'haskell-ts-indent-defun) ; For those who don't have emacs 30
-    km)
+  (define-keymap
+    "C-c C-c" 'haskell-ts-compile-region-and-go
+    "C-c C-r" 'haskell-ts-run-haskell
+    "C-M-q" 'haskell-ts-indent-defun)
   "Map for haskell-ts-mode.")
 
 ;;;###autoload
@@ -359,10 +358,10 @@
   (setq-local comment-start "-- ")
   (setq-local comment-use-syntax t)
   (setq-local comment-start-skip "\\(?: \\|^\\)-+")
-  ;; Elecric
+  ;; Electric
   (setq-local electric-pair-pairs
 	      '((?` . ?`) (?\( . ?\)) (?{ . ?}) (?\" . ?\") (?\[ . ?\])))
-  ;; Nav
+  ;; Navigation
   (setq-local treesit-defun-name-function 'haskell-ts-defun-name)
   (setq-local treesit-defun-type-regexp
 	      ;; Since haskell is strict functional, any 2nd level
@@ -438,13 +437,6 @@
 
 (defun haskell-ts-haskell-session ()
   (get-buffer-process "*haskell*"))
-
-(defvar eglot-server-programs)
-
-(defun haskell-ts-setup-eglot()
-  (interactive)
-  (add-to-list 'eglot-server-programs
-	       '(haskell-ts-mode . ("haskell-language-server-wrapper" "--lsp"))))
 
 (when (treesit-ready-p 'haskell)
   (add-to-list 'auto-mode-alist '("\\.hs\\'" . haskell-ts-mode)))
