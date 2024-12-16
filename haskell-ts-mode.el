@@ -139,7 +139,7 @@
      (bind (variable) @font-lock-function-name-face)
      (function (infix (infix_id (variable) @font-lock-function-name-face)))
      (bind (as (variable) @font-lock-function-name-face))))
-  "A function that returns the treesit font lock lock settings for haskell.")
+  "The treesitter font lock settings for haskell.")
 
 (defun haskell-ts--stand-alone-parent (_ parent bol)
   (save-excursion
