@@ -26,6 +26,7 @@
 
 ;; This is a major mode that uses treesitter to provide all the basic
 ;; major mode stuff, like indentation, font lock, etc...
+;; It uses the grammer at: https://github.com/tree-sitter/tree-sitter-haskell
 
 ;;; Code:
 
@@ -51,14 +52,16 @@
     (match keyword)
     (otherwise signature type-sig)))
 
+(defcustom haskell-ts-ghci "ghci"
+  "The command to be called to run ghci."
+  :type 'string)
+
 (defcustom haskell-ts-use-indent t
   "Set to non-nil to use the indentation provided by haskell-ts-mode"
-  :group 'haskell-ts-mode
   :type 'boolean)
 
 (defcustom haskell-ts-font-lock-level 4
   "Level of font lock, 1 for minimum highlghting and 4 for maximum."
-  :group 'haskell-ts-mode
   :type 'integer)
 
 (defvar haskell-ts-prettify-symbols-alist
@@ -147,10 +150,7 @@
     (let ((type (treesit-node-type parent)))
       (if (and (not bol)
 	       (or (looking-back "^[ \t]*" (line-beginning-position))
-		   (seq-some
-		    (lambda (kw) 
-		      (string= type kw))
-		    '("when" "where" "do" "let" "local_binds" "function"))))
+		   (member type '("when" "where" "do" "let" "local_binds" "function"))))
 	  (treesit-node-start parent)
 	(haskell-ts--stand-alone-parent 1 (funcall
 					   (if bol 'treesit-node-parent 'identity)
@@ -163,17 +163,17 @@
 
 (defvar haskell-ts-indent-rules
   (let* ((p-sib
-	  (lambda (node arg)
+	  (lambda (node &optional arg)
 	    (let* ((func (if arg
-			     'treesit-node-prev-sibling
-			   'treesit-node-next-sibling))
-		   (n (funcall func	 node)))
+			     #'treesit-node-prev-sibling
+			   #'treesit-node-next-sibling))
+		   (n (funcall func node)))
 	      (while (and n (string-match haskell-ts--ignore-types
 					  (treesit-node-type n)))
 		(setq n (funcall func n)))
 	      n)))
 	 (p-prev-sib
-	  (lambda (node _ _) (treesit-node-start (funcall p-sib node t))))
+	  (lambda (node &optional _ _) (treesit-node-start (funcall p-sib node t))))
 	 (p-n-prev (lambda (node) (funcall p-sib node t)))
 	 (parent-first-child (lambda (_ parent _)
 			       (treesit-node-start (treesit-node-child parent 0)))))
@@ -276,55 +276,54 @@
 	  (treesit-node-start (treesit-node-child b 0)))
 	2)
        ((node-is "^comment$")
-	;; Indenting comments by priorites:
-	;; 1. next relevent sibling if exists
-	;; 2. previous relevent sibling if exists
-	;; 3. parent
-	;; (relevent means type not it haskell-ts--ignore-types)
 	(lambda (node parent _)
-	  (if-let ((next-sib (funcall ,p-sib node nil)))
-	      (treesit-node-start next-sib)
-	    (if-let ((prev-sib (funcall ,p-prev-sib node nil nil)))
-		prev-sib
-	      (treesit-node-start parent))))
+	  (pcase node
+	    ;; (relevent means type not it haskell-ts--ignore-types)
+	    ;; 1. next relevent sibling if exists
+	    ((app ,p-sib (and (pred (not null)) n))
+	     (treesit-node-start n))
+	    ;; 2. previous relevent sibling if exists
+	    ((app ,p-prev-sib (and (pred (not null)) n))
+	     n)
+	    ;; 3. parent
+	    (_ (treesit-node-start parent))))
 	0)
        ;; Backup
-       (catch-all parent 2)))))
+       (catch-all parent 2))))
+  "\"Simple\" treesit indentation rules for haskell.")
 
 ;; Copied from haskell-tng-mode, changed a bit
 
 (defvar haskell-ts-mode-syntax-table
-      (let ((table (make-syntax-table)))
-	;; The defaults are mostly fine
-	(mapc
-	 (lambda (ls)
-	   (mapc
-	    (lambda (char)
-	      (modify-syntax-entry char (car ls) table))
-	    (cdr ls)))
-	 '(("_" ?! ?_)
-	   ("w" ?')
-	   ;; Haskell has some goofy comment enders like C-q C-l
-	   (">" 13 10 12 11)
-	   ("_ 123" ?-)
-	   ("(}1nb" ?\{)
-	   ("){4nb" ?\})
-	   ("<" ?#)
-	   (">" ?\n)
-	   ;; Special operaters
-	   ("." ?\, ?\; ?@)
-	   ("\"" ?\")
-	   ("$`"  ?\`)))
-	table))
+  (eval-when-compile
+    (let ((table (make-syntax-table))
+	  (syntax-list
+	   '(("_" ?! ?_)
+	     ("w" ?')
+	     ;; Haskell has some goofy comment enders like C-q C-l
+	     (">" 13 10 12 11)
+	     ("_ 123" ?-)
+	     ("(}1nb" ?\{)
+	     ("){4nb" ?\})
+	     ("<" ?#)
+	     (">" ?\n)
+	     ;; Special operaters
+	     ("." ?\, ?\; ?@)
+	     ("\"" ?\")
+	     ("$`"  ?\`))))
+      ;; The defaults are mostly fine
+      (dolist (ls syntax-list table)
+	(dolist (char (cdr ls))
+	  (modify-syntax-entry char (car ls) table))))))
 
 (defmacro haskell-ts-imenu-name-function (check-func)
   `(lambda (node)
      (let ((nn (treesit-node-child node 0 node)))
-	 (if (funcall ,check-func node)
-	 (if (string= (treesit-node-type nn) "infix")
-	     (treesit-node-text (treesit-node-child nn 1))
+       (if (funcall ,check-func node)
+	   (if (string= (treesit-node-type nn) "infix")
+	       (treesit-node-text (treesit-node-child nn 1))
 	     (haskell-ts-defun-name node))
-       nil))))
+	 nil))))
 
 (defun haskell-ts-indent-defun (pos)
   "Indent the current function."
@@ -336,12 +335,11 @@
       (setq node (treesit-node-parent node)))
     (indent-region (treesit-node-start node) (treesit-node-end node))))
 
-(defvar haskell-ts-mode-map
-  (define-keymap
-    "C-c C-c" 'haskell-ts-compile-region-and-go
-    "C-c C-r" 'haskell-ts-run-haskell
-    "C-M-q" 'haskell-ts-indent-defun)
-  "Map for haskell-ts-mode.")
+(defvar-keymap  haskell-ts-mode-map
+  :doc "Keymap for haskell-ts-mode."
+  "C-c C-c" 'haskell-ts-compile-region-and-go
+  "C-c C-r" 'haskell-ts-run-haskell
+  "C-M-q" 'haskell-ts-indent-defun)
 
 ;;;###autoload
 (define-derived-mode haskell-ts-mode prog-mode "haskell ts mode"
@@ -431,12 +429,12 @@
 (defun haskell-ts-run-haskell()
   (interactive)
   (pop-to-buffer-same-window
-   (if (comint-check-proc "*haskell*")
-       "*haskell*"
-     (make-comint "haskell" "ghci" nil buffer-file-name))))
+   (if (comint-check-proc "*Inferior Haskell*")
+       "*Inferior haskell*"
+     (make-comint "Inferior haskell" haskell-ts-ghci nil buffer-file-name))))
 
 (defun haskell-ts-haskell-session ()
-  (get-buffer-process "*haskell*"))
+  (get-buffer-process "*Inferior haskell*"))
 
 (when (treesit-ready-p 'haskell)
   (add-to-list 'auto-mode-alist '("\\.hs\\'" . haskell-ts-mode)))
