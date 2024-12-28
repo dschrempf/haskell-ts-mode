@@ -56,13 +56,20 @@
   "The command to be called to run ghci."
   :type 'string)
 
+(defcustom haskell-ts-ghci-buffer-name "Inferior Haskell"
+  "Buffer name for the ghci prcoess."
+  :type 'string)
+
 (defcustom haskell-ts-use-indent t
   "Set to non-nil to use the indentation provided by haskell-ts-mode"
   :type 'boolean)
 
 (defcustom haskell-ts-font-lock-level 4
   "Level of font lock, 1 for minimum highlghting and 4 for maximum."
-  :type 'integer)
+  :type '(choice (const :tag "Minimal Highlighting" 1)
+		 (const :tag "Low Highlighting" 2)
+		 (const :tag "High Highlighting" 3)
+		 (const :tag "Maximum Highlighting" 4)))
 
 (defvar haskell-ts-prettify-symbols-alist
   '(("\\" . "λ")
@@ -150,7 +157,9 @@
     (let ((type (treesit-node-type parent)))
       (if (and (not bol)
 	       (or (looking-back "^[ \t]*" (line-beginning-position))
-		   (member type '("when" "where" "do" "let" "local_binds" "function"))))
+		   (member
+		    type
+		    '("when" "where" "do" "let" "local_binds" "function"))))
 	  (treesit-node-start parent)
 	(haskell-ts--stand-alone-parent 1 (funcall
 					   (if bol 'treesit-node-parent 'identity)
@@ -193,23 +202,23 @@
 	    (funcall ,parent-first-child nil first-inf nil)))
 	0)
        ((node-is "^infix$") ,parent-first-child 0)
-       
+
        ;; Lambda
        ((parent-is "^lambda\\(_case\\)?$") standalone-parent 2)
 
        ((parent-is "^class_declarations$") prev-sibling 0)
 
        ((node-is "^where$") parent 2)
-       
+
        ;; in
        ((node-is "^in$") parent 0)
-       
+
        ((parent-is "qualifiers") parent 0)
-       
+
        ;; list
        ((node-is "^]$") parent 0)
        ((parent-is "^list$") standalone-parent 2)
-       
+
        ;; If then else
        ((node-is "^then$") parent 2)
        ((node-is "^else$") parent 2)
@@ -236,7 +245,7 @@
 	    (back-to-indentation)
 	    (point)))
 	0)
-       
+
        ((parent-is "^data_constructors$") parent 0)
 
        ;; where
@@ -245,25 +254,25 @@
 	    (while (string= "comment" (treesit-node-type n))
 	      (setq n (treesit-node-prev-sibling n)))
 	    (string= "where" (treesit-node-type n))))
-	
+
 	(lambda (_ b _)
 	  (+ 1 (treesit-node-start (treesit-node-prev-sibling b))))
 	3)
        ((parent-is "local_binds\\|instance_declarations") ,p-prev-sib 0)
-       
+
        ;; Match
        ((lambda (node _ _)
 	  (and (string= "match" (treesit-node-type node))
 	       (string-match (regexp-opt '("patterns" "variable"))
 			     (treesit-node-type (funcall ,p-n-prev node)))))
 	standalone-parent 2)
-       
+
        ((node-is "match") ,p-prev-sib 0)
        ((parent-is "match") standalone-parent 2)
-       
+
        ((parent-is "^haskell$") column-0 0)
        ((parent-is "^declarations$") column-0 0)
-       
+
        ((parent-is "^record$") standalone-parent 2)
 
        ((parent-is "^exports$")
@@ -338,7 +347,7 @@
 (defvar-keymap  haskell-ts-mode-map
   :doc "Keymap for haskell-ts-mode."
   "C-c C-c" 'haskell-ts-compile-region-and-go
-  "C-c C-r" 'haskell-ts-run-haskell
+  "C-c C-r" 'run-haskell
   "C-M-q" 'haskell-ts-indent-defun)
 
 ;;;###autoload
@@ -421,20 +430,24 @@
 (defun haskell-ts-compile-region-and-go (start end)
   "Compile the text from START to END in the haskell proc."
   (interactive "r")
-  (let ((hs (haskell-ts-haskell-session)))
+  (let ((hs (haskell-ts-haskell-session))
+	(str (buffer-substring-no-properties
+	      start end)))
     (comint-send-string hs ":{\n")
-    (comint-send-region hs start end)
+    (comint-send-string
+     hs
+     (replace-regexp-in-string "^:\\}" "\\:}" str nil t))
     (comint-send-string hs "\n:}\n")))
 
-(defun haskell-ts-run-haskell()
+(defun run-haskell ()
   (interactive)
   (pop-to-buffer-same-window
-   (if (comint-check-proc "*Inferior Haskell*")
-       "*Inferior haskell*"
-     (make-comint "Inferior haskell" haskell-ts-ghci nil buffer-file-name))))
+   (if (comint-check-proc (concat "*" haskell-ts-ghci-buffer-name "*"))
+       haskell-ts-ghci-buffer-name
+     (make-comint haskell-ts-ghci-buffer-name haskell-ts-ghci nil buffer-file-name))))
 
 (defun haskell-ts-haskell-session ()
-  (get-buffer-process "*Inferior haskell*"))
+  (get-buffer-process (concat "*" haskell-ts-ghci-buffer-name "*")))
 
 (when (treesit-ready-p 'haskell)
   (add-to-list 'auto-mode-alist '("\\.hs\\'" . haskell-ts-mode)))
