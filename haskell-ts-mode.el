@@ -334,21 +334,11 @@
 	     (haskell-ts-defun-name node))
 	 nil))))
 
-(defun haskell-ts-indent-defun (pos)
-  "Indent the current function."
-  (interactive "d")
-  (let ((node (treesit-node-at pos)))
-    (while (not (string-match
-		 "^declarations$\\|haskell"
-		 (treesit-node-type (treesit-node-parent node))))
-      (setq node (treesit-node-parent node)))
-    (indent-region (treesit-node-start node) (treesit-node-end node))))
-
 (defvar-keymap  haskell-ts-mode-map
   :doc "Keymap for haskell-ts-mode."
   "C-c C-c" 'haskell-ts-compile-region-and-go
   "C-c C-r" 'run-haskell
-  "C-M-q" 'haskell-ts-indent-defun)
+   'haskell-ts-indent-defun)
 
 ;;;###autoload
 (define-derived-mode haskell-ts-mode prog-mode "haskell ts mode"
