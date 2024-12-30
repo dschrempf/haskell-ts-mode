@@ -337,8 +337,7 @@
 (defvar-keymap  haskell-ts-mode-map
   :doc "Keymap for haskell-ts-mode."
   "C-c C-c" 'haskell-ts-compile-region-and-go
-  "C-c C-r" 'run-haskell
-   'haskell-ts-indent-defun)
+  "C-c C-r" 'run-haskell)
 
 ;;;###autoload
 (define-derived-mode haskell-ts-mode prog-mode "haskell ts mode"
