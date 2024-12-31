@@ -429,11 +429,13 @@
     (comint-send-string hs "\n:}\n")))
 
 (defun run-haskell ()
+  "Run an inferior Haskell process."
   (interactive)
-  (pop-to-buffer-same-window
-   (if (comint-check-proc (concat "*" haskell-ts-ghci-buffer-name "*"))
-       haskell-ts-ghci-buffer-name
-     (make-comint haskell-ts-ghci-buffer-name haskell-ts-ghci nil buffer-file-name))))
+  (let ((buffer (concat "*" haskell-ts-ghci-buffer-name "*")))
+    (pop-to-buffer-same-window
+     (if (comint-check-proc buffer)
+         buffer
+       (make-comint haskell-ts-ghci-buffer-name haskell-ts-ghci nil buffer-file-name)))))
 
 (defun haskell-ts-haskell-session ()
   (get-buffer-process (concat "*" haskell-ts-ghci-buffer-name "*")))
