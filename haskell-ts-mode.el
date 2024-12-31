@@ -367,6 +367,7 @@
 		      (and (not (string-match haskell-ts--ignore-types (treesit-node-type node)))
 			   (string= "declarations" (treesit-node-type (treesit-node-parent node)))))))
   (setq-local prettify-symbols-alist haskell-ts-prettify-symbols-alist)
+  
   ;; Imenu
   (setq-local treesit-simple-imenu-settings
 	      `((nil haskell-ts-imenu-func-node-p nil
