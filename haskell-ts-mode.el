@@ -162,7 +162,7 @@
 		    '("when" "where" "do" "let" "local_binds" "function"))))
 	  (treesit-node-start parent)
 	(haskell-ts--stand-alone-parent 1 (funcall
-					   (if bol 'treesit-node-parent 'identity)
+					   (if bol #'treesit-node-parent #'identity)
 					   (treesit-node-parent parent))
 					nil)))))
 
@@ -336,8 +336,8 @@
 
 (defvar-keymap  haskell-ts-mode-map
   :doc "Keymap for haskell-ts-mode."
-  "C-c C-c" 'haskell-ts-compile-region-and-go
-  "C-c C-r" 'run-haskell)
+  "C-c C-c" #'haskell-ts-compile-region-and-go
+  "C-c C-r" #'run-haskell)
 
 ;;;###autoload
 (define-derived-mode haskell-ts-mode prog-mode "haskell ts mode"
