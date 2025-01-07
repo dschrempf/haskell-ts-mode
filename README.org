@@ -26,6 +26,7 @@ must manually press M-i to indent.
 
 an overview of the features are:
 - Syntax highliting
+- Structural navigation
 - Indentation
 - Imenu support
 - REPL (C-c r in the mode to run)
@@ -61,6 +62,20 @@ very complex and required a web of dependencies.
 
 Both these modes ended up practically parsing haskells syntax to
 implement indentation, so I thought why not use tree sitter?
+
+* Structural navigation
+
+This mode provides strucural navigation, for emacs 30+.
+
+#+begin_src haskell
+  combs (x:xs) = map (x:) c ++ c
+    where c = combs xs
+#+end_src
+
+In the above code, if the pointer is right in front of the function
+defintion =combs=, and you do C-M-f (~forward-sexp~), it will take you to
+the end of the second line.
+
 
 * Installation
 
