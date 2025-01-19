@@ -409,7 +409,7 @@
       (put-text-property
        (treesit-node-start node)
        (treesit-node-end node)
-       'face font-lock-variable-name-face)
+       'face 'font-lock-variable-name-face)
     (mapc 'haskell-ts--fontify-arg (treesit-node-children node))))
 
 (defun haskell-ts--fontify-type (node &optional _ _ _)
@@ -419,7 +419,7 @@
       (put-text-property
        (treesit-node-start last-child)
        (treesit-node-end last-child)
-       'face font-lock-variable-name-face))))
+       'face 'font-lock-variable-name-face))))
 
 (defun haskell-ts-imenu-node-p (regex node)
   (and (string-match-p regex (treesit-node-type node))
