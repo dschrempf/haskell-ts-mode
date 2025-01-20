@@ -449,6 +449,7 @@
      (replace-regexp-in-string "^:\\}" "\\:}" str nil t))
     (comint-send-string hs "\n:}\n")))
 
+;;;###autoload
 (defun run-haskell ()
   "Run an inferior Haskell process."
   (interactive)
