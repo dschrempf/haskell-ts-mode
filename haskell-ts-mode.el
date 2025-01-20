@@ -46,12 +46,6 @@
   "Group that contains haskell-ts-mode variables"
   :group 'langs)
 
-(defvar haskell-ts-font-lock-feature-list
-  `((comment str pragma parens)
-    (type definition function args)
-    (match keyword)
-    (otherwise signature type-sig)))
-
 (defcustom haskell-ts-ghci "ghci"
   "The command to be called to run ghci."
   :type 'string)
@@ -70,6 +64,18 @@
 		 (const :tag "Low Highlighting" 2)
 		 (const :tag "High Highlighting" 3)
 		 (const :tag "Maximum Highlighting" 4)))
+
+(defcustom haskell-ts-prettify-words nil
+  "Prettify some words to unicode symbols.
+This will concat `haskell-ts-prettify-symbols-words' to
+`prettify-symbols-alist' in `haskell-ts-mode'."
+  :type 'boolean)
+
+(defvar haskell-ts-font-lock-feature-list
+  `((comment str pragma parens)
+    (type definition function args)
+    (match keyword)
+    (otherwise signature type-sig)))
 
 (defvar haskell-ts-prettify-symbols-alist
   '(("\\" . "λ")
@@ -104,12 +110,6 @@ alternative unicode character.")
   "Additional symbols to prettify for `haskell-ts-mode'.
 This is added to `prettify-symbols-alist' for `haskell-ts-mode' buffers
 when `haskell-ts-prettify-words' is non-nil.")
-
-(defcustom haskell-ts-prettify-words nil
-  "Prettify some words to unicode symbols.
-This will concat `haskell-ts-prettify-symbols-words' to
-`prettify-symbols-alist' in `haskell-ts-mode'."
-  :type 'boolean)
 
 (defvar haskell-ts-font-lock
   (treesit-font-lock-rules
