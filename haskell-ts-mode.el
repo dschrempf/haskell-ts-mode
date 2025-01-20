@@ -83,8 +83,14 @@
     ("/>" . "≯")
     ("&&" . "∧")
     ("||" . "∨")
-    ("==" . "≡")
-    ("forall"		. "∀")
+    ("==" . "≡"))
+  "`prettify-symbols-alist' for `haskell-ts-mode'.
+This variable contains all the symbol for `haskell-ts-mode' to unicode
+character.  See `haskell-ts-prettify-words-alist' for mappign words to
+alternative unicode character.")
+
+(defvar haskell-ts-prettify-words-alist
+  '(("forall"		. "∀")
     ("exists"		. "∃")
     ("elem"		. "∈")
     ("notElem"		. "∉")
@@ -94,7 +100,16 @@
     ("intersection"	. "∩")
     ("isSubsetOf"	. "⊆")
     ("isProperSubsetOf" . "⊂")
-    ("mempty"           . "∅")))
+    ("mempty"           . "∅"))
+  "Additional symbols to prettify for `haskell-ts-mode'.
+This is added to `prettify-symbols-alist' for `haskell-ts-mode' buffers
+when `haskell-ts-prettify-words' is non-nil.")
+
+(defcustom haskell-ts-prettify-words nil
+  "Prettify some words to unicode symbols.
+This will concat `haskell-ts-prettify-symbols-words' to
+`prettify-symbols-alist' in `haskell-ts-mode'."
+  :type 'boolean)
 
 (defvar haskell-ts-font-lock
   (treesit-font-lock-rules
@@ -402,7 +417,10 @@
 		    (lambda (node)
 		      (and (not (string-match haskell-ts--ignore-types (treesit-node-type node)))
 			   (string= "declarations" (treesit-node-type (treesit-node-parent node)))))))
-  (setq-local prettify-symbols-alist haskell-ts-prettify-symbols-alist)
+  (setq-local prettify-symbols-alist
+	      (append haskell-ts-prettify-symbols-alist
+		      (and haskell-ts-prettify-words
+			   haskell-ts-prettify-words-alist)))
   
   ;; Imenu
   (setq-local treesit-simple-imenu-settings
