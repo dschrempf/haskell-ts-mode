@@ -73,7 +73,7 @@ This will concat `haskell-ts-prettify-symbols-words' to
 
 (defvar haskell-ts-font-lock-feature-list
   `((comment str pragma parens)
-    (type definition function args module import)
+    (type definition function args module import operator)
     (match keyword)
     (otherwise signature type-sig)))
 
@@ -124,13 +124,22 @@ when `haskell-ts-prettify-words' is non-nil.")
    `(((match (guards guard: (boolean (variable) @font-lock-keyword-face)))
       (:match "otherwise" @font-lock-keyword-face)))
 
+   ;; TODO: It is weird that we use operator face for parenthesses and also for operators.
+   ;;   I see two other, possibly better solutions:
+   ;;   1. Use delimiter face for parenthesses, ::, -> and similar, and operator face for operators.
+   ;;   2. Keep using operator face for parenthesses and co, but use function call face for operators (since they are functions at the end).
+   :language 'haskell
+   :feature 'operator
+   '((operator) @font-lock-operator-face)
+
    :language 'haskell
    :feature 'module
    '((module (module_id) @font-lock-type-face))
 
    :language 'haskell
    :feature 'import
-   '((import ["qualified" "as"] @font-lock-keyword-face))
+   '((import ["qualified" "as"] @font-lock-keyword-face)
+     (import names: (import_list name: (import_name) @haskell-ts--fontify-type)))
 
    :language 'haskell
    :feature 'type-sig
@@ -148,7 +157,9 @@ when `haskell-ts-prettify-words' is non-nil.")
    :language 'haskell
    :feature 'type
    `((type) @font-lock-type-face
-     (constructor) @font-lock-type-face)
+     (constructor) @font-lock-type-face
+     (declarations (type_synomym (name) @font-lock-type-face))
+     (declarations (data_type name: (name) @font-lock-type-face)))
    :language 'haskell
    :override t
    :feature 'signature
