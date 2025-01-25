@@ -116,7 +116,7 @@ when `haskell-ts-prettify-words' is non-nil.")
    :language 'haskell
    :feature 'keyword
    `(["module" "import" "data" "let" "where" "case" "type"
-      "if" "then" "else" "of" "do" "in" "instance" "class", "newtype"]
+      "if" "then" "else" "of" "do" "in" "instance" "class" "newtype"]
      @font-lock-keyword-face)
    :language 'haskell
    :feature 'otherwise
