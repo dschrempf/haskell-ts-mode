@@ -73,7 +73,7 @@ This will concat `haskell-ts-prettify-symbols-words' to
 
 (defvar haskell-ts-font-lock-feature-list
   `((comment str pragma parens)
-    (type definition function args)
+    (type definition function args module import)
     (match keyword)
     (otherwise signature type-sig)))
 
@@ -116,13 +116,22 @@ when `haskell-ts-prettify-words' is non-nil.")
    :language 'haskell
    :feature 'keyword
    `(["module" "import" "data" "let" "where" "case" "type"
-      "if" "then" "else" "of" "do" "in" "instance" "class"]
+      "if" "then" "else" "of" "do" "in" "instance" "class", "newtype"]
      @font-lock-keyword-face)
    :language 'haskell
    :feature 'otherwise
    :override t
    `(((match (guards guard: (boolean (variable) @font-lock-keyword-face)))
       (:match "otherwise" @font-lock-keyword-face)))
+
+   :language 'haskell
+   :feature 'module
+   '((module (module_id) @font-lock-type-face))
+
+   :language 'haskell
+   :feature 'import
+   '((import ["qualified" "as"] @font-lock-keyword-face))
+
    :language 'haskell
    :feature 'type-sig
    "(signature (binding_list (variable) @font-lock-doc-markup-face))
@@ -144,7 +153,8 @@ when `haskell-ts-prettify-words' is non-nil.")
    :override t
    :feature 'signature
    `((signature (function) @haskell-ts--fontify-type)
-     (context (function) @haskell-ts--fontify-type))
+     (context (function) @haskell-ts--fontify-type)
+     (signature "::" @font-lock-operator-face))
    :language 'haskell
    :feature 'match
    `((match ("|" @font-lock-doc-face) ("=" @font-lock-doc-face))
@@ -179,7 +189,8 @@ when `haskell-ts-prettify-words' is non-nil.")
      (declarations (type_synomym (name) @font-lock-function-name-face))
      (bind (variable) @font-lock-function-name-face)
      (function (infix (infix_id (variable) @font-lock-function-name-face)))
-     (bind (as (variable) @font-lock-function-name-face))))
+     (bind (as (variable) @font-lock-function-name-face))
+     (function arrow: _ @font-lock-operator-face)))
   "The treesitter font lock settings for haskell.")
 
 (defun haskell-ts--stand-alone-parent (_ parent bol)
