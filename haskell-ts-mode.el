@@ -197,7 +197,6 @@ when `haskell-ts-prettify-words' is non-nil.")
    :override t
    `((function name: (variable) @font-lock-function-name-face)
      (function (infix (operator)  @font-lock-function-name-face))
-     (declarations (type_synomym (name) @font-lock-function-name-face))
      (bind (variable) @font-lock-function-name-face)
      (function (infix (infix_id (variable) @font-lock-function-name-face)))
      (bind (as (variable) @font-lock-function-name-face))
