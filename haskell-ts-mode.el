@@ -67,7 +67,7 @@
 
 (defcustom haskell-ts-prettify-words nil
   "Prettify some words to unicode symbols.
-This will concat `haskell-ts-prettify-symbols-words' to
+This will concat `haskell-ts-prettify-words-alist' to
 `prettify-symbols-alist' in `haskell-ts-mode'."
   :type 'boolean)
 

@@ -16,7 +16,7 @@ The above screenshot is indented and coloured using =haskell-ts-mode=, with
 
 - =C-c C-r= Open REPL
 - =C-c C-c= Send code to REPL
-- =C-M-q=   Indent the function
+- =M-q=   Indent the function
 
 * Features
 
@@ -77,8 +77,8 @@ the end of the second line.
 
 * Installation
 
-The package is avaiable on [[https://elpa.nongnu.org/nongnu/haskell-ts-mode.html][NonGnu ELPA]], you can install it using:
-: M-x package-install RET haskell-ts-mode RET
+The package is avaiable on [[https://elpa.nongnu.org/nongnu/haskell-ts-mode.html][NonGnu ELPA]], you can install it using: ~M-x
+package-install RET haskell-ts-mode RET~
 
 #+begin_src elisp
 (add-to-list 'load-path "path/to/haskell-ts-mode")
@@ -118,6 +118,12 @@ To add =eglot= support, add the following code to your =init.el=:
     (add-to-list 'eglot-server-programs
   	       '(haskell-ts-mode . ("haskell-language-server-wrapper" "--lsp"))))
 #+end_src
+
+** Prettify sybmols mode
+
+Turning on =prettify-symbols-mode= does stuff like turn ~->~ to ~→~. If you
+want to prettify words, set =haskell-ts-prettify-words= to non-nil.
+This will do stuff like prettify ~forall~ into ~∀~ and ~elem~ to ~∈~.
 
 * TODO
 - Imenu support for functions with multiple definitions.
