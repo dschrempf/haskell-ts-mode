@@ -138,8 +138,7 @@ when `haskell-ts-prettify-words' is non-nil.")
 
    :language 'haskell
    :feature 'import
-   '((import ["qualified" "as"] @font-lock-keyword-face)
-     (import names: (import_list name: (import_name) @haskell-ts--fontify-type)))
+   '((import ["qualified" "as"] @font-lock-keyword-face))
 
    :language 'haskell
    :feature 'type-sig
