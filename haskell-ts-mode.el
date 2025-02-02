@@ -127,7 +127,9 @@ when `haskell-ts-prettify-words' is non-nil.")
    ;; TODO: It is weird that we use operator face for parenthesses and also for operators.
    ;;   I see two other, possibly better solutions:
    ;;   1. Use delimiter face for parenthesses, ::, -> and similar, and operator face for operators.
-   ;;   2. Keep using operator face for parenthesses and co, but use function call face for operators (since they are functions at the end).
+   ;;   2. Keep using operator face for parenthesses and co, but use
+   ;;   function call face for operators (since they are functions at
+   ;;   the end).
    :language 'haskell
    :feature 'operator
    '((operator) @font-lock-operator-face)
@@ -142,43 +144,48 @@ when `haskell-ts-prettify-words' is non-nil.")
 
    :language 'haskell
    :feature 'type-sig
-   "(signature (binding_list (variable) @font-lock-doc-markup-face))
-    (signature (variable) @font-lock-doc-markup-face)"
+   '((signature (binding_list (variable) @font-lock-doc-markup-face))
+     (signature (variable) @font-lock-doc-markup-face))
+
    :language 'haskell
    :feature 'args
    :override 'keep
-   (concat
-    "(function (infix left_operand: (_) @haskell-ts--fontify-arg))"
-    "(function (infix right_operand: (_) @haskell-ts--fontify-arg))"
-    "(generator . (_) @haskell-ts--fontify-arg)"
-    "(bind (as (variable) . (_) @haskell-ts--fontify-arg))"
-    "(patterns) @haskell-ts--fontify-arg")
+   '((function (infix left_operand: (_) @haskell-ts--fontify-arg))
+     (function (infix right_operand: (_) @haskell-ts--fontify-arg))
+     (generator :anchor (_) @haskell-ts--fontify-arg)
+     (patterns) @haskell-ts--fontify-arg)
+
    :language 'haskell
    :feature 'type
-   `((type) @font-lock-type-face
+   '((type) @font-lock-type-face
      (constructor) @font-lock-type-face
      (declarations (type_synomym (name) @font-lock-type-face))
      (declarations (data_type name: (name) @font-lock-type-face)))
+   
    :language 'haskell
    :override t
    :feature 'signature
-   `((signature (function) @haskell-ts--fontify-type)
+   '((signature (function) @haskell-ts--fontify-type)
      (context (function) @haskell-ts--fontify-type)
      (signature "::" @font-lock-operator-face))
+   
    :language 'haskell
    :feature 'match
    `((match ("|" @font-lock-doc-face) ("=" @font-lock-doc-face))
      (list_comprehension ("|" @font-lock-doc-face
 			  (qualifiers (generator "<-" @font-lock-doc-face))))
      (match ("->" @font-lock-doc-face)))
+   
    :language 'haskell
    :feature 'comment
    `(((comment) @font-lock-comment-face)
      ((haddock) @font-lock-doc-face))
+   
    :language 'haskell
    :feature 'pragma
    `((pragma) @font-lock-preprocessor-face
      (cpp) @font-lock-preprocessor-face)
+   
    :language 'haskell
    :feature 'str
    :override t
@@ -186,19 +193,20 @@ when `haskell-ts-prettify-words' is non-nil.")
      (string) @font-lock-string-face
      (quasiquote (quoter) @font-lock-type-face)
      (quasiquote (quasiquote_body) @font-lock-preprocessor-face))
+   
    :language 'haskell
    :feature 'parens
    :override t
    `(["(" ")" "[" "]"] @font-lock-operator-face
      (infix operator: (_) @font-lock-operator-face))
+   
    :language 'haskell
    :feature 'function
    :override t
-   `((function name: (variable) @font-lock-function-name-face)
+   '((function name: (variable) @font-lock-function-name-face)
      (function (infix (operator)  @font-lock-function-name-face))
-     (bind (variable) @font-lock-function-name-face)
      (function (infix (infix_id (variable) @font-lock-function-name-face)))
-     (bind (as (variable) @font-lock-function-name-face))
+     (bind :anchor (_) @haskell-ts--fontify-params)
      (function arrow: _ @font-lock-operator-face)))
   "The treesitter font lock settings for haskell.")
 
@@ -441,7 +449,7 @@ when `haskell-ts-prettify-words' is non-nil.")
 	      (append haskell-ts-prettify-symbols-alist
 		      (and haskell-ts-prettify-words
 			   haskell-ts-prettify-words-alist)))
-  
+
   ;; Imenu
   (setq-local treesit-simple-imenu-settings
 	      `((nil haskell-ts-imenu-func-node-p nil
@@ -458,13 +466,20 @@ when `haskell-ts-prettify-words' is non-nil.")
 	      haskell-ts-font-lock-feature-list)
   (treesit-major-mode-setup))
 
-(defun haskell-ts--fontify-arg (node &optional _ _ _)
+(defun haskell-ts--fontify-func (node face)
   (if (string= "variable" (treesit-node-type node))
       (put-text-property
        (treesit-node-start node)
        (treesit-node-end node)
-       'face 'font-lock-variable-name-face)
-    (mapc 'haskell-ts--fontify-arg (treesit-node-children node))))
+       'face face)
+    (mapc (lambda (n) (haskell-ts--fontify-func n face))
+	  (treesit-node-children node))))
+
+(defun haskell-ts--fontify-arg (node &optional _ _ _)
+  (haskell-ts--fontify-func node 'font-lock-variable-name-face))
+
+(defun haskell-ts--fontify-params (node &optional _ _ _)
+  (haskell-ts--fontify-func node 'font-lock-function-name-face))
 
 (defun haskell-ts--fontify-type (node &optional _ _ _)
   (let ((last-child (treesit-node-child node -1)))
@@ -510,7 +525,7 @@ when `haskell-ts-prettify-words' is non-nil.")
   (let ((buffer (concat "*" haskell-ts-ghci-buffer-name "*")))
     (pop-to-buffer-same-window
      (if (comint-check-proc buffer)
-         buffer
+	 buffer
        (make-comint haskell-ts-ghci-buffer-name haskell-ts-ghci nil buffer-file-name)))))
 
 (defun haskell-ts-haskell-session ()
