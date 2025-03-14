@@ -363,26 +363,27 @@ when `haskell-ts-prettify-words' is non-nil.")
 (defvar haskell-ts-mode-syntax-table
   (eval-when-compile
     (let ((table (make-syntax-table))
-	  (syntax-list
-	   `((" " ?\  ?\t)
+	  (imenu-syntax-list
+	   `((" " " \t\n\r\f\v")
+	     ("_" "!#$%&*+./<=>?\\^|-~:")
+	     ("w" ?_ ?\')
+	     ("." ",:@")
 	     ("\"" ?\")
-	     ("_" ?\' ?_)
 	     ("()" ?\()
 	     (")(" ?\))
 	     ("(]" ?\[)
 	     (")[" ?\])
-	     ("(}1nb" ?\{)
-	     ("){4nb" ?\})
-	     ("< 123" ?-)
-	     ("<" ?\n)
 	     ("$`" ?\`)
-	     ,(cons
-	       "."
-	       (string-to-list "!#$%&*+./:<=>?@^|~,;\\")))))
-      ;; The defaults are mostly fine
-      (dolist (ls syntax-list table)
-	(dolist (char (cdr ls))
-	  (modify-syntax-entry char (car ls) table))))))
+	     ("(}1nb" ?\{ )
+	     ("){4nb" ?\} )
+	     ("_ 123" ?- )
+	     (">" "\r\n\f\v"))))
+      (dolist (ls imenu-syntax-list table)
+	(dolist (char (if (stringp (cadr ls))
+			  (string-to-list (cadr ls))
+			(cdr ls)))
+	  (modify-syntax-entry char (car ls) table)))))
+  "The syntax table for haskell.")
 
 (defun haskell-ts-sexp (node)
   "Returns non-nil on a sexp node."
