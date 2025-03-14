@@ -61,9 +61,9 @@
 (defcustom haskell-ts-font-lock-level 4
   "Level of font lock, 1 for minimum highlghting and 4 for maximum."
   :type '(choice (const :tag "Minimal Highlighting" 1)
-		 (const :tag "Low Highlighting" 2)
-		 (const :tag "High Highlighting" 3)
-		 (const :tag "Maximum Highlighting" 4)))
+                 (const :tag "Low Highlighting" 2)
+                 (const :tag "High Highlighting" 3)
+                 (const :tag "Maximum Highlighting" 4)))
 
 (defcustom haskell-ts-prettify-words nil
   "Prettify some words to unicode symbols.
@@ -96,15 +96,15 @@ character.  See `haskell-ts-prettify-words-alist' for mappign words to
 alternative unicode character.")
 
 (defvar haskell-ts-prettify-words-alist
-  '(("forall"		. "∀")
-    ("exists"		. "∃")
-    ("elem"		. "∈")
-    ("notElem"		. "∉")
-    ("member"		. "∈")
-    ("notMember"	. "∉")
-    ("union"		. "∪")
-    ("intersection"	. "∩")
-    ("isSubsetOf"	. "⊆")
+  '(("forall"           . "∀")
+    ("exists"           . "∃")
+    ("elem"             . "∈")
+    ("notElem"          . "∉")
+    ("member"           . "∈")
+    ("notMember"        . "∉")
+    ("union"            . "∪")
+    ("intersection"     . "∩")
+    ("isSubsetOf"       . "⊆")
     ("isProperSubsetOf" . "⊂")
     ("mempty"           . "∅"))
   "Additional symbols to prettify for `haskell-ts-mode'.
@@ -173,7 +173,7 @@ when `haskell-ts-prettify-words' is non-nil.")
    :feature 'match
    `((match ("|" @font-lock-doc-face) ("=" @font-lock-doc-face))
      (list_comprehension ("|" @font-lock-doc-face
-			  (qualifiers (generator "<-" @font-lock-doc-face))))
+                          (qualifiers (generator "<-" @font-lock-doc-face))))
      (match ("->" @font-lock-doc-face)))
    
    :language 'haskell
@@ -215,15 +215,15 @@ when `haskell-ts-prettify-words' is non-nil.")
     (goto-char (treesit-node-start parent))
     (let ((type (treesit-node-type parent)))
       (if (and (not bol)
-	       (or (looking-back "^[ \t]*" (line-beginning-position))
-		   (member
-		    type
-		    '("when" "where" "do" "let" "local_binds" "function"))))
-	  (treesit-node-start parent)
-	(haskell-ts--stand-alone-parent 1 (funcall
-					   (if bol #'treesit-node-parent #'identity)
-					   (treesit-node-parent parent))
-					nil)))))
+               (or (looking-back "^[ \t]*" (line-beginning-position))
+                   (member
+                    type
+                    '("when" "where" "do" "let" "local_binds" "function"))))
+          (treesit-node-start parent)
+        (haskell-ts--stand-alone-parent 1 (funcall
+                                           (if bol #'treesit-node-parent #'identity)
+                                           (treesit-node-parent parent))
+                                        nil)))))
 
 (defvar haskell-ts--ignore-types
   (regexp-opt '("comment" "cpp" "haddock"))
@@ -231,20 +231,20 @@ when `haskell-ts-prettify-words' is non-nil.")
 
 (defvar haskell-ts-indent-rules
   (let* ((p-sib
-	  (lambda (node &optional arg)
-	    (let* ((func (if arg
-			     #'treesit-node-prev-sibling
-			   #'treesit-node-next-sibling))
-		   (n (funcall func node)))
-	      (while (and n (string-match haskell-ts--ignore-types
-					  (treesit-node-type n)))
-		(setq n (funcall func n)))
-	      n)))
-	 (p-prev-sib
-	  (lambda (node &optional _ _) (treesit-node-start (funcall p-sib node t))))
-	 (p-n-prev (lambda (node) (funcall p-sib node t)))
-	 (parent-first-child (lambda (_ parent _)
-			       (treesit-node-start (treesit-node-child parent 0)))))
+          (lambda (node &optional arg)
+            (let* ((func (if arg
+                             #'treesit-node-prev-sibling
+                           #'treesit-node-next-sibling))
+                   (n (funcall func node)))
+              (while (and n (string-match haskell-ts--ignore-types
+                                          (treesit-node-type n)))
+                (setq n (funcall func n)))
+              n)))
+         (p-prev-sib
+          (lambda (node &optional _ _) (treesit-node-start (funcall p-sib node t))))
+         (p-n-prev (lambda (node) (funcall p-sib node t)))
+         (parent-first-child (lambda (_ parent _)
+                               (treesit-node-start (treesit-node-child parent 0)))))
     `((haskell
        ((node-is "^cpp$") column-0 0)
        ((parent-is "^comment$") column-0 0)
@@ -252,14 +252,14 @@ when `haskell-ts-prettify-words' is non-nil.")
        ((parent-is "^imports$") column-0 0)
        ;; Infix
        ((n-p-gp nil "infix" "infix")
-	(lambda (_ node _)
-	  (let ((first-inf nil))
-	    (while (string= "infix"
-			    (treesit-node-type
-			     (setq node (treesit-node-parent node))))
-	      (setq first-inf node))
-	    (funcall ,parent-first-child nil first-inf nil)))
-	0)
+        (lambda (_ node _)
+          (let ((first-inf nil))
+            (while (string= "infix"
+                            (treesit-node-type
+                             (setq node (treesit-node-parent node))))
+              (setq first-inf node))
+            (funcall ,parent-first-child nil first-inf nil)))
+        0)
        ((node-is "^infix$") ,parent-first-child 0)
 
        ;; Lambda
@@ -286,45 +286,45 @@ when `haskell-ts-prettify-words' is non-nil.")
        ((node-is "^quasiquote$") grand-parent 2)
        ((parent-is "^quasiquote_body$") (lambda (_ _ c) c) 0)
        ((lambda (node parent bol)
-	  (when-let ((n (treesit-node-prev-sibling node)))
-	    (while (string= "comment" (treesit-node-type n))
-	      (setq n (treesit-node-prev-sibling n)))
-	    (string= "do" (treesit-node-type n))))
-	haskell-ts--stand-alone-parent
-	3)
+          (when-let ((n (treesit-node-prev-sibling node)))
+            (while (string= "comment" (treesit-node-type n))
+              (setq n (treesit-node-prev-sibling n)))
+            (string= "do" (treesit-node-type n))))
+        haskell-ts--stand-alone-parent
+        3)
        ((parent-is "^do$") ,p-prev-sib 0)
 
        ((parent-is "^alternatives$") ,p-prev-sib 0)
 
        ;; prev-adaptive-prefix is broken sometimes
        (no-node
-	(lambda (_ _ _)
-	  (save-excursion
-	    (goto-char (line-beginning-position 0))
-	    (back-to-indentation)
-	    (point)))
-	0)
+        (lambda (_ _ _)
+          (save-excursion
+            (goto-char (line-beginning-position 0))
+            (back-to-indentation)
+            (point)))
+        0)
 
        ((parent-is "^data_constructors$") parent 0)
 
        ;; where
        ((lambda (node _ _)
-	  (let ((n (treesit-node-prev-sibling node)))
-	    (while (string= "comment" (treesit-node-type n))
-	      (setq n (treesit-node-prev-sibling n)))
-	    (string= "where" (treesit-node-type n))))
+          (let ((n (treesit-node-prev-sibling node)))
+            (while (string= "comment" (treesit-node-type n))
+              (setq n (treesit-node-prev-sibling n)))
+            (string= "where" (treesit-node-type n))))
 
-	(lambda (_ b _)
-	  (+ 1 (treesit-node-start (treesit-node-prev-sibling b))))
-	3)
+        (lambda (_ b _)
+          (+ 1 (treesit-node-start (treesit-node-prev-sibling b))))
+        3)
        ((parent-is "local_binds\\|instance_declarations") ,p-prev-sib 0)
 
        ;; Match
        ((lambda (node _ _)
-	  (and (string= "match" (treesit-node-type node))
-	       (string-match (regexp-opt '("patterns" "variable"))
-			     (treesit-node-type (funcall ,p-n-prev node)))))
-	standalone-parent 2)
+          (and (string= "match" (treesit-node-type node))
+               (string-match (regexp-opt '("patterns" "variable"))
+                             (treesit-node-type (funcall ,p-n-prev node)))))
+        standalone-parent 2)
 
        ((node-is "match") ,p-prev-sib 0)
        ((parent-is "match") standalone-parent 2)
@@ -335,27 +335,27 @@ when `haskell-ts-prettify-words' is non-nil.")
        ((parent-is "^record$") standalone-parent 2)
 
        ((parent-is "^exports$")
-	(lambda (_ b _) (treesit-node-start (treesit-node-prev-sibling b)))
-	0)
+        (lambda (_ b _) (treesit-node-start (treesit-node-prev-sibling b)))
+        0)
        ((n-p-gp nil "signature" "foreign_import") grand-parent 3)
        ((parent-is "^case$") standalone-parent 4)
        ((node-is "^alternatives$")
-	(lambda (_ b _)
-	  (treesit-node-start (treesit-node-child b 0)))
-	2)
+        (lambda (_ b _)
+          (treesit-node-start (treesit-node-child b 0)))
+        2)
        ((node-is "^comment$")
-	(lambda (node parent _)
-	  (pcase node
-	    ;; (relevent means type not it haskell-ts--ignore-types)
-	    ;; 1. next relevent sibling if exists
-	    ((app ,p-sib (and (pred (not null)) n))
-	     (treesit-node-start n))
-	    ;; 2. previous relevent sibling if exists
-	    ((app ,p-prev-sib (and (pred (not null)) n))
-	     n)
-	    ;; 3. parent
-	    (_ (treesit-node-start parent))))
-	0)
+        (lambda (node parent _)
+          (pcase node
+            ;; (relevent means type not it haskell-ts--ignore-types)
+            ;; 1. next relevent sibling if exists
+            ((app ,p-sib (and (pred (not null)) n))
+             (treesit-node-start n))
+            ;; 2. previous relevent sibling if exists
+            ((app ,p-prev-sib (and (pred (not null)) n))
+             n)
+            ;; 3. parent
+            (_ (treesit-node-start parent))))
+        0)
        ;; Backup
        (catch-all parent 2))))
   "\"Simple\" treesit indentation rules for haskell.")
@@ -363,26 +363,26 @@ when `haskell-ts-prettify-words' is non-nil.")
 (defvar haskell-ts-mode-syntax-table
   (eval-when-compile
     (let ((table (make-syntax-table))
-	  (imenu-syntax-list
-	   `((" " " \t\n\r\f\v")
-	     ("_" "!#$%&*+./<=>?\\^|-~:")
-	     ("w" ?_ ?\')
-	     ("." ",:@")
-	     ("\"" ?\")
-	     ("()" ?\()
-	     (")(" ?\))
-	     ("(]" ?\[)
-	     (")[" ?\])
-	     ("$`" ?\`)
-	     ("(}1nb" ?\{ )
-	     ("){4nb" ?\} )
-	     ("_ 123" ?- )
-	     (">" "\r\n\f\v"))))
+          (imenu-syntax-list
+           `((" " " \t\n\r\f\v")
+             ("_" "!#$%&*+./<=>?\\^|-~:")
+             ("w" ?_ ?\')
+             ("." ",:@")
+             ("\"" ?\")
+             ("()" ?\()
+             (")(" ?\))
+             ("(]" ?\[)
+             (")[" ?\])
+             ("$`" ?\`)
+             ("(}1nb" ?\{ )
+             ("){4nb" ?\} )
+             ("_ 123" ?- )
+             (">" "\r\n\f\v"))))
       (dolist (ls imenu-syntax-list table)
-	(dolist (char (if (stringp (cadr ls))
-			  (string-to-list (cadr ls))
-			(cdr ls)))
-	  (modify-syntax-entry char (car ls) table)))))
+        (dolist (char (if (stringp (cadr ls))
+                          (string-to-list (cadr ls))
+                        (cdr ls)))
+          (modify-syntax-entry char (car ls) table)))))
   "The syntax table for haskell.")
 
 (defun haskell-ts-sexp (node)
@@ -391,7 +391,7 @@ when `haskell-ts-prettify-words' is non-nil.")
     (and
      (not (member node-text '( "{" "}" "[" "]" "(" ")" ";")))
      (not (and (string= "operator" (treesit-node-field-name node))
-	       (= 1 (length node-text)))))))
+               (= 1 (length node-text)))))))
 
 (defvar haskell-ts-thing-settings
   `((haskell
@@ -405,10 +405,10 @@ when `haskell-ts-prettify-words' is non-nil.")
   `(lambda (node)
      (let ((nn (treesit-node-child node 0 node)))
        (if (funcall ,check-func node)
-	   (if (string= (treesit-node-type nn) "infix")
-	       (treesit-node-text (treesit-node-child nn 1))
-	     (haskell-ts-defun-name node))
-	 nil))))
+           (if (string= (treesit-node-type nn) "infix")
+               (treesit-node-text (treesit-node-child nn 1))
+             (haskell-ts-defun-name node))
+         nil))))
 
 (defvar-keymap  haskell-ts-mode-map
   :doc "Keymap for haskell-ts-mode."
@@ -423,7 +423,7 @@ when `haskell-ts-prettify-words' is non-nil.")
     (error "Tree-sitter for Haskell is not available"))
   (setq treesit-primary-parser (treesit-parser-create 'haskell))
   (setq treesit-language-at-point-function
-	(lambda (&rest _) 'haskell))
+        (lambda (&rest _) 'haskell))
   (setq-local treesit-defun-type-regexp "\\(?:\\(?:function\\|struct\\)_definition\\)")
   ;; Indent
   (when haskell-ts-use-indent
@@ -435,36 +435,36 @@ when `haskell-ts-prettify-words' is non-nil.")
   (setq-local comment-start-skip "\\(?: \\|^\\)-+")
   ;; Electric
   (setq-local electric-pair-pairs
-	      '((?` . ?`) (?\( . ?\)) (?{ . ?}) (?\" . ?\") (?\[ . ?\])))
+              '((?` . ?`) (?\( . ?\)) (?{ . ?}) (?\" . ?\") (?\[ . ?\])))
   ;; Navigation
   (setq-local treesit-defun-name-function 'haskell-ts-defun-name)
   (setq-local treesit-thing-settings haskell-ts-thing-settings)
   (setq-local treesit-defun-type-regexp
-	      ;; Since haskell is strict functional, any 2nd level
-	      ;; entity is defintion
-	      (cons ".+"
-		    (lambda (node)
-		      (and (not (string-match haskell-ts--ignore-types (treesit-node-type node)))
-			   (string= "declarations" (treesit-node-type (treesit-node-parent node)))))))
+              ;; Since haskell is strict functional, any 2nd level
+              ;; entity is defintion
+              (cons ".+"
+                    (lambda (node)
+                      (and (not (string-match haskell-ts--ignore-types (treesit-node-type node)))
+                           (string= "declarations" (treesit-node-type (treesit-node-parent node)))))))
   (setq-local prettify-symbols-alist
-	      (append haskell-ts-prettify-symbols-alist
-		      (and haskell-ts-prettify-words
-			   haskell-ts-prettify-words-alist)))
+              (append haskell-ts-prettify-symbols-alist
+                      (and haskell-ts-prettify-words
+                           haskell-ts-prettify-words-alist)))
 
   ;; Imenu
   (setq-local treesit-simple-imenu-settings
-	      `((nil haskell-ts-imenu-func-node-p nil
-		     ,(haskell-ts-imenu-name-function #'haskell-ts-imenu-func-node-p))
-		("Signatures.." haskell-ts-imenu-sig-node-p nil
-		 ,(haskell-ts-imenu-name-function #'haskell-ts-imenu-sig-node-p))
-		("Data..." haskell-ts-imenu-data-type-p nil
-		 (lambda (node)
-		   (treesit-node-text (treesit-node-child node 1))))))
+              `((nil haskell-ts-imenu-func-node-p nil
+                     ,(haskell-ts-imenu-name-function #'haskell-ts-imenu-func-node-p))
+                ("Signatures.." haskell-ts-imenu-sig-node-p nil
+                 ,(haskell-ts-imenu-name-function #'haskell-ts-imenu-sig-node-p))
+                ("Data..." haskell-ts-imenu-data-type-p nil
+                 (lambda (node)
+                   (treesit-node-text (treesit-node-child node 1))))))
   ;; font-lock
   (setq-local treesit-font-lock-level haskell-ts-font-lock-level)
   (setq-local treesit-font-lock-settings haskell-ts-font-lock)
   (setq-local treesit-font-lock-feature-list
-	      haskell-ts-font-lock-feature-list)
+              haskell-ts-font-lock-feature-list)
   (treesit-major-mode-setup))
 
 (defun haskell-ts--fontify-func (node face)
@@ -474,7 +474,7 @@ when `haskell-ts-prettify-words' is non-nil.")
        (treesit-node-end node)
        'face face)
     (mapc (lambda (n) (haskell-ts--fontify-func n face))
-	  (treesit-node-children node))))
+          (treesit-node-children node))))
 
 (defun haskell-ts--fontify-arg (node &optional _ _ _)
   (haskell-ts--fontify-func node 'font-lock-variable-name-face))
@@ -485,7 +485,7 @@ when `haskell-ts-prettify-words' is non-nil.")
 (defun haskell-ts--fontify-type (node &optional _ _ _)
   (let ((last-child (treesit-node-child node -1)))
     (if (string= (treesit-node-type last-child) "function")
-	(haskell-ts--fontify-type last-child)
+        (haskell-ts--fontify-type last-child)
       (put-text-property
        (treesit-node-start last-child)
        (treesit-node-end last-child)
@@ -511,8 +511,8 @@ when `haskell-ts-prettify-words' is non-nil.")
   "Compile the text from START to END in the haskell proc."
   (interactive "r")
   (let ((hs (haskell-ts-haskell-session))
-	(str (buffer-substring-no-properties
-	      start end)))
+        (str (buffer-substring-no-properties
+              start end)))
     (comint-send-string hs ":{\n")
     (comint-send-string
      hs
@@ -526,7 +526,7 @@ when `haskell-ts-prettify-words' is non-nil.")
   (let ((buffer (concat "*" haskell-ts-ghci-buffer-name "*")))
     (pop-to-buffer-same-window
      (if (comint-check-proc buffer)
-	 buffer
+         gbuffer
        (make-comint haskell-ts-ghci-buffer-name haskell-ts-ghci nil buffer-file-name)))))
 
 (defun haskell-ts-haskell-session ()
