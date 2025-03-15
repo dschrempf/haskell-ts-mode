@@ -161,31 +161,31 @@ when `haskell-ts-prettify-words' is non-nil.")
      (constructor) @font-lock-type-face
      (declarations (type_synomym (name) @font-lock-type-face))
      (declarations (data_type name: (name) @font-lock-type-face)))
-   
+
    :language 'haskell
    :override t
    :feature 'signature
    '((signature (function) @haskell-ts--fontify-type)
      (context (function) @haskell-ts--fontify-type)
      (signature "::" @font-lock-operator-face))
-   
+
    :language 'haskell
    :feature 'match
    `((match ("|" @font-lock-doc-face) ("=" @font-lock-doc-face))
      (list_comprehension ("|" @font-lock-doc-face
                           (qualifiers (generator "<-" @font-lock-doc-face))))
      (match ("->" @font-lock-doc-face)))
-   
+
    :language 'haskell
    :feature 'comment
    `(((comment) @font-lock-comment-face)
      ((haddock) @font-lock-doc-face))
-   
+
    :language 'haskell
    :feature 'pragma
    `((pragma) @font-lock-preprocessor-face
      (cpp) @font-lock-preprocessor-face)
-   
+
    :language 'haskell
    :feature 'str
    :override t
@@ -193,13 +193,13 @@ when `haskell-ts-prettify-words' is non-nil.")
      (string) @font-lock-string-face
      (quasiquote (quoter) @font-lock-type-face)
      (quasiquote (quasiquote_body) @font-lock-preprocessor-face))
-   
+
    :language 'haskell
    :feature 'parens
    :override t
    `(["(" ")" "[" "]"] @font-lock-operator-face
      (infix operator: (_) @font-lock-operator-face))
-   
+
    :language 'haskell
    :feature 'function
    :override t
@@ -363,7 +363,7 @@ when `haskell-ts-prettify-words' is non-nil.")
 (defvar haskell-ts-mode-syntax-table
   (eval-when-compile
     (let ((table (make-syntax-table))
-          (imenu-syntax-list
+          (syntax-list
            `((" " " \t\n\r\f\v")
              ("_" "!#$%&*+./<=>?\\^|-~:")
              ("w" ?_ ?\')
@@ -378,7 +378,7 @@ when `haskell-ts-prettify-words' is non-nil.")
              ("){4nb" ?\} )
              ("_ 123" ?- )
              (">" "\r\n\f\v"))))
-      (dolist (ls imenu-syntax-list table)
+      (dolist (ls syntax-list table)
         (dolist (char (if (stringp (cadr ls))
                           (string-to-list (cadr ls))
                         (cdr ls)))
