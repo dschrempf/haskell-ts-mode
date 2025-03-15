@@ -3,7 +3,7 @@
 ;; Copyright (C) 2024  Pranshu Sharma
 
 
-;; Author: Pranshu Sharma <pranshusharma366 at gmail>
+;; Author: Pranshu Sharma <pranshu@bauherren.ovh>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
 ;; Package-Requires: ((emacs "29.3"))
 ;; Version: 1
