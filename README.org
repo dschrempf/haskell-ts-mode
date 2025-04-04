@@ -77,12 +77,16 @@ the end of the second line.
 
 * Installation
 
-The package is avaiable on [[https://elpa.nongnu.org/nongnu/haskell-ts-mode.html][NonGnu ELPA]], you can install it using: ~M-x
-package-install RET haskell-ts-mode RET~
+Add this into your init.el:
 
 #+begin_src elisp
-(add-to-list 'load-path "path/to/haskell-ts-mode")
-(require 'haskell-ts-mode)
+  (use-package haskell-ts-mode
+    :ensure t
+    :custom
+    (haskell-ts-font-lock-level 4)
+    (haskell-ts-use-indent t)
+    (haskell-ts-ghci "ghci")
+    (haskell-ts-use-indent t))
 #+end_src
 
 * Customization
