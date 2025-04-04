@@ -112,9 +112,11 @@ you suffer from contagious dehydration, you can lower it.
 
 ** Language server
 
-=haskell-ts-mode= works with =lsp-mode=.
+=haskell-ts-mode= works with =lsp-mode= and, since Emacs 30, with
+=eglot=.
 
-To add =eglot= support, add the following code to your =init.el=:
+To add =eglot= support on Emacs 29 and earlier, add the following code
+to your =init.el=:
 
 #+begin_src emacs-lisp
   (with-eval-after-load 'eglot
