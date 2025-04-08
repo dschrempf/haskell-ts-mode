@@ -132,6 +132,8 @@ want to prettify words, set =haskell-ts-prettify-words= to non-nil.
 This will do stuff like prettify ~forall~ into ~∀~ and ~elem~ to ~∈~.
 
 * TODO
+- Support for M-x align, so that calling it will align all the 'equal'
+  signs in a region.
 - Imenu support for functions with multiple definitions.
 - _Proper indenting of multiline signatures_: the Tree-sitter grammar
   does not flatten the signatures, but rather leaves them to the standard
