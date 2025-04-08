@@ -124,6 +124,15 @@ when `haskell-ts-prettify-words' is non-nil.")
    `(((match (guards guard: (boolean (variable) @font-lock-keyword-face)))
       (:match "otherwise" @font-lock-keyword-face)))
 
+   ;; This needs to be positioned above where we apply
+   ;; font-lock-operator-face to comma
+   :language 'haskell
+   :override t
+   :feature 'signature
+   '((signature (function) @haskell-ts--fontify-type)
+     (context (function) @haskell-ts--fontify-type)
+     (signature "::" @font-lock-operator-face))
+
    ;; TODO: It is weird that we use operator face for parenthesses and also for operators.
    ;;   I see two other, possibly better solutions:
    ;;   1. Use delimiter face for parenthesses, ::, -> and similar, and operator face for operators.
@@ -132,7 +141,9 @@ when `haskell-ts-prettify-words' is non-nil.")
    ;;   the end).
    :language 'haskell
    :feature 'operator
-   '((operator) @font-lock-operator-face)
+   :override t
+   '((operator) @font-lock-operator-face
+     "," @font-lock-operator-face)
 
    :language 'haskell
    :feature 'module
@@ -160,14 +171,8 @@ when `haskell-ts-prettify-words' is non-nil.")
    '((type) @font-lock-type-face
      (constructor) @font-lock-type-face
      (declarations (type_synomym (name) @font-lock-type-face))
-     (declarations (data_type name: (name) @font-lock-type-face)))
-
-   :language 'haskell
-   :override t
-   :feature 'signature
-   '((signature (function) @haskell-ts--fontify-type)
-     (context (function) @haskell-ts--fontify-type)
-     (signature "::" @font-lock-operator-face))
+     (declarations (data_type name: (name) @font-lock-type-face))
+     (declarations (newtype name: (name) @font-lock-type-face)))
 
    :language 'haskell
    :feature 'match
