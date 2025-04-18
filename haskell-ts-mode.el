@@ -361,6 +361,9 @@ when `haskell-ts-prettify-words' is non-nil.")
             ;; 3. parent
             (_ (treesit-node-start parent))))
         0)
+
+       ((node-is "|") parent 1)
+       
        ;; Backup
        (catch-all parent 2))))
   "\"Simple\" treesit indentation rules for haskell.")
@@ -515,17 +518,24 @@ when `haskell-ts-prettify-words' is non-nil.")
 (defun haskell-ts-defun-name (node)
   (treesit-node-text (treesit-node-child node 0)))
 
-(defun haskell-ts-compile-region-and-go (start end)
-  "Compile the text from START to END in the haskell proc."
-  (interactive "r")
-  (let ((hs (haskell-ts-haskell-session))
-        (str (buffer-substring-no-properties
-              start end)))
-    (comint-send-string hs ":{\n")
-    (comint-send-string
-     hs
-     (replace-regexp-in-string "^:\\}" "\\:}" str nil t))
-    (comint-send-string hs "\n:}\n")))
+(defun haskell-ts-compile-region-and-go ()
+  "Compile the text from START to END in the haskell proc.
+If region is not active, reload the whole file."
+  (interactive)
+  (let ((hs (haskell-ts-haskell-session)))
+    (if (region-active-p)
+        (let ((str (buffer-substring-no-properties
+                    (region-beginning)
+                    (region-end))))
+          (comint-send-string hs ":{\n")
+          (comint-send-string
+           hs
+           ;; Things that may cause problem to ghci need to be
+           ;; escaped.  TODO examine if other lines that start with
+           ;; colons might cause problems
+           (replace-regexp-in-string "^:\\}" "\\:}" str nil t))
+          (comint-send-string hs "\n:}\n"))
+      (comint-send-string hs ":r\n"))))
 
 ;;;###autoload
 (defun run-haskell ()
@@ -534,7 +544,7 @@ when `haskell-ts-prettify-words' is non-nil.")
   (let ((buffer (concat "*" haskell-ts-ghci-buffer-name "*")))
     (pop-to-buffer-same-window
      (if (comint-check-proc buffer)
-         gbuffer
+         buffer
        (make-comint haskell-ts-ghci-buffer-name haskell-ts-ghci nil buffer-file-name)))))
 
 (defun haskell-ts-haskell-session ()
