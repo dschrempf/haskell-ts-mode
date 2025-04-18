@@ -472,10 +472,7 @@ when `haskell-ts-prettify-words' is non-nil.")
   (setq-local treesit-font-lock-settings haskell-ts-font-lock)
   (setq-local treesit-font-lock-feature-list
               haskell-ts-font-lock-feature-list)
-  (treesit-major-mode-setup)
-  ;; derive from `haskell-mode' on emacs v30+
-  (when (functionp 'derived-mode-add-parents)
-    (derived-mode-add-parents 'haskell-ts-mode '(haskell-mode))))
+  (treesit-major-mode-setup))
 
 (defun haskell-ts--fontify-func (node face)
   (if (string= "variable" (treesit-node-type node))
@@ -553,5 +550,9 @@ If region is not active, reload the whole file."
   (add-to-list 'auto-mode-alist '("\\.hs\\'" . haskell-ts-mode)))
 
 (provide 'haskell-ts-mode)
+
+;; derive from `haskell-mode' on emacs v30+
+(when (functionp 'derived-mode-add-parents)
+  (derived-mode-add-parents 'haskell-ts-mode '(haskell-mode)))
 
 ;;; haskell-ts-mode.el ends here
