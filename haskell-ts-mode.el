@@ -5,7 +5,7 @@
 ;; Author: Pranshu Sharma <pranshu@bauherren.ovh>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
 ;; Package-Requires: ((emacs "29.3"))
-;; Version: 1.1.1
+;; Version: 1.1.2
 ;; Keywords: languages, haskell
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -181,6 +181,7 @@ when `haskell-ts-prettify-words' is non-nil.")
      (match ("->" @font-lock-doc-face)))
 
    :language 'haskell
+   :override t
    :feature 'comment
    `(((comment) @font-lock-comment-face)
      ((haddock) @font-lock-doc-face))
