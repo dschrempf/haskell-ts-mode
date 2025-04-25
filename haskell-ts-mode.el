@@ -439,7 +439,7 @@ when `haskell-ts-prettify-words' is non-nil.")
   ;; Comment
   (setq-local comment-start "-- ")
   (setq-local comment-use-syntax t)
-  (setq-local comment-start-skip "\\(?: \\|^\\)-+")
+  (setq-local comment-start-skip "\\(?: \\|^\\)--+")
   ;; Electric
   (setq-local electric-pair-pairs
               '((?` . ?`) (?\( . ?\)) (?{ . ?}) (?\" . ?\") (?\[ . ?\])))
