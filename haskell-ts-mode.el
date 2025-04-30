@@ -363,6 +363,9 @@ when `haskell-ts-prettify-words' is non-nil.")
         0)
 
        ((node-is "|") parent 1)
+
+       ;; Signature
+       ((n-p-gp nil "function" "function\\|signature") parent -3)
        
        ;; Backup
        (catch-all parent 2))))

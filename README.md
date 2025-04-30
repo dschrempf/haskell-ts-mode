@@ -137,9 +137,5 @@ This will do stuff like prettify `forall` into `∀` and `elem` to `∈`.
 -   Support for M-x align, so that calling it will align all the 'equal'
     signs in a region.
 -   Imenu support for functions with multiple definitions.
--   **Proper indenting of multiline signatures**: the Tree-sitter grammar
-    does not flatten the signatures, but rather leaves them to the standard
-    infix interpretation. This makes indentation hard, as it will mean
-    the only way to check if the the signature node is an ancestor of
-    node at point is to perfom a recursive ascent.
+
 
