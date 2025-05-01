@@ -150,7 +150,7 @@ when `haskell-ts-prettify-words' is non-nil.")
 
    :language 'haskell
    :feature 'import
-   '((import ["qualified" "as"] @font-lock-keyword-face))
+   '((import ["qualified" "as" "hiding"] @font-lock-keyword-face))
 
    :language 'haskell
    :feature 'type-sig
@@ -171,7 +171,8 @@ when `haskell-ts-prettify-words' is non-nil.")
      (constructor) @font-lock-type-face
      (declarations (type_synomym (name) @font-lock-type-face))
      (declarations (data_type name: (name) @font-lock-type-face))
-     (declarations (newtype name: (name) @font-lock-type-face)))
+     (declarations (newtype name: (name) @font-lock-type-face))
+     (deriving "deriving" @font-lock-keyword-face (name) @font-lock-type-face))
 
    :language 'haskell
    :feature 'match
