@@ -5,7 +5,7 @@
 ;; Author: Pranshu Sharma <pranshu@bauherren.ovh>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
 ;; Package-Requires: ((emacs "29.3"))
-;; Version: 1.1.2
+;; Version: 1.1.3
 ;; Keywords: languages, haskell
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -290,7 +290,7 @@ when `haskell-ts-prettify-words' is non-nil.")
        ((node-is "^then$") parent 2)
        ((node-is "^else$") parent 2)
 
-       ((parent-is "^apply$") haskell-ts--stand-alone-parent 1)
+       ((parent-is "^apply$") haskell-ts--stand-alone-parent 2)
        ((node-is "^quasiquote$") grand-parent 2)
        ((parent-is "^quasiquote_body$") (lambda (_ _ c) c) 0)
        ((lambda (node parent bol)
@@ -334,8 +334,8 @@ when `haskell-ts-prettify-words' is non-nil.")
                              (treesit-node-type (funcall ,p-n-prev node)))))
         standalone-parent 2)
 
-       ((node-is "match") ,p-prev-sib 0)
-       ((parent-is "match") standalone-parent 2)
+       ((node-is "match") ,p-prev-sib 1)
+       ((parent-is "match") haskell-ts--stand-alone-parent 2)
 
        ((parent-is "^haskell$") column-0 0)
        ((parent-is "^declarations$") column-0 0)
@@ -443,6 +443,7 @@ when `haskell-ts-prettify-words' is non-nil.")
   (when haskell-ts-use-indent
     (setq-local treesit-simple-indent-rules haskell-ts-indent-rules)
     (setq-local indent-tabs-mode nil))
+  (setq-local electric-indent-functions '(haskell-ts-indent-after-newline))
   ;; Comment
   (setq-local comment-start "-- ")
   (setq-local comment-use-syntax t)
@@ -480,6 +481,15 @@ when `haskell-ts-prettify-words' is non-nil.")
   (setq-local treesit-font-lock-feature-list
               haskell-ts-font-lock-feature-list)
   (treesit-major-mode-setup))
+
+(defun haskell-ts-indent-after-newline (c)
+  (when (eq c ?\n)
+      (let ((previous-line-width
+	     (save-excursion
+	       (goto-char (line-end-position 0))
+	       (current-column))))
+	(insert (make-string previous-line-width ?\s))))
+  t)
 
 (defun haskell-ts--fontify-func (node face)
   (if (string= "variable" (treesit-node-type node))
