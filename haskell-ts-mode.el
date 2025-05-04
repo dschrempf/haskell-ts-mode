@@ -172,7 +172,9 @@ when `haskell-ts-prettify-words' is non-nil.")
      (declarations (type_synomym (name) @font-lock-type-face))
      (declarations (data_type name: (name) @font-lock-type-face))
      (declarations (newtype name: (name) @font-lock-type-face))
-     (deriving "deriving" @font-lock-keyword-face (name) @font-lock-type-face))
+     (deriving "deriving" @font-lock-keyword-face (name) @font-lock-type-face)
+     (deriving "deriving" @font-lock-keyword-face (name) @font-lock-type-face)
+     (deriving_instance "deriving" @font-lock-keyword-face (name) @font-lock-type-face))
 
    :language 'haskell
    :feature 'match
