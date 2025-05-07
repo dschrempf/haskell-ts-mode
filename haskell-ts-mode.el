@@ -488,7 +488,7 @@ when `haskell-ts-prettify-words' is non-nil.")
 	       (goto-char (line-end-position 0))
 	       (current-column))))
 	(insert (make-string previous-line-width ?\s))))
-  t)
+  nil)
 
 (defun haskell-ts--fontify-func (node face)
   (if (string= "variable" (treesit-node-type node))
