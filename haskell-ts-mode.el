@@ -323,7 +323,7 @@ when `haskell-ts-prettify-words' is non-nil.")
 
         (lambda (_ b _)
           (+ 1 (treesit-node-start (treesit-node-prev-sibling b))))
-        3)
+        1)
        ((parent-is "local_binds\\|instance_declarations") ,p-prev-sib 0)
 
        ;; Match
