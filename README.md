@@ -93,6 +93,20 @@ Add this into your init.el:
 That is all.  This will install the grammars if not already installed.
 However, you might need to update the grammar version in the future.
 
+## Other recommended packages
+
+Unlike `haskell-mode`, this mode has a limited scope to just worrying
+about haskell.  There are other packages that I find help a lot with
+development:
+- [consult-hoogle](https://codeberg.org/rahguzar/consult-hoogle) great
+  interface for `hoogle`.
+- [dante](https://github.com/jyp/dante)
+- [hindent](https://github.com/mihaimaruseac/hindent) If you want to
+  outsource the indentation and formatting to another haskell package.
+- [ormolu](https://github.com/vyorkin/ormolu.el) hindent alternative
+- [hcel](https://github.com/emacsmirror/hcel) Codebase navigator, if
+  you want a lighter alternaitve to a full blown LSP.
+
 # Customization
 
 ## How to disable `haskell-ts-mode` indentation
