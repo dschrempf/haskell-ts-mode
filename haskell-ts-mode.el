@@ -309,7 +309,9 @@ when `haskell-ts-prettify-words' is non-nil.")
           (save-excursion
             (goto-char (line-beginning-position 0))
             (back-to-indentation)
-            (point)))
+            (if (looking-at "\n")
+		0
+		(point))))
         0)
 
        ((parent-is "^data_constructors$") parent 0)
