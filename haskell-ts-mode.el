@@ -270,7 +270,7 @@ when `haskell-ts-prettify-words' is non-nil.")
        ((node-is "^infix$") ,parent-first-child 0)
 
        ;; Lambda
-       ((parent-is "^lambda\\(_case\\)?$") standalone-parent 2)
+       ((parent-is "^lambda$") standalone-parent 2)
 
        ((parent-is "^class_declarations$") prev-sibling 0)
 
@@ -347,7 +347,7 @@ when `haskell-ts-prettify-words' is non-nil.")
         (lambda (_ b _) (treesit-node-start (treesit-node-prev-sibling b)))
         0)
        ((n-p-gp nil "signature" "foreign_import") grand-parent 3)
-       ((parent-is "^case$") parent 2)
+       ((parent-is "^\\(lambda_\\)?case$") parent 2)
        ((node-is "^alternatives$")
         (lambda (_ b _)
           (treesit-node-start (treesit-node-child b 0)))
