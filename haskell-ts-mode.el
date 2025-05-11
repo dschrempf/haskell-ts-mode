@@ -5,7 +5,7 @@
 ;; Author: Pranshu Sharma <pranshu@bauherren.ovh>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
 ;; Package-Requires: ((emacs "29.3"))
-;; Version: 1.1.3
+;; Version: 1.1.4
 ;; Keywords: languages, haskell
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -132,18 +132,6 @@ when `haskell-ts-prettify-words' is non-nil.")
      (context (function) @haskell-ts--fontify-type)
      (signature "::" @font-lock-operator-face))
 
-   ;; TODO: It is weird that we use operator face for parenthesses and also for operators.
-   ;;   I see two other, possibly better solutions:
-   ;;   1. Use delimiter face for parenthesses, ::, -> and similar, and operator face for operators.
-   ;;   2. Keep using operator face for parenthesses and co, but use
-   ;;   function call face for operators (since they are functions at
-   ;;   the end).
-   :language 'haskell
-   :feature 'operator
-   :override t
-   '((operator) @font-lock-operator-face
-     "," @font-lock-operator-face)
-
    :language 'haskell
    :feature 'module
    '((module (module_id) @font-lock-type-face))
@@ -167,13 +155,16 @@ when `haskell-ts-prettify-words' is non-nil.")
 
    :language 'haskell
    :feature 'type
+   :override t
    '((type) @font-lock-type-face
      (constructor) @font-lock-type-face
      (declarations (type_synomym (name) @font-lock-type-face))
      (declarations (data_type name: (name) @font-lock-type-face))
      (declarations (newtype name: (name) @font-lock-type-face))
-     (deriving "deriving" @font-lock-keyword-face (name) @font-lock-type-face)
-     (deriving_instance "deriving" @font-lock-keyword-face name: (_) @font-lock-type-face))
+     (deriving "deriving" @font-lock-keyword-face
+	       classes: (_) @font-lock-function-name-face)
+     (deriving_instance "deriving" @font-lock-keyword-face
+			name: (_) @font-lock-function-name-face))
 
    :language 'haskell
    :feature 'match
@@ -214,7 +205,19 @@ when `haskell-ts-prettify-words' is non-nil.")
      (function (infix (operator)  @font-lock-function-name-face))
      (function (infix (infix_id (variable) @font-lock-function-name-face)))
      (bind :anchor (_) @haskell-ts--fontify-params)
-     (function arrow: _ @font-lock-operator-face)))
+     (function arrow: _ @font-lock-operator-face))
+   
+   ;; TODO: It is weird that we use operator face for parenthesses and also for operators.
+   ;;   I see two other, possibly better solutions:
+   ;;   1. Use delimiter face for parenthesses, ::, -> and similar, and operator face for operators.
+   ;;   2. Keep using operator face for parenthesses and co, but use
+   ;;   function call face for operators (since they are functions at
+   ;;   the end).
+   :language 'haskell
+   :feature 'operator
+   :override t
+   '((operator) @font-lock-operator-face
+     "," @font-lock-operator-face))
   "The treesitter font lock settings for haskell.")
 
 (defun haskell-ts--stand-alone-parent (_ parent bol)
