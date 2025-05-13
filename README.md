@@ -113,7 +113,24 @@ development:
 
     (setq haskell-ts-use-indent nil)
 
+## Use a formatter (e.g. hindent, ormolu/formolu)
 
+Put the following code in your init file to bind `C-c C-f` to format
+the code in the selected region using
+[ormolu](https://hackage.haskell.org/package/ormolu).  You can adjust
+this to use another formatter.
+
+```
+(defun format-haskell (start end)
+  (interactive "r")
+  (let ((file (or buffer-file-name (error "Need to be visiting file")))
+	(text (buffer-substring-no-properties start end)))
+    (shell-command-on-region start end (concat "ormolu --stdin-input-file " file) nil t)
+    (message "Formatted the code")))
+
+(with-eval-after-load 'haskell-ts-mode
+    (define-key haskell-ts-mode-map (kbd "C-c C-f") 'format-haskell))
+```
 
 ## Pretify Symbols mode
 
