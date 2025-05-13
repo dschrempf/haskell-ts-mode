@@ -115,34 +115,32 @@ development:
 
 ## Use a formatter (e.g. hindent, ormolu/formolu)
 
-Put the following code in your init file to bind `C-c C-f` to format
-the code in the selected region using
+`C-c C-f` in a haskell formats the current region is it is active, or
+the current function.
+
+The default formater is
 [ormolu](https://hackage.haskell.org/package/ormolu).  You can adjust
-this to use another formatter.
+`haskell-ts-format-command` this to use another formatter.
 
-```
-(defun format-haskell (start end)
-  (interactive "r")
-  (let ((file (or buffer-file-name (error "Need to be visiting file")))
-	(text (buffer-substring-no-properties start end)))
-    (shell-command-on-region start end (concat "ormolu --stdin-input-file " file) nil t)
-    (message "Formatted the code")))
-
-(with-eval-after-load 'haskell-ts-mode
-    (define-key haskell-ts-mode-map (kbd "C-c C-f") 'format-haskell))
-```
 
 ## Pretify Symbols mode
 
 `prettify-symbols-mode` can be used to replace common symbols with
 unicode alternatives.
 
+
+Turning on `prettify-symbols-mode` does stuff like turn `->` to
+`→`. If you want to prettify words, set `haskell-ts-prettify-words` to
+non-nil.  This will do stuff like prettify `forall` into `∀` and
+`elem` to `∈`.
+
     (add-hook 'haskell-ts-mode 'prettify-symbols-mode)
 
 ## Adjusting font lock level
 
-Set `haskell-ts-font-lock-level` accordingly.  Default value is 4, so if
-you suffer from contagious dehydration, you can lower it.
+Set `haskell-ts-font-lock-level` accordingly.  The default and most
+highest value is 4.  You are against vibrancy, you can lower it to
+match your dreariness.
 
 ## Language server
 
@@ -156,12 +154,6 @@ to your `init.el`:
       (defvar eglot-server-programs)
       (add-to-list 'eglot-server-programs
                    '(haskell-ts-mode . ("haskell-language-server-wrapper" "--lsp"))))
-
-## Prettify sybmols mode
-
-Turning on `prettify-symbols-mode` does stuff like turn `->` to `→`. If you
-want to prettify words, set `haskell-ts-prettify-words` to non-nil.
-This will do stuff like prettify `forall` into `∀` and `elem` to `∈`.
 
 # TODO 
 

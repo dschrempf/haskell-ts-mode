@@ -70,6 +70,12 @@ This will concat `haskell-ts-prettify-words-alist' to
 `prettify-symbols-alist' in `haskell-ts-mode'."
   :type 'boolean)
 
+(defcustom haskell-ts-format-command "ormolu --stdin-input-file %s"
+  "The command used to call the formatter.  The input is given as the
+standard input.  This string is passed to `format', with the one
+argument being the `buffer-file-name'."
+  :type 'string)
+
 (defvar haskell-ts-font-lock-feature-list
   `((comment str pragma parens)
     (type definition function args module import operator)
@@ -431,7 +437,8 @@ when `haskell-ts-prettify-words' is non-nil.")
 (defvar-keymap  haskell-ts-mode-map
   :doc "Keymap for haskell-ts-mode."
   "C-c C-c" #'haskell-ts-compile-region-and-go
-  "C-c C-r" #'run-haskell)
+  "C-c C-r" #'run-haskell
+  "C-c C-f" #'haskell-ts-format)
 
 ;;;###autoload
 (define-derived-mode haskell-ts-mode prog-mode "haskell ts mode"
@@ -535,15 +542,15 @@ when `haskell-ts-prettify-words' is non-nil.")
 (defun haskell-ts-defun-name (node)
   (treesit-node-text (treesit-node-child node 0)))
 
-(defun haskell-ts-compile-region-and-go ()
+(defun haskell-ts-compile-region-and-go (start end)
   "Compile the text from START to END in the haskell proc.
 If region is not active, reload the whole file."
-  (interactive)
+  (interactive (if (region-active-p)
+		   (list (region-beginning) (region-end))
+		 (list (point-min) (point-max))))
   (let ((hs (haskell-ts-haskell-session)))
     (if (region-active-p)
-        (let ((str (buffer-substring-no-properties
-                    (region-beginning)
-                    (region-end))))
+        (let ((str (buffer-substring-no-properties start end)))
           (comint-send-string hs ":{\n")
           (comint-send-string
            hs
@@ -553,6 +560,41 @@ If region is not active, reload the whole file."
            (replace-regexp-in-string "^:\\}" "\\:}" str nil t))
           (comint-send-string hs "\n:}\n"))
       (comint-send-string hs ":r\n"))))
+
+(defun haskell-ts-current-function-bound ()
+  "Get start and end point of current funciton."
+  (let (start end)
+    (save-excursion
+      (mark-defun)
+      (setq start (region-beginning))
+      (setq end (region-end))
+      (deactivate-mark))
+    (list start end)))
+
+(defun haskell-ts-format (start end)
+  "Format haskell code.
+
+If region is active, format the code using the comand specified in
+`haskell-ts-format-command'.  Otherwise, format the current function."
+  (interactive
+   (if (region-active-p)
+       (list (region-beginning) (region-end))
+     (haskell-ts-current-function-bound)))
+  (let ((file (or buffer-file-name (error "Need to be visiting a file")))
+	(ra (region-active-p)))
+    (save-excursion
+      (goto-char start)
+      (while (looking-at "[ \t]*$")
+	(goto-char (line-beginning-position 2)))
+      (setq start (point)))
+    (shell-command-on-region start
+			     end
+			     (format haskell-ts-format-command file)
+			     nil
+			     t)
+    (message "Formatted succesefully.")
+    (unless ra
+      (pulse-momentary-highlight-region (region-beginning) (region-end)))))
 
 ;;;###autoload
 (defun run-haskell ()
