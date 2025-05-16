@@ -92,8 +92,6 @@ argument being the `buffer-file-name'."
     (">=" . "≥")
     ("/<" . "≮")
     ("/>" . "≯")
-    ("&&" . "∧")
-    ("||" . "∨")
     ("==" . "≡"))
   "`prettify-symbols-alist' for `haskell-ts-mode'.
 This variable contains all the symbol for `haskell-ts-mode' to unicode
@@ -111,7 +109,9 @@ alternative unicode character.")
     ("intersection"     . "∩")
     ("isSubsetOf"       . "⊆")
     ("isProperSubsetOf" . "⊂")
-    ("mempty"           . "∅"))
+    ("mempty"           . "∅")
+    ("&&" . "∧")
+    ("||" . "∨"))
   "Additional symbols to prettify for `haskell-ts-mode'.
 This is added to `prettify-symbols-alist' for `haskell-ts-mode' buffers
 when `haskell-ts-prettify-words' is non-nil.")
