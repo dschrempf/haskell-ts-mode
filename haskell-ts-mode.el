@@ -234,7 +234,7 @@ when `haskell-ts-prettify-words' is non-nil.")
                (or (looking-back "^[ \t]*" (line-beginning-position))
                    (member
                     type
-                    '("when" "where" "do" "let" "local_binds" "function"))))
+                    '("when" "do" "let" "local_binds" "function"))))
           (treesit-node-start parent)
         (haskell-ts--stand-alone-parent 1 (funcall
                                            (if bol #'treesit-node-parent #'identity)
@@ -320,7 +320,7 @@ when `haskell-ts-prettify-words' is non-nil.")
             (back-to-indentation)
             (if (looking-at "\n")
 		0
-		(point))))
+	      (point))))
         0)
 
        ((parent-is "^data_constructors$") parent 0)
@@ -331,10 +331,13 @@ when `haskell-ts-prettify-words' is non-nil.")
             (while (string= "comment" (treesit-node-type n))
               (setq n (treesit-node-prev-sibling n)))
             (string= "where" (treesit-node-type n))))
-
-        (lambda (_ b _)
-          (+ 1 (treesit-node-start (treesit-node-prev-sibling b))))
-        1)
+        (lambda (node parent bol)
+	  (save-excursion
+	    (goto-char (treesit-node-start (treesit-node-prev-sibling node)))
+	    (back-to-indentation)
+	    (point)))
+        2)
+       
        ((parent-is "local_binds\\|instance_declarations") ,p-prev-sib 0)
 
        ;; Match
