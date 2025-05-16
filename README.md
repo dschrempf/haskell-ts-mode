@@ -157,7 +157,7 @@ to your `init.el`:
 
 # TODO 
 
--   Support for M-x align, so that calling it will align all the 'equal'
+-   Support for M-x align, so that calling it will align all the '='
     signs in a region.
 -   Imenu support for functions with multiple definitions.
 
