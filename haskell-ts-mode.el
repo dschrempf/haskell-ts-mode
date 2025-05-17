@@ -76,10 +76,15 @@ standard input.  This string is passed to `format', with the one
 argument being the `buffer-file-name'."
   :type 'string)
 
+(defface haskell-constructor-face
+  '((t :inherit font-lock-type-face))
+  "Face used to highlight Haskell constructors."
+  :group 'haskell-appearance)
+
 (defvar haskell-ts-font-lock-feature-list
   `((comment str pragma parens)
     (type definition function args module import operator)
-    (match keyword)
+    (match keyword constructors)
     (otherwise signature type-sig)))
 
 (defvar haskell-ts-prettify-symbols-alist
@@ -162,16 +167,25 @@ when `haskell-ts-prettify-words' is non-nil.")
    :language 'haskell
    :feature 'type
    :override t
-   '((type) @font-lock-type-face
-     (constructor) @font-lock-type-face
+   '((type) @font-lock-type-face)
+   
+   :language 'haskell
+   :feature 'constructors
+   :override t
+   '((data_constructor
+      (prefix (constructor) @haskell-constructor-face
+	      field: (_) @haskell-constructor-face))
+     (newtype_constructor
+      (constructor) @haskell-constructor-face
+      field: (_) @haskell-constructor-face)
      (declarations (type_synomym (name) @font-lock-type-face))
      (declarations (data_type name: (name) @font-lock-type-face))
      (declarations (newtype name: (name) @font-lock-type-face))
      (deriving "deriving" @font-lock-keyword-face
-	       classes: (_) @font-lock-function-name-face)
+	       classes: (_) @haskell-constructor-face)
      (deriving_instance "deriving" @font-lock-keyword-face
-			name: (_) @font-lock-function-name-face))
-
+			name: (_) @haskell-constructor-face))
+   
    :language 'haskell
    :feature 'match
    `((match ("|" @font-lock-doc-face) ("=" @font-lock-doc-face))
