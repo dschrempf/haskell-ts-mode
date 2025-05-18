@@ -5,7 +5,7 @@
 ;; Author: Pranshu Sharma <pranshu@bauherren.ovh>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
 ;; Package-Requires: ((emacs "29.3"))
-;; Version: 1.1.4
+;; Version: 1.2.0
 ;; Keywords: languages, haskell
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -172,12 +172,10 @@ when `haskell-ts-prettify-words' is non-nil.")
    :language 'haskell
    :feature 'constructors
    :override t
-   '((data_constructor
-      (prefix (constructor) @haskell-constructor-face
-	      field: (_) @haskell-constructor-face))
-     (newtype_constructor
-      (constructor) @haskell-constructor-face
-      field: (_) @haskell-constructor-face)
+   '((constructor) @haskell-constructor-face
+     (data_constructor
+      (prefix field: (_) @haskell-constructor-face))
+     (newtype_constructor field: (_) @haskell-constructor-face)
      (declarations (type_synomym (name) @font-lock-type-face))
      (declarations (data_type name: (name) @font-lock-type-face))
      (declarations (newtype name: (name) @font-lock-type-face))
