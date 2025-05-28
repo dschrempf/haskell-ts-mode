@@ -174,7 +174,7 @@ when `haskell-ts-prettify-words' is non-nil.")
    :feature 'type
    :override t
    '((type) @font-lock-type-face)
-   
+
    :language 'haskell
    :feature 'constructors
    :override t
@@ -186,10 +186,10 @@ when `haskell-ts-prettify-words' is non-nil.")
      (declarations (data_type name: (name) @font-lock-type-face))
      (declarations (newtype name: (name) @font-lock-type-face))
      (deriving "deriving" @font-lock-keyword-face
-	       classes: (_) @haskell-constructor-face)
+               classes: (_) @haskell-constructor-face)
      (deriving_instance "deriving" @font-lock-keyword-face
-			name: (_) @haskell-constructor-face))
-   
+                        name: (_) @haskell-constructor-face))
+
    :language 'haskell
    :feature 'match
    `((match ("|" @font-lock-doc-face) ("=" @font-lock-doc-face))
@@ -331,8 +331,8 @@ when `haskell-ts-prettify-words' is non-nil.")
             (goto-char (line-beginning-position 0))
             (back-to-indentation)
             (if (looking-at "\n")
-		0
-	      (point))))
+                0
+              (point))))
         0)
 
        ((parent-is "^data_constructors$") parent 0)
@@ -344,12 +344,12 @@ when `haskell-ts-prettify-words' is non-nil.")
               (setq n (treesit-node-prev-sibling n)))
             (string= "where" (treesit-node-type n))))
         (lambda (node parent bol)
-	  (save-excursion
-	    (goto-char (treesit-node-start (treesit-node-prev-sibling node)))
-	    (back-to-indentation)
-	    (point)))
+          (save-excursion
+            (goto-char (treesit-node-start (treesit-node-prev-sibling node)))
+            (back-to-indentation)
+            (point)))
         2)
-       
+
        ((parent-is "local_binds\\|instance_declarations") ,p-prev-sib 0)
 
        ;; Match
@@ -394,7 +394,7 @@ when `haskell-ts-prettify-words' is non-nil.")
 
        ;; Signature
        ((n-p-gp nil "function" "function\\|signature") parent -3)
-       
+
        ;; Backup
        (catch-all parent 2))))
   "\"Simple\" treesit indentation rules for haskell.")
@@ -511,11 +511,11 @@ when `haskell-ts-prettify-words' is non-nil.")
 
 (defun haskell-ts-indent-after-newline (c)
   (when (eq c ?\n)
-      (let ((previous-line-width
-	     (save-excursion
-	       (goto-char (line-end-position 0))
-	       (current-column))))
-	(insert (make-string previous-line-width ?\s))))
+    (let ((previous-line-width
+           (save-excursion
+             (goto-char (line-end-position 0))
+             (current-column))))
+      (insert (make-string previous-line-width ?\s))))
   nil)
 
 (defun haskell-ts--fontify-func (node face)
@@ -562,8 +562,8 @@ when `haskell-ts-prettify-words' is non-nil.")
   "Compile the text from START to END in the haskell proc.
 If region is not active, reload the whole file."
   (interactive (if (region-active-p)
-		   (list (region-beginning) (region-end))
-		 (list (point-min) (point-max))))
+                   (list (region-beginning) (region-end))
+                 (list (point-min) (point-max))))
   (let ((hs (haskell-ts-haskell-session)))
     (if (region-active-p)
         (let ((str (buffer-substring-no-properties start end)))
@@ -597,17 +597,17 @@ If region is active, format the code using the comand specified in
        (list (region-beginning) (region-end))
      (haskell-ts-current-function-bound)))
   (let ((file (or buffer-file-name (error "Need to be visiting a file")))
-	(ra (region-active-p)))
+        (ra (region-active-p)))
     (save-excursion
       (goto-char start)
       (while (looking-at "[ \t]*$")
-	(goto-char (line-beginning-position 2)))
+        (goto-char (line-beginning-position 2)))
       (setq start (point)))
     (shell-command-on-region start
-			     end
-			     (format haskell-ts-format-command file)
-			     nil
-			     t)
+                             end
+                             (format haskell-ts-format-command file)
+                             nil
+                             t)
     (message "Formatted succesefully.")
     (unless ra
       (pulse-momentary-highlight-region (region-beginning) (region-end)))))
