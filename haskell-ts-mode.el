@@ -64,6 +64,12 @@
                  (const :tag "High Highlighting" 3)
                  (const :tag "Maximum Highlighting" 4)))
 
+(defcustom haskell-ts-prettify-symbols nil
+  "Prettify some symbol combinations to unicode symbols.
+This will concat `haskell-ts-prettify-symbols-alist' to
+`prettify-symbols-alist' in `haskell-ts-mode'."
+  :type 'boolean)
+
 (defcustom haskell-ts-prettify-words nil
   "Prettify some words to unicode symbols.
 This will concat `haskell-ts-prettify-words-alist' to
@@ -482,7 +488,8 @@ when `haskell-ts-prettify-words' is non-nil.")
                       (and (not (string-match haskell-ts--ignore-types (treesit-node-type node)))
                            (string= "declarations" (treesit-node-type (treesit-node-parent node)))))))
   (setq-local prettify-symbols-alist
-              (append haskell-ts-prettify-symbols-alist
+              (append (and haskell-ts-prettify-symbols
+                           haskell-ts-prettify-symbols-alist)
                       (and haskell-ts-prettify-words
                            haskell-ts-prettify-words-alist)))
 
