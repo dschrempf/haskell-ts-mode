@@ -5,7 +5,7 @@
 ;; Author: Pranshu Sharma <pranshu@bauherren.ovh>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
 ;; Package-Requires: ((emacs "29.3"))
-;; Version: 1.2.0
+;; Version: 1.2.1
 ;; Keywords: languages, haskell
 
 ;; This program is free software; you can redistribute it and/or modify
