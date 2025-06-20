@@ -254,7 +254,7 @@ when `haskell-ts-prettify-words' is non-nil.")
                                         nil)))))
 
 (defvar haskell-ts--ignore-types
-  (regexp-opt '("comment" "cpp" "haddock"))
+  (regexp-opt '("comment" "cpp" "haddock" ";"))
   "Node types that will be ignored by indentation.")
 
 (defvar haskell-ts-indent-rules
@@ -306,6 +306,19 @@ when `haskell-ts-prettify-words' is non-nil.")
        ((node-is "^]$") parent 0)
        ((parent-is "^list$") standalone-parent 2)
 
+       ;; Structs
+       ((parent-is "^field$") standalone-parent 2)
+       ((node-is "^}$")
+        (lambda (_ parent bol)
+          (let ((sib (treesit-node-child parent 0)))
+            (while (and sib (not (string= (treesit-node-type sib)
+                                          "{"))) ; } Srry for ocd
+              (setq sib (treesit-node-next-sibling sib)))
+            (if sib
+                (treesit-node-start sib)
+              bol)))
+        0)
+       
        ;; If then else
        ((node-is "^then$") parent 2)
        ((node-is "^else$") parent 2)
@@ -319,7 +332,7 @@ when `haskell-ts-prettify-words' is non-nil.")
               (setq n (treesit-node-prev-sibling n)))
             (string= "do" (treesit-node-type n))))
         haskell-ts--stand-alone-parent
-        3)
+        2)
        ((parent-is "^do$") ,p-prev-sib 0)
 
        ((parent-is "^alternatives$") ,p-prev-sib 0)
