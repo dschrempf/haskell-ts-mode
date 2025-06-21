@@ -5,7 +5,7 @@
 ;; Author: Pranshu Sharma <pranshu@bauherren.ovh>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
 ;; Package-Requires: ((emacs "29.3"))
-;; Version: 1.2.2
+;; Version: 1.2.3
 ;; Keywords: languages, haskell
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -288,7 +288,8 @@ when `haskell-ts-prettify-words' is non-nil.")
               (setq first-inf node))
             (funcall ,parent-first-child nil first-inf nil)))
         0)
-       ((node-is "^infix$") ,parent-first-child 0)
+       ((parent-is "^infix$") parent 0)
+       ((node-is "^infix$") standalone-parent 2)
 
        ;; Lambda
        ((parent-is "^lambda$") standalone-parent 2)
