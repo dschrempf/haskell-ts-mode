@@ -5,7 +5,7 @@
 ;; Author: Pranshu Sharma <pranshu@bauherren.ovh>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
 ;; Package-Requires: ((emacs "29.3"))
-;; Version: 1.3.0
+;; Version: 1.3.1
 ;; Keywords: languages, haskell
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -74,7 +74,7 @@ This will concat `haskell-ts-prettify-symbols-alist' to
 `prettify-symbols-alist' in `haskell-ts-mode'."
   :type 'boolean)
 
-(defcustom haskell-ts-prettify-words nil
+(defcustom haskell-prettify-words nil
   "Prettify some words to unicode symbols.
 This will concat `haskell-ts-prettify-words-alist' to
 `prettify-symbols-alist' in `haskell-ts-mode'."
@@ -242,20 +242,31 @@ when `haskell-ts-prettify-words' is non-nil.")
      ["=" "," "=>"] @font-lock-operator-face))
   "The treesitter font lock settings for haskell.")
 
-(defun haskell-ts--stand-alone-parent (_ parent bol)
+(defun haskell-ts--stand-alone-parent (_ parent _ &optional last_non_paren first)
   (save-excursion
     (goto-char (treesit-node-start parent))
-    (let ((type (treesit-node-type parent)))
-      (if (and (not bol)
-               (or (looking-back "^[ \t]*" (line-beginning-position))
-                   (member
-                    type
-                    '("when" "do" "let" "local_binds" "function"))))
-          (treesit-node-start parent)
-        (haskell-ts--stand-alone-parent 1 (funcall
-                                           (if bol #'treesit-node-parent #'identity)
-                                           (treesit-node-parent parent))
-                                        nil)))))
+    (let* ((type (treesit-node-type parent))
+           (res (if (or (and first
+                             (member
+                              type
+                              '("when" "do" "let_in" "local_binds" "function")))
+                        (looking-back "^[ \t]*" (line-beginning-position)))
+                    (treesit-node-start (if (and (string= "parens" type) last_non_paren)
+                                            last_non_paren
+                                          parent))
+                  (haskell-ts--stand-alone-parent 1
+                                                  (treesit-node-parent parent)
+                                                  nil
+                                                  (if (string= "parens" type)
+                                                      last_non_paren
+                                                    parent)
+                                                  t))))
+      ;; This is an astronomically huge hack.  The kind where if you
+      ;; took it you wouldn't be able to walk for several days after,
+      ;; no homo
+      (if (string= type "conditional")
+          (+ 2 res)
+        res))))
 
 (defvar haskell-ts--ignore-types
   (regexp-opt '("comment" "cpp" "haddock" ";"))
@@ -296,7 +307,7 @@ when `haskell-ts-prettify-words' is non-nil.")
        ((node-is "^infix$") standalone-parent 2)
 
        ;; Lambda
-       ((parent-is "^lambda$") standalone-parent 2)
+       ((parent-is "^lambda$") haskell-ts--stand-alone-parent 2)
 
        ((parent-is "^class_declarations$") prev-sibling 0)
 
@@ -311,6 +322,9 @@ when `haskell-ts-prettify-words' is non-nil.")
        ((node-is "^]$") parent 0)
        ((parent-is "^list$") standalone-parent 2)
 
+       ;; Parens
+       ((node-is "^)$") parent 0)
+
        ;; Structs
        ((parent-is "^field$") standalone-parent 2)
        ((node-is "^}$")
@@ -323,10 +337,6 @@ when `haskell-ts-prettify-words' is non-nil.")
                 (treesit-node-start sib)
               bol)))
         0)
-       
-       ;; If then else
-       ((node-is "^then$") parent 2)
-       ((node-is "^else$") parent 2)
 
        ((parent-is "^apply$") haskell-ts--stand-alone-parent 2)
        ((node-is "^quasiquote$") grand-parent 2)
@@ -356,26 +366,31 @@ when `haskell-ts-prettify-words' is non-nil.")
        ((parent-is "^data_constructors$") parent 0)
 
        ;; where
-       ((lambda (node _ _)
-          (let ((n (treesit-node-prev-sibling node)))
-            (while (string= "comment" (treesit-node-type n))
-              (setq n (treesit-node-prev-sibling n)))
-            (string= "where" (treesit-node-type n))))
-        (lambda (node parent bol)
-          (save-excursion
-            (goto-char (treesit-node-start (treesit-node-prev-sibling node)))
-            (back-to-indentation)
-            (point)))
-        2)
+       ((node-is "local_binds") ,p-prev-sib 2)
+       
 
        ((parent-is "local_binds\\|instance_declarations") ,p-prev-sib 0)
 
+       ;; Conditionals This builds up on the hackiness of what happens
+       ;; in haskell-ts--stand-alone-parent
+       ((node-is "^then$") parent 2)
+       ((node-is "^else$") parent 2)
+       ((parent-is "^conditional$") parent 4)
+
+       ;; let.  It is important this one is in the bottom.
+       ((lambda (_ p _)
+          (let ((gp "let_in"))
+            (or (string= gp (treesit-node-type p))
+                (string= gp (treesit-node-type (treesit-node-parent p))))))
+        haskell-ts--stand-alone-parent 2)
+
+       
        ;; Match
        ((lambda (node _ _)
           (and (string= "match" (treesit-node-type node))
                (string-match (regexp-opt '("patterns" "variable"))
                              (treesit-node-type (funcall ,p-n-prev node)))))
-        standalone-parent 2)
+        parent 2)
 
        ((node-is "^match$") ,p-prev-sib 1)
        ((parent-is "^match$") haskell-ts--stand-alone-parent 2)
