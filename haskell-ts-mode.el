@@ -49,7 +49,11 @@
   "The command to be called to run ghci."
   :type 'string)
 
-(defcustom haskell-ts-ghci-buffer-name "Inferior Haskell"
+(defcustom haskell-ts-ghci-switches nil
+  "Arguments passwed to `haskell-ts-ghci'."
+  :type 'string)
+
+(defcustom haskell-ts-ghci-buffer-name "*Inferior Haskell*"
   "Buffer name for the ghci prcoess."
   :type 'string)
 
@@ -630,14 +634,22 @@ If region is active, format the code using the comand specified in
 (defun run-haskell ()
   "Run an inferior Haskell process."
   (interactive)
-  (let ((buffer (concat "*" haskell-ts-ghci-buffer-name "*")))
+  (let ((buffer (get-buffer-create haskell-ts-ghci-buffer-name))
+        (ghci haskell-ts-ghci)
+        (switches haskell-ts-ghci-switches))
     (pop-to-buffer-same-window
      (if (comint-check-proc buffer)
          buffer
-       (make-comint haskell-ts-ghci-buffer-name haskell-ts-ghci nil buffer-file-name)))))
+       (with-current-buffer buffer
+         (apply 'make-comint-in-buffer
+                "Haskell"
+                buffer
+                ghci
+                nil
+                switches))))))
 
 (defun haskell-ts-haskell-session ()
-  (get-buffer-process (concat "*" haskell-ts-ghci-buffer-name "*")))
+  (get-buffer-process haskell-ts-ghci-buffer-name))
 
 (when (treesit-ready-p 'haskell)
   (add-to-list 'auto-mode-alist '("\\.hs\\'" . haskell-ts-mode)))
