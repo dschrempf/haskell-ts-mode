@@ -5,7 +5,7 @@
 ;; Author: Pranshu Sharma <pranshu@bauherren.ovh>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
 ;; Package-Requires: ((emacs "29.3"))
-;; Version: 1.2.3
+;; Version: 1.3.0
 ;; Keywords: languages, haskell
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -291,8 +291,8 @@ when `haskell-ts-prettify-words' is non-nil.")
                              (setq node (treesit-node-parent node))))
               (setq first-inf node))
             (funcall ,parent-first-child nil first-inf nil)))
-        0)
-       ((parent-is "^infix$") parent 0)
+        2)
+       ((parent-is "^infix$") parent 2)
        ((node-is "^infix$") standalone-parent 2)
 
        ;; Lambda
@@ -303,7 +303,7 @@ when `haskell-ts-prettify-words' is non-nil.")
        ((node-is "^where$") parent 2)
 
        ;; in
-       ((node-is "^in$") parent 0)
+       ((node-is "^in$") parent 1)
 
        ((parent-is "qualifiers") parent 0)
 
@@ -377,8 +377,8 @@ when `haskell-ts-prettify-words' is non-nil.")
                              (treesit-node-type (funcall ,p-n-prev node)))))
         standalone-parent 2)
 
-       ((node-is "match") ,p-prev-sib 1)
-       ((parent-is "match") haskell-ts--stand-alone-parent 2)
+       ((node-is "^match$") ,p-prev-sib 1)
+       ((parent-is "^match$") haskell-ts--stand-alone-parent 2)
 
        ((parent-is "^haskell$") column-0 0)
        ((parent-is "^declarations$") column-0 0)
@@ -389,7 +389,7 @@ when `haskell-ts-prettify-words' is non-nil.")
         (lambda (_ b _) (treesit-node-start (treesit-node-prev-sibling b)))
         0)
        ((n-p-gp nil "signature" "foreign_import") grand-parent 3)
-       ((parent-is "^\\(lambda_\\)?case$") parent 2)
+       ((parent-is "^\\(lambda_\\)?case$") haskell-ts--stand-alone-parent 2)
        ((node-is "^alternatives$")
         (lambda (_ b _)
           (treesit-node-start (treesit-node-child b 0)))
@@ -408,7 +408,8 @@ when `haskell-ts-prettify-words' is non-nil.")
             (_ (treesit-node-start parent))))
         0)
 
-       ((node-is "|") parent 1)
+       ;; TODO: I reckon this needs a variable
+       ((node-is "^|$") parent 0)
 
        ;; Signature
        ((n-p-gp nil "function" "function\\|signature") parent -3)
