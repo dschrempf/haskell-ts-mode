@@ -5,7 +5,7 @@
 ;; Author: Pranshu Sharma <pranshu@bauherren.ovh>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
 ;; Package-Requires: ((emacs "29.3"))
-;; Version: 1.3.1
+;; Version: 1.3.2
 ;; Keywords: languages, haskell
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -74,7 +74,7 @@ This will concat `haskell-ts-prettify-symbols-alist' to
 `prettify-symbols-alist' in `haskell-ts-mode'."
   :type 'boolean)
 
-(defcustom haskell-prettify-words nil
+(defcustom haskell-ts-prettify-words nil
   "Prettify some words to unicode symbols.
 This will concat `haskell-ts-prettify-words-alist' to
 `prettify-symbols-alist' in `haskell-ts-mode'."
