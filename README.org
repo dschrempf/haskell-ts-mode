@@ -1,12 +1,12 @@
 
 *NOTICE:* Indentation has temporarily been disabled by default. SEE
-[[P:indent][indentation]] for why this was needed and what the plan is.  TLDR
+THE [[p:indent][INDENTATION]] SECTION for why this was needed and what the plan is.  TLDR
 indentation is going through a full rewrite.
 
 * Contributing
 
 Please contribute ideas on how the new indentation system would work.
-See [[p:rewrite][rewriting the indentation]].
+See [[p:rewrite][rewriting the indentation]] section.
 
 * Haskell mode based on treesitter
 
