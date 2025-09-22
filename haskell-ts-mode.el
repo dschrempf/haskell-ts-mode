@@ -5,7 +5,7 @@
 ;; Author: Pranshu Sharma <pranshu@bauherren.ovh>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
 ;; Package-Requires: ((emacs "29.3"))
-;; Version: 1.3.3
+;; Version: 1.3.4
 ;; Keywords: languages, haskell
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -57,7 +57,7 @@
   "Buffer name for the ghci prcoess."
   :type 'string)
 
-(defcustom haskell-ts-use-indent t
+(defcustom haskell-ts-use-indent nil
   "Set to non-nil to use the indentation provided by haskell-ts-mode"
   :type 'boolean)
 
@@ -185,7 +185,7 @@ when `haskell-ts-prettify-words' is non-nil.")
    '((constructor) @haskell-constructor-face
      (data_constructor
       (prefix field: (_) @haskell-constructor-face))
-     (newtype_constructor field: (_) @haskell-constructor-face)
+     (newtype_constructor field: (field (name)) @haskell-constructor-face)
      (declarations (type_synomym (name) @font-lock-type-face))
      (declarations (data_type name: (name) @font-lock-type-face))
      (declarations (newtype name: (name) @font-lock-type-face))
@@ -431,7 +431,7 @@ when `haskell-ts-prettify-words' is non-nil.")
        ((node-is "^|$") parent 0)
 
        ;; Signature
-       ((n-p-gp nil "function" "function\\|signature") parent -3)
+       ((n-p-gp nil "function" "function\\|signature") parent 0)
 
        ;; Backup
        (catch-all parent 2))))
