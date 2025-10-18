@@ -5,7 +5,7 @@
 ;; Author: Pranshu Sharma <pranshu@bauherren.ovh>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
 ;; Package-Requires: ((emacs "29.3"))
-;; Version: 1.3.4
+;; Version: 1.3.5
 ;; Keywords: languages, haskell
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -184,11 +184,11 @@ when `haskell-ts-prettify-words' is non-nil.")
    :override t
    '((constructor) @haskell-constructor-face
      (data_constructor
-      (prefix field: (_) @haskell-constructor-face))
-     (newtype_constructor field: (field (name)) @haskell-constructor-face)
-     (declarations (type_synomym (name) @font-lock-type-face))
-     (declarations (data_type name: (name) @font-lock-type-face))
-     (declarations (newtype name: (name) @font-lock-type-face))
+      (prefix field: (_) @haskell-ts--fontify-arg))
+     (type_params (_) @font-lock-variable-name-face)
+     (type_synomym (name) @font-lock-type-face)
+     (data_type name: (name) @font-lock-type-face)
+     (newtype name: (name) @font-lock-type-face)
      (deriving "deriving" @font-lock-keyword-face
                classes: (_) @haskell-constructor-face)
      (deriving_instance "deriving" @font-lock-keyword-face
