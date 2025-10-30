@@ -143,9 +143,12 @@ when `haskell-ts-prettify-words' is non-nil.")
    :override t
    `(((match (guards guard: (boolean (variable) @font-lock-keyword-face)))
       (:match "otherwise" @font-lock-keyword-face)))
+   
+   :language 'haskell
+   :feature 'type
+   :override t
+   '((type) @font-lock-type-face)
 
-   ;; This needs to be positioned above where we apply
-   ;; font-lock-operator-face to comma
    :language 'haskell
    :override t
    :feature 'signature
@@ -173,11 +176,6 @@ when `haskell-ts-prettify-words' is non-nil.")
      (function (infix right_operand: (_) @haskell-ts--fontify-arg))
      (generator :anchor (_) @haskell-ts--fontify-arg)
      (patterns) @haskell-ts--fontify-arg)
-
-   :language 'haskell
-   :feature 'type
-   :override t
-   '((type) @font-lock-type-face)
 
    :language 'haskell
    :feature 'constructors
