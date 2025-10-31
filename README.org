@@ -116,11 +116,10 @@ Unlike =haskell-mode=, this mode has a limited scope to just worrying
 about haskell. There are other packages that I find help a lot with
 development:
 - [[https://codeberg.org/rahguzar/consult-hoogle][consult-hoogle]] great interface for =hoogle=.
-- [[https://github.com/jyp/dante][dante]] 
-- [[https://github.com/mihaimaruseac/hindent][hindent]] If you want to outsource the indentation and formatting to another haskell package.
-- [[https://github.com/vyorkin/ormolu.el][ormolu]] hindent alternative
+- [[https://github.com/jyp/dante][dante]]
+- [[https://github.com/radian-software/apheleia][apheleia]] I suggest using this with [[https://github.com/vyorkin/ormolu.el][ormolu]] to provide formatting for haskell.
 - [[https://github.com/emacsmirror/hcel][hcel]] Codebase navigator, if you want a lighter alternaitve to a full blown LSP.
-
+  
 * Customization
 
 ** Indentation <<p:indent>>
@@ -155,14 +154,6 @@ There are some options to rewriting indentation:
    tree.
 4. Adaptive indentation: Like =python-mode=, we can try memorise the
    user's indentation prefrences.
-
-** Use a formatter (e.g. hindent, ormolu/formolu)
-
-=C-c C-f= in a haskell formats the current region is it is active, or
-the current function.
-
-The default formater is [[https://hackage.haskell.org/package/ormolu][ormolu]]. You can adjust
-=haskell-ts-format-command= this to use another formatter.
 
 ** Pretify Symbols mode
 

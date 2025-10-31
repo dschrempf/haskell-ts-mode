@@ -80,12 +80,6 @@ This will concat `haskell-ts-prettify-words-alist' to
 `prettify-symbols-alist' in `haskell-ts-mode'."
   :type 'boolean)
 
-(defcustom haskell-ts-format-command "ormolu --stdin-input-file %s"
-  "The command used to call the formatter.  The input is given as the
-standard input.  This string is passed to `format', with the one
-argument being the `buffer-file-name'."
-  :type 'string)
-
 (defface haskell-constructor-face
   '((t :inherit font-lock-type-face))
   "Face used to highlight Haskell constructors."
@@ -622,31 +616,6 @@ If region is not active, reload the whole file."
       (setq end (region-end))
       (deactivate-mark))
     (list start end)))
-
-(defun haskell-ts-format (start end)
-  "Format haskell code.
-
-If region is active, format the code using the comand specified in
-`haskell-ts-format-command'.  Otherwise, format the current function."
-  (interactive
-   (if (region-active-p)
-       (list (region-beginning) (region-end))
-     (haskell-ts-current-function-bound)))
-  (let ((file (or buffer-file-name (error "Need to be visiting a file")))
-        (ra (region-active-p)))
-    (save-excursion
-      (goto-char start)
-      (while (looking-at "[ \t]*$")
-        (goto-char (line-beginning-position 2)))
-      (setq start (point)))
-    (shell-command-on-region start
-                             end
-                             (format haskell-ts-format-command file)
-                             nil
-                             t)
-    (message "Formatted succesefully.")
-    (unless ra
-      (pulse-momentary-highlight-region (region-beginning) (region-end)))))
 
 ;;;###autoload
 (defun run-haskell ()
