@@ -470,6 +470,7 @@ when `haskell-ts-prettify-words' is non-nil.")
      (text "string")))
   "`treesit-thing-settings' for `haskell-ts-mode'.")
 
+;; TODO make into a currying function
 (defmacro haskell-ts-imenu-name-function (check-func)
   `(lambda (node)
      (let ((nn (treesit-node-child node 0 node)))
@@ -529,9 +530,12 @@ when `haskell-ts-prettify-words' is non-nil.")
                      ,(haskell-ts-imenu-name-function #'haskell-ts-imenu-func-node-p))
                 ("Signatures.." haskell-ts-imenu-sig-node-p nil
                  ,(haskell-ts-imenu-name-function #'haskell-ts-imenu-sig-node-p))
-                ("Data..." haskell-ts-imenu-data-type-p nil
-                 (lambda (node)
-                   (treesit-node-text (treesit-node-child node 1))))))
+                (nil haskell-ts-imenu-data-type-p nil
+                     (lambda (node)
+                       (treesit-node-text (treesit-node-child node 1) t)))
+                (nil haskell-ts-imenu-typealias-type-p nil
+                     (lambda (node)
+                       (treesit-node-text (treesit-node-child node 1) t)))))
   ;; font-lock
   (setq-local treesit-font-lock-level haskell-ts-font-lock-level)
   (setq-local treesit-font-lock-settings haskell-ts-font-lock)
@@ -583,7 +587,10 @@ when `haskell-ts-prettify-words' is non-nil.")
   (haskell-ts-imenu-node-p "signature" node))
 
 (defun haskell-ts-imenu-data-type-p (node)
-  (haskell-ts-imenu-node-p "data_type" node))
+  (haskell-ts-imenu-node-p "data_type\\|newtype" node))
+
+(defun haskell-ts-imenu-typealias-type-p (node)
+  (haskell-ts-imenu-node-p "type_synomym" node))
 
 (defun haskell-ts-defun-name (node)
   (treesit-node-text (treesit-node-child node 0)))
