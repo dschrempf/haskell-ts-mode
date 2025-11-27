@@ -129,7 +129,7 @@ when `haskell-ts-prettify-words' is non-nil.")
   (treesit-font-lock-rules
    :language 'haskell
    :feature 'keyword
-   `(["module" "import" "data" "let" "where" "case" "type"
+   `(["module" "import" "data" "let" "where" "case" "type" "family"
       "if" "then" "else" "of" "do" "in" "instance" "class" "newtype"]
      @font-lock-keyword-face)
    :language 'haskell
