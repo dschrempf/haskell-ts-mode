@@ -46,12 +46,13 @@
   :group 'langs)
 
 (defcustom haskell-ts-ghci "ghci"
-  "The command to be called to run ghci."
+  "The name or path program to be called to run the ghci repl.  Any
+arguments to be passed should be added `haskell-ts-ghci-switches`."
   :type 'string)
 
 (defcustom haskell-ts-ghci-switches nil
-  "Arguments passwed to `haskell-ts-ghci'."
-  :type 'string)
+  "Arguments to be passed to `haskell-ts-ghci'."
+  :type '(repeat string))
 
 (defcustom haskell-ts-ghci-buffer-name "*Inferior Haskell*"
   "Buffer name for the ghci prcoess."
@@ -483,8 +484,7 @@ when `haskell-ts-prettify-words' is non-nil.")
 (defvar-keymap  haskell-ts-mode-map
   :doc "Keymap for haskell-ts-mode."
   "C-c C-c" #'haskell-ts-compile-region-and-go
-  "C-c C-r" #'run-haskell
-  "C-c C-f" #'haskell-ts-format)
+  "C-c C-r" #'run-haskell)
 
 ;;;###autoload
 (define-derived-mode haskell-ts-mode prog-mode "haskell ts mode"
