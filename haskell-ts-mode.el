@@ -179,7 +179,7 @@ when `haskell-ts-prettify-words' is non-nil.")
      (data_constructor
       (prefix field: (_) @haskell-ts--fontify-arg))
      (type_params (_) @font-lock-variable-name-face)
-     (type_synomym (name) @font-lock-type-face)
+     (type_synonym (name) @font-lock-type-face)
      (data_type name: (name) @font-lock-type-face)
      (newtype name: (name) @font-lock-type-face)
      (deriving "deriving" @font-lock-keyword-face
@@ -590,7 +590,7 @@ when `haskell-ts-prettify-words' is non-nil.")
   (haskell-ts-imenu-node-p "data_type\\|newtype" node))
 
 (defun haskell-ts-imenu-typealias-type-p (node)
-  (haskell-ts-imenu-node-p "type_synomym" node))
+  (haskell-ts-imenu-node-p "type_synonym" node))
 
 (defun haskell-ts-defun-name (node)
   (treesit-node-text (treesit-node-child node 0)))
