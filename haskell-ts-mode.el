@@ -49,17 +49,20 @@
 (defcustom haskell-ts-ghci "ghci"
   "The name or path program to be called to run the ghci repl.  Any
 arguments to be passed should be added `haskell-ts-ghci-switches`."
-  :type 'string)
+  :type 'string
+  :group 'haskell-ts-mode)
 
 (defcustom haskell-ts-ghci-switches nil
   "Arguments to be passed to `haskell-ts-ghci'."
-  :type '(repeat string))
+  :type '(repeat string)
+  :group 'haskell-ts-mode)
 
 (defcustom haskell-ts-cabal "cabal"
   "The name or path of the cabal program used to start the REPL.
 Used instead of `haskell-ts-ghci' according to `haskell-ts-use-cabal'.
 Any arguments should be added to `haskell-ts-cabal-switches'."
-  :type 'string)
+  :type 'string
+  :group 'haskell-ts-mode)
 
 (defcustom haskell-ts-cabal-switches '("repl")
   "Arguments to be passed to `haskell-ts-cabal'.
@@ -68,7 +71,8 @@ default component.  Because `cabal repl' configures GHCi with the
 component's dependencies, default language extensions and GHC
 options, code loaded into such a session compiles as it would in
 a build, unlike a plain `ghci' session."
-  :type '(repeat string))
+  :type '(repeat string)
+  :group 'haskell-ts-mode)
 
 (defcustom haskell-ts-use-cabal 'auto
   "Whether to start the REPL with `cabal repl' instead of `ghci'.
@@ -83,11 +87,13 @@ Possible values:
 - nil: always use `haskell-ts-ghci'."
   :type '(choice (const :tag "Auto-detect cabal project" auto)
                  (const :tag "Always cabal repl" t)
-                 (const :tag "Always plain ghci" nil)))
+                 (const :tag "Always plain ghci" nil))
+  :group 'haskell-ts-mode)
 
 (defcustom haskell-ts-ghci-buffer-name "*Inferior Haskell*"
   "Buffer name for the ghci process."
-  :type 'string)
+  :type 'string
+  :group 'haskell-ts-mode)
 
 (defcustom haskell-ts-inferior-prompt-regexp
   (rx line-start
@@ -114,26 +120,30 @@ Set to nil to disable history persistence across sessions."
 
 (defcustom haskell-ts-use-indent nil
   "Set to non-nil to use the indentation provided by haskell-ts-mode"
-  :type 'boolean)
+  :type 'boolean
+  :group 'haskell-ts-mode)
 
 (defcustom haskell-ts-font-lock-level 4
   "Level of font lock, 1 for minimum highlighting and 4 for maximum."
   :type '(choice (const :tag "Minimal Highlighting" 1)
                  (const :tag "Low Highlighting" 2)
                  (const :tag "High Highlighting" 3)
-                 (const :tag "Maximum Highlighting" 4)))
+                 (const :tag "Maximum Highlighting" 4))
+  :group 'haskell-ts-mode)
 
 (defcustom haskell-ts-prettify-symbols nil
   "Prettify some symbol combinations to unicode symbols.
 This will concat `haskell-ts-prettify-symbols-alist' to
 `prettify-symbols-alist' in `haskell-ts-mode'."
-  :type 'boolean)
+  :type 'boolean
+  :group 'haskell-ts-mode)
 
 (defcustom haskell-ts-prettify-words nil
   "Prettify some words to unicode symbols.
 This will concat `haskell-ts-prettify-words-alist' to
 `prettify-symbols-alist' in `haskell-ts-mode'."
-  :type 'boolean)
+  :type 'boolean
+  :group 'haskell-ts-mode)
 
 (defface haskell-constructor-face
   '((t :inherit font-lock-type-face))
