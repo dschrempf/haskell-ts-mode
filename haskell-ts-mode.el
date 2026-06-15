@@ -89,6 +89,29 @@ Possible values:
   "Buffer name for the ghci prcoess."
   :type 'string)
 
+(defcustom haskell-ts-inferior-prompt-regexp
+  (rx line-start
+      (or "ghci"                        ; modern GHCi default prompt
+          "λ"                           ; a popular custom prompt
+          ;; Module-qualified prompts such as `*Main> ' or
+          ;; `Prelude Data.List> ', as produced by older GHCi and by
+          ;; `cabal repl' loading named modules.
+          (seq (? "*") upper (* (any alnum "_'."))
+               (* (seq " " (? "*") upper (* (any alnum "_'."))))))
+      ;; `> ' is the ordinary prompt, `| ' the multiline continuation.
+      (any ">|") " ")
+  "Regexp matching the GHCi prompt in the inferior Haskell buffer.
+Used as `comint-prompt-regexp' in `haskell-ts-inferior-mode'."
+  :type 'regexp
+  :group 'haskell-ts-mode)
+
+(defcustom haskell-ts-inferior-history-file
+  (locate-user-emacs-file "haskell-ts-inferior-history")
+  "File where the inferior Haskell input history is saved.
+Set to nil to disable history persistence across sessions."
+  :type '(choice (file :tag "History file") (const :tag "Disable" nil))
+  :group 'haskell-ts-mode)
+
 (defcustom haskell-ts-use-indent nil
   "Set to non-nil to use the indentation provided by haskell-ts-mode"
   :type 'boolean)
@@ -748,6 +771,24 @@ extensions are in scope as well; see `haskell-ts-use-cabal'."
          (proc (haskell-ts-show-repl)))
     (comint-send-string proc (format ":load \"%s\"\n" file))))
 
+(define-derived-mode haskell-ts-inferior-mode comint-mode "Inferior Haskell"
+  "Major mode for the inferior Haskell (GHCi) process started by `run-haskell'.
+
+Derives from `comint-mode', so its key bindings are available:
+\\<comint-mode-map>\\[comint-previous-input] and \\[comint-next-input] \
+cycle the input history, \\[completion-at-point] completes file
+names, and \\[comint-interrupt-subjob] interrupts GHCi.
+
+The GHCi prompt is recognised via `haskell-ts-inferior-prompt-regexp'
+and made read-only.  Input history persists across sessions in
+`haskell-ts-inferior-history-file'."
+  (setq-local comint-prompt-regexp haskell-ts-inferior-prompt-regexp)
+  (setq-local comint-prompt-read-only t)
+  (when haskell-ts-inferior-history-file
+    (setq-local comint-input-ring-file-name haskell-ts-inferior-history-file)
+    (comint-read-input-ring t)
+    (add-hook 'kill-buffer-hook #'comint-write-input-ring nil t)))
+
 ;;;###autoload
 (defun run-haskell ()
   "Run an inferior Haskell process.
@@ -769,7 +810,11 @@ in the desired component to switch.
 The REPL inherits the calling buffer's `process-environment' and
 `exec-path' via `inheritenv', so a toolchain configured
 buffer-locally by envrc/direnv is honoured both when probing the
-`cabal repl' target and when starting the inferior process."
+`cabal repl' target and when starting the inferior process.
+
+The inferior buffer uses `haskell-ts-inferior-mode', which gives it
+a recognised GHCi prompt, a read-only prompt, persistent input
+history and the usual `comint-mode' bindings."
   (interactive)
   (inheritenv
    (let* ((buffer (get-buffer-create haskell-ts-ghci-buffer-name))
@@ -784,7 +829,8 @@ buffer-locally by envrc/direnv is honoured both when probing the
        (with-current-buffer buffer
          (when root
            (setq default-directory (expand-file-name root)))
-         (apply 'make-comint-in-buffer "Haskell" buffer program nil switches)))
+         (apply 'make-comint-in-buffer "Haskell" buffer program nil switches)
+         (haskell-ts-inferior-mode)))
      (pop-to-buffer-same-window buffer))))
 
 (defun haskell-ts-haskell-session ()
