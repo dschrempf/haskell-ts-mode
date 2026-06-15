@@ -497,8 +497,8 @@ when `haskell-ts-prettify-words' is non-nil.")
   ;; Indent
   (when haskell-ts-use-indent
     (setq-local treesit-simple-indent-rules haskell-ts-indent-rules)
-    (setq-local indent-tabs-mode nil))
-  (setq-local electric-indent-functions '(haskell-ts-indent-after-newline))
+    (setq-local indent-tabs-mode nil)
+    (setq-local electric-indent-functions '(haskell-ts-indent-after-newline)))
   ;; Comment
   (setq-local comment-start "-- ")
   (setq-local comment-use-syntax t)
@@ -542,12 +542,16 @@ when `haskell-ts-prettify-words' is non-nil.")
   (treesit-major-mode-setup))
 
 (defun haskell-ts-indent-after-newline (c)
+  "Indent a freshly inserted line to the previous line's indentation.
+Intended as an `electric-indent-functions' entry; C is the just
+inserted character and is acted on only when it is a newline."
   (when (eq c ?\n)
-    (let ((previous-line-width
+    (let ((previous-indent
            (save-excursion
-             (goto-char (line-end-position 0))
+             (forward-line -1)
+             (back-to-indentation)
              (current-column))))
-      (insert (make-string previous-line-width ?\s))))
+      (insert (make-string previous-indent ?\s))))
   nil)
 
 (defun haskell-ts--fontify-func (node face)
