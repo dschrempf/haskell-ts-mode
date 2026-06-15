@@ -1,0 +1,43 @@
+* TODO [#B] Detect the grammar and fail gracefully on wrong queries
+  See https://codeberg.org/pranshu/haskell-ts-mode/pulls/62
+
+* TODO [#B] Make checkdoc strict and clear the existing doc-style debt
+  =make checkdoc= currently runs informationally only (see
+  =tests/checkdoc.el=); document many internal helpers, then gate it by
+  setting =HASKELL_TS_CHECKDOC_STRICT=1= in =make check=.
+
+* TODO [#B] Add package-lint (and perhaps relint) to the test suite
+  Lints headers, dependencies and naming conventions for ELPA/MELPA.
+
+* TODO [#B] Fix or remove the indentation handling
+  =haskell-ts-use-indent= defaults to nil because =haskell-ts-indent-rules= is
+  buggy. Either finish the rewrite (=newindent= branch of =@pranshu=) or drop
+  the indentation code entirely.
+
+* TODO [#C] Split into =haskell-ts-mode= and a separate REPL file (name?)
+
+* TODO [#C] Run the test suite in CI
+  =nix flake check= already runs byte-compile + ERT against the tek grammar.
+
+* TODO [#C] Imenu: collapse multiple equations of one function
+  Each equation currently produces a duplicate same-named imenu entry.
+
+* TODO [#C] Support =M-x align= on the =​=​= sign
+  Align all the =​=​= signs in a region.
+
+* TODO [#C] Send the current line or definition to the REPL
+  =C-c C-c= only sends the active region or the whole file;
+  =haskell-mode= and =dante= also send a single line or the enclosing
+  definition.
+
+* TODO [#C] Interactive component picker for ambiguous =cabal repl= targets
+  When a file belongs to several components, =cabal repl= cannot choose
+  one and =haskell-ts--cabal-file-target= aborts with a =user-error=
+  relaying cabal's [Cabal-7132] candidate list.  Instead, parse those
+  candidates and =completing-read= over them, then start =cabal repl
+  <component>=.  Open questions: remember the choice for the session, and
+  offer a prefix-arg override to pick a component even for an unambiguous
+  file.
+
+* DONE Brief test suite (byte compilation etc.)
+  Added an ERT suite and =Makefile=; see =tests/= and =make check=.
