@@ -21,7 +21,8 @@ with =prettify-symbols-mode= enabled.
 * Usage
 
 - =C-c C-r= Open REPL
-- =C-c C-c= Send code to REPL
+- =C-c C-c= Send region to REPL (or reload with =:r= when no region is active)
+- =C-c C-l= Load the current file into the REPL (starts one if needed)
 - =M-q= Indent the function
 
 * Features
@@ -34,6 +35,26 @@ Overview of features:
 - Imenu support
 - REPL (=C-c C-r= in the mode to run)
 - Prettify Symbols mode support
+
+* REPL
+
+=C-c C-r= (=run-haskell=) starts an inferior Haskell process. When the
+current buffer is inside a cabal project (a =cabal.project= or =*.cabal=
+file is found by walking up the directory tree), the process is started
+with =cabal repl=, so the project's dependencies, default language
+extensions and GHC options are available in the session. Outside a cabal
+project it falls back to plain =ghci=. This is controlled by
+=haskell-ts-use-cabal= (default =auto=; set it to =nil= to always use
+=ghci=, or =t= to always use =cabal=).
+
+The process is started in the project root when one is found, so relative
+=import='s and the module search path resolve from there.
+
+- =C-c C-c= sends the active region to the REPL (or =:r= reloads when no
+  region is active).
+- =C-c C-l= saves the buffer and loads its file with =:load=, starting a
+  session if none is running. The REPL is displayed without leaving the
+  current buffer.
 
 * Comparison with =haskell-mode=
 
