@@ -493,7 +493,6 @@ when `haskell-ts-prettify-words' is non-nil.")
   (setq treesit-primary-parser (treesit-parser-create 'haskell))
   (setq treesit-language-at-point-function
         (lambda (&rest _) 'haskell))
-  (setq-local treesit-defun-type-regexp "\\(?:\\(?:function\\|struct\\)_definition\\)")
   ;; Indent
   (when haskell-ts-use-indent
     (setq-local treesit-simple-indent-rules haskell-ts-indent-rules)
