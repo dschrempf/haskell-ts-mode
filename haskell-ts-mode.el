@@ -615,16 +615,6 @@ If region is not active, reload the whole file."
           (comint-send-string hs "\n:}\n"))
       (comint-send-string hs ":r\n"))))
 
-(defun haskell-ts-current-function-bound ()
-  "Get start and end point of current funciton."
-  (let (start end)
-    (save-excursion
-      (mark-defun)
-      (setq start (region-beginning))
-      (setq end (region-end))
-      (deactivate-mark))
-    (list start end)))
-
 ;;;###autoload
 (defun run-haskell ()
   "Run an inferior Haskell process."
