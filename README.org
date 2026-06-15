@@ -39,7 +39,7 @@ Overview of features:
 
 * REPL
 
-=C-c C-r= (=run-haskell=) starts an inferior Haskell process. When the
+=C-c C-r= (=haskell-ts-run=) starts an inferior Haskell process. When the
 current buffer is inside a cabal project (a =cabal.project= or =*.cabal=
 file is found by walking up the directory tree), the process is started
 with =cabal repl=, so the project's dependencies, default language
