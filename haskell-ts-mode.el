@@ -605,13 +605,14 @@ If region is not active, reload the whole file."
   (let ((hs (haskell-ts-haskell-session)))
     (if (region-active-p)
         (let ((str (buffer-substring-no-properties start end)))
+          ;; GHCi's `:{' ... `:}' multiline block has no escape mechanism:
+          ;; it terminates at the first line that is exactly `:}'.  Such a
+          ;; line is not valid Haskell, but if one ever appears in the
+          ;; region we must refuse rather than send a corrupted block.
+          (when (string-match-p "^[ \t]*:}[ \t]*$" str)
+            (user-error "Region contains a line that is just `:}'; cannot send to GHCi"))
           (comint-send-string hs ":{\n")
-          (comint-send-string
-           hs
-           ;; Things that may cause problem to ghci need to be
-           ;; escaped.  TODO examine if other lines that start with
-           ;; colons might cause problems
-           (replace-regexp-in-string "^:\\}" "\\:}" str nil t))
+          (comint-send-string hs str)
           (comint-send-string hs "\n:}\n"))
       (comint-send-string hs ":r\n"))))
 
