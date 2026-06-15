@@ -23,7 +23,8 @@ with =prettify-symbols-mode= enabled.
 - =C-c C-r= Open REPL
 - =C-c C-c= Send region to REPL (or reload with =:r= when no region is active)
 - =C-c C-l= Load the current file into the REPL (starts one if needed)
-- =M-q= Indent the function
+- =M-q= Indent the function (only when indentation is enabled; see
+  =haskell-ts-use-indent=, disabled by default)
 
 * Features
 
@@ -66,12 +67,12 @@ The more interesting features are:
     variable that is captured, and that can be used in the body of the
     function.
   - The return type of a function is highlighted.
-  - All new variabels are (or should be) highlighted, this includes
+  - All new variables are (or should be) highlighted, this includes
     generators, lambda arguments.
   - Highlighting the === operator in guarded matches correctly, this
     would be stupidly hard in regexp based syntax.
 - More performant, this is especially seen in longer files.
-- Much, much less code, =haskell-mode= has accumlated 30,000 lines of
+- Much, much less code, =haskell-mode= has accumulated 30,000 lines of
   code and features to do with all things Haskell related.
   =haskell-ts-mode= just keeps the scope to basic major mode stuff, and
   leaves other stuff to external packages.
@@ -96,7 +97,7 @@ implement indentation, so I thought why not use Tree-sitter?
 :PROPERTIES:
 :CUSTOM_ID: structural-navigation
 :END:
-This mode provides strucural navigation, for Emacs 30+.
+This mode provides structural navigation, for Emacs 30+.
 
 #+begin_src haskell
 combs (x:xs) = map (x:) c ++ c
@@ -139,7 +140,7 @@ development:
 - [[https://codeberg.org/rahguzar/consult-hoogle][consult-hoogle]] great interface for =hoogle=.
 - [[https://github.com/jyp/dante][dante]]
 - [[https://github.com/radian-software/apheleia][apheleia]] I suggest using this with [[https://github.com/vyorkin/ormolu.el][ormolu]] to provide formatting for haskell.
-- [[https://github.com/emacsmirror/hcel][hcel]] Codebase navigator, if you want a lighter alternaitve to a full blown LSP.
+- [[https://github.com/emacsmirror/hcel][hcel]] Codebase navigator, if you want a lighter alternative to a full blown LSP.
   
 * Customization
 
@@ -153,9 +154,9 @@ development:
 
 *** Why indentation has been disabled temporarily
 
-Simply because the indention code became a monstrosity.  Don't belive
-me? check the =haskell-ts-indent-rules= variable.  Bugs are rampent,
-fixing one bug created another.  Its a torturous game of wack-a-mole
+Simply because the indention code became a monstrosity.  Don't believe
+me? check the =haskell-ts-indent-rules= variable.  Bugs are rampant,
+fixing one bug created another.  Its a torturous game of whack-a-mole
 with no end in sight.
 
 *** Indentation rewrite <<p:rewrite>>
@@ -165,18 +166,18 @@ Check out the =newindent= branch to see the repo to see the progress.
 There are some options to rewriting indentation:
 
 1. Do the same approach of having strict indentation that doesn't
-   modify the syntax tree, just impliment it better, potentilly using
+   modify the syntax tree, just implement it better, potentially using
    a style guide, [[https://github.com/tibbe/haskell-style-guide/blob/master/haskell-style.md][like this one]].
 2. Rely on a external package like [[https://github.com/nilcons/hi2][hi2]] or [[https://github.com/iquiw/hyai][hyai]], at the compromise they don't
-   use treesitter, so just end up inefficialty reparsing haskell.
-3. My prefered: try to impliment haskell-mode type indentation. I have
+   use treesitter, so just end up inefficiently reparsing haskell.
+3. My preferred: try to implement haskell-mode type indentation. I have
    no idea how we would do this, since each indentation attempt could
    change the parse tree, changing the treesitter concrete syntax
    tree.
 4. Adaptive indentation: Like =python-mode=, we can try memorise the
-   user's indentation prefrences.
+   user's indentation preferences.
 
-** Pretify Symbols mode
+** Prettify Symbols mode
 
 =prettify-symbols-mode= can be used to replace common symbols with
 unicode alternatives.
