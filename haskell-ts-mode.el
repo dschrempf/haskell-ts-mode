@@ -547,7 +547,7 @@ when `haskell-ts-prettify-words' is non-nil.")
   :doc "Keymap for haskell-ts-mode."
   "C-c C-c" #'haskell-ts-compile-region-and-go
   "C-c C-l" #'haskell-ts-load-file
-  "C-c C-r" #'run-haskell)
+  "C-c C-r" #'haskell-ts-run)
 
 ;;;###autoload
 (define-derived-mode haskell-ts-mode prog-mode "haskell ts mode"
@@ -735,7 +735,7 @@ shared by several components aborts with a helpful `user-error'."
   "Display the GHCi buffer, starting a session if necessary.
 Focus stays in the current buffer.  Return the process."
   (unless (haskell-ts-haskell-session)
-    (save-window-excursion (run-haskell)))
+    (save-window-excursion (haskell-ts-run)))
   (display-buffer haskell-ts-ghci-buffer-name)
   (haskell-ts-haskell-session))
 
@@ -761,12 +761,12 @@ If region is not active, reload the whole file."
 
 (defun haskell-ts-load-file ()
   "Load the file visited by the current buffer into the GHCi process.
-Start a session with `run-haskell' if none is running, save the
+Start a session with `haskell-ts-run' if none is running, save the
 buffer first so GHCi reads the contents you see on disk, and
 display the REPL without leaving the current buffer.
 
 The file is loaded by its absolute path.  Relative `import's are
-resolved by GHCi against its working directory, which `run-haskell'
+resolved by GHCi against its working directory, which `haskell-ts-run'
 sets to the project root (see `haskell-ts--cabal-project-root'), so
 sibling modules are normally found.  When the session was started
 with `cabal repl' the project's dependencies and default language
@@ -776,13 +776,13 @@ extensions are in scope as well; see `haskell-ts-use-cabal'."
     (user-error "Buffer is not visiting a file"))
   (save-buffer)
   ;; Capture the path before (possibly) starting GHCi, since
-  ;; `run-haskell' makes the inferior buffer current.
+  ;; `haskell-ts-run' makes the inferior buffer current.
   (let* ((file buffer-file-name)
          (proc (haskell-ts-show-repl)))
     (comint-send-string proc (format ":load \"%s\"\n" file))))
 
 (define-derived-mode haskell-ts-inferior-mode comint-mode "Inferior Haskell"
-  "Major mode for the inferior Haskell (GHCi) process started by `run-haskell'.
+  "Major mode for the inferior Haskell (GHCi) process started by `haskell-ts-run'.
 
 Derives from `comint-mode', so its key bindings are available:
 \\<comint-mode-map>\\[comint-previous-input] and \\[comint-next-input] \
@@ -800,7 +800,7 @@ and made read-only.  Input history persists across sessions in
     (add-hook 'kill-buffer-hook #'comint-write-input-ring nil t)))
 
 ;;;###autoload
-(defun run-haskell ()
+(defun haskell-ts-run ()
   "Run an inferior Haskell process.
 The process is started in the current buffer's cabal project root
 when one is found (so relative imports and the module search path
