@@ -25,7 +25,7 @@
 
 ;; This is a major mode that uses treesitter to provide all the basic
 ;; major mode stuff, like indentation, font lock, etc...
-;; It uses the grammer at: https://github.com/tree-sitter/tree-sitter-haskell
+;; It uses the grammar at: https://github.com/tree-sitter/tree-sitter-haskell
 
 ;;; Code:
 
@@ -86,7 +86,7 @@ Possible values:
                  (const :tag "Always plain ghci" nil)))
 
 (defcustom haskell-ts-ghci-buffer-name "*Inferior Haskell*"
-  "Buffer name for the ghci prcoess."
+  "Buffer name for the ghci process."
   :type 'string)
 
 (defcustom haskell-ts-inferior-prompt-regexp
@@ -117,7 +117,7 @@ Set to nil to disable history persistence across sessions."
   :type 'boolean)
 
 (defcustom haskell-ts-font-lock-level 4
-  "Level of font lock, 1 for minimum highlghting and 4 for maximum."
+  "Level of font lock, 1 for minimum highlighting and 4 for maximum."
   :type '(choice (const :tag "Minimal Highlighting" 1)
                  (const :tag "Low Highlighting" 2)
                  (const :tag "High Highlighting" 3)
@@ -159,7 +159,7 @@ This will concat `haskell-ts-prettify-words-alist' to
     ("==" . "≡"))
   "`prettify-symbols-alist' for `haskell-ts-mode'.
 This variable contains all the symbol for `haskell-ts-mode' to unicode
-character.  See `haskell-ts-prettify-words-alist' for mappign words to
+character.  See `haskell-ts-prettify-words-alist' for mapping words to
 alternative unicode character.")
 
 (defvar haskell-ts-prettify-words-alist
