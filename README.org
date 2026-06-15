@@ -119,18 +119,46 @@ Add this into your init.el:
   :ensure t
   :custom
   (haskell-ts-font-lock-level 4)
-  (haskell-ts-use-indent t)
-  (haskell-ts-ghci "ghci")
-  (haskell-ts-use-indent t)
-  :config
-  (add-to-list 'treesit-language-source-alist
-   '(haskell . ("https://github.com/tree-sitter/tree-sitter-haskell" "v0.23.1")))
-  (unless (treesit-grammar-location 'haskell)
-   (treesit-install-language-grammar 'haskell)))
+  ;; Indentation is opt-in and currently being rewritten; see the
+  ;; Indentation section before enabling it.
+  ;; (haskell-ts-use-indent t)
+  (haskell-ts-ghci "ghci"))
 #+end_src
 
-That is all. This will install the grammars if not already installed.
-However, you might need to update the grammar version in the future.
+You also need the tree-sitter Haskell grammar; see [[#grammar][Installing the
+grammar]] below.
+
+** Installing the grammar
+:PROPERTIES:
+:CUSTOM_ID: grammar
+:END:
+
+=haskell-ts-mode= targets the tree-sitter Haskell grammar maintained by
+[[https://github.com/tek/tree-sitter-haskell][@tek]], not the official
+[[https://github.com/tree-sitter/tree-sitter-haskell][tree-sitter/tree-sitter-haskell]]
+grammar.  @tek's grammar is the more actively maintained one and fixes
+node-type names that the official grammar gets wrong (for example
+=type_synomym= → =type_synonym=).  The font-lock and indentation queries
+rely on the corrected names, so the official grammar does *not* work with
+this mode: it fails silently — usually as missing or wrong highlighting
+rather than an error.
+
+The grammar has to be installed manually.  =M-x
+treesit-install-language-grammar= cannot do it, for two reasons: it
+defaults to the official repository, and @tek's repository ships no
+generated parser (=src/parser.c=) and no release branch, so the parser
+must first be produced with =tree-sitter generate= before it is compiled.
+Build the shared library yourself (clone the repository, run
+=tree-sitter generate=, compile =src/parser.c= into a
+=libtree-sitter-haskell= shared object and put it on
+=treesit-extra-load-path=), or let a package manager build it — the
+=flake.nix= in this repository builds the correct grammar for development
+and for the test suite.
+
+See [[https://codeberg.org/pranshu/haskell-ts-mode/pulls/62][haskell-ts-mode PR #62]]
+for the move to @tek's grammar and the plan to detect a mismatched
+grammar, and [[https://github.com/tek/tree-sitter-haskell/issues/31][tek/tree-sitter-haskell issue #31]]
+for the request to distribute a pre-compiled parser.
 
 ** Other recommended packages
 
