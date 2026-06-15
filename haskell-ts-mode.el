@@ -636,8 +636,8 @@ If region is not active, reload the whole file."
 (defun haskell-ts-haskell-session ()
   (get-buffer-process haskell-ts-ghci-buffer-name))
 
-(when (treesit-ready-p 'haskell)
-  (add-to-list 'auto-mode-alist '("\\.hs\\'" . haskell-ts-mode)))
+;;;###autoload
+(add-to-list 'auto-mode-alist '("\\.hs\\'" . haskell-ts-mode))
 
 (provide 'haskell-ts-mode)
 
