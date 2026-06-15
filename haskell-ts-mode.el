@@ -4,9 +4,9 @@
 
 ;; Author: Pranshu Sharma <pranshu@bauherren.ovh>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
-;; Package-Requires: ((emacs "29.3"))
+;; Package-Requires: ((emacs "29.3") (inheritenv "0.1"))
 ;; Version: 1.3.5
-;; Keywords: languages, haskell
+;; Keywords: languages, Haskell
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
 
 (require 'comint)
 (require 'treesit)
+(require 'inheritenv)
 
 (declare-function treesit-parser-create "treesit.c")
 (declare-function treesit-node-start "treesit.c")
@@ -53,6 +54,36 @@ arguments to be passed should be added `haskell-ts-ghci-switches`."
 (defcustom haskell-ts-ghci-switches nil
   "Arguments to be passed to `haskell-ts-ghci'."
   :type '(repeat string))
+
+(defcustom haskell-ts-cabal "cabal"
+  "The name or path of the cabal program used to start the REPL.
+Used instead of `haskell-ts-ghci' according to `haskell-ts-use-cabal'.
+Any arguments should be added to `haskell-ts-cabal-switches'."
+  :type 'string)
+
+(defcustom haskell-ts-cabal-switches '("repl")
+  "Arguments to be passed to `haskell-ts-cabal'.
+The default starts an interactive session for the project's
+default component.  Because `cabal repl' configures GHCi with the
+component's dependencies, default language extensions and GHC
+options, code loaded into such a session compiles as it would in
+a build, unlike a plain `ghci' session."
+  :type '(repeat string))
+
+(defcustom haskell-ts-use-cabal 'auto
+  "Whether to start the REPL with `cabal repl' instead of `ghci'.
+Starting via cabal makes the project's dependencies, default
+language extensions and GHC options available in the session.
+Possible values:
+- `auto' (the default): use cabal when the current buffer is
+  inside a cabal project (a `cabal.project' or `*.cabal' file is
+  found by walking up the directory tree) and `haskell-ts-cabal'
+  is on `exec-path', otherwise fall back to `haskell-ts-ghci'.
+- t: always use `haskell-ts-cabal'.
+- nil: always use `haskell-ts-ghci'."
+  :type '(choice (const :tag "Auto-detect cabal project" auto)
+                 (const :tag "Always cabal repl" t)
+                 (const :tag "Always plain ghci" nil)))
 
 (defcustom haskell-ts-ghci-buffer-name "*Inferior Haskell*"
   "Buffer name for the ghci prcoess."
@@ -482,6 +513,7 @@ when `haskell-ts-prettify-words' is non-nil.")
 (defvar-keymap  haskell-ts-mode-map
   :doc "Keymap for haskell-ts-mode."
   "C-c C-c" #'haskell-ts-compile-region-and-go
+  "C-c C-l" #'haskell-ts-load-file
   "C-c C-r" #'run-haskell)
 
 ;;;###autoload
@@ -596,13 +628,91 @@ inserted character and is acted on only when it is a newline."
 (defun haskell-ts-defun-name (node)
   (treesit-node-text (treesit-node-child node 0)))
 
+(defun haskell-ts--cabal-project-root ()
+  "Return the cabal project root for the current buffer, or nil.
+The root is the closest ancestor directory containing a
+`cabal.project' file, or failing that one containing a `*.cabal'
+file."
+  (or (locate-dominating-file default-directory "cabal.project")
+      (locate-dominating-file
+       default-directory
+       (lambda (dir)
+         (ignore-errors (directory-files dir nil "\\.cabal\\'" t))))))
+
+(defun haskell-ts--cabal-file-target (root target)
+  "Resolve TARGET against the cabal project, or decide what to do.
+TARGET is a file name relative to ROOT, the cabal project root.
+Run `cabal repl --dry-run TARGET' from ROOT (reusing
+`haskell-ts-cabal-switches' so the probe mirrors the real
+invocation) and return one of:
+  TARGET  cabal resolves it to a single component, so it can be
+          passed as the `cabal repl' target;
+  nil     cabal resolves it to no component (an orphan file not
+          listed in any `.cabal', or any other failure), so the
+          caller should start a plain `cabal repl' instead.
+Signal a `user-error' when TARGET is shared by several components
+and cabal cannot pick one (its [Cabal-7132] \"Ambiguous target\"):
+neither passing nor omitting it would start the REPL the user
+meant, so abort with cabal's candidate list and the fix."
+  (let ((default-directory (expand-file-name root)))
+    (with-temp-buffer
+      (let ((status (apply #'call-process haskell-ts-cabal nil t nil
+                           (append haskell-ts-cabal-switches
+                                   (list "--dry-run" target)))))
+        (cond
+         ((eq status 0) target)
+         ((save-excursion
+            (goto-char (point-min))
+            (re-search-forward "Ambiguous target" nil t))
+          (user-error
+           (concat "haskell-ts: %s is shared by several cabal components; "
+                   "`cabal repl' cannot choose one.  Name a component in "
+                   "`haskell-ts-cabal-switches', e.g. (\"repl\" \"my-exe\").  "
+                   "cabal reported:\n%s")
+           target (string-trim (buffer-string))))
+         (t nil))))))
+
+(defun haskell-ts--repl-command (root file)
+  "Return (PROGRAM . SWITCHES) for starting the REPL.
+ROOT is the cabal project root as returned by
+`haskell-ts--cabal-project-root', or nil.  FILE is the file visited
+by the buffer from which the REPL is started, or nil.  Honour
+`haskell-ts-use-cabal'.
+
+When cabal is used and both ROOT and FILE are non-nil, FILE is
+appended (relative to ROOT) as a `cabal repl' target so that cabal
+selects the component that owns it.  In a multi-component project
+this avoids the Cabal-7076 error that `cabal repl' raises when no
+target is given.  `haskell-ts--cabal-file-target' decides per file:
+a FILE in one component is used as the target, a FILE in no
+component is omitted so a plain `cabal repl' starts, and a FILE
+shared by several components aborts with a helpful `user-error'."
+  (if (and haskell-ts-use-cabal
+           (or (eq haskell-ts-use-cabal t) root)
+           (executable-find haskell-ts-cabal))
+      (let ((target (and root file
+                         (haskell-ts--cabal-file-target
+                          root (file-relative-name
+                                file (expand-file-name root))))))
+        (append (cons haskell-ts-cabal haskell-ts-cabal-switches)
+                (when target (list target))))
+    (cons haskell-ts-ghci haskell-ts-ghci-switches)))
+
+(defun haskell-ts-show-repl ()
+  "Display the GHCi buffer, starting a session if necessary.
+Focus stays in the current buffer.  Return the process."
+  (unless (haskell-ts-haskell-session)
+    (save-window-excursion (run-haskell)))
+  (display-buffer haskell-ts-ghci-buffer-name)
+  (haskell-ts-haskell-session))
+
 (defun haskell-ts-compile-region-and-go (start end)
   "Compile the text from START to END in the haskell proc.
 If region is not active, reload the whole file."
   (interactive (if (region-active-p)
                    (list (region-beginning) (region-end))
                  (list (point-min) (point-max))))
-  (let ((hs (haskell-ts-haskell-session)))
+  (let ((hs (haskell-ts-show-repl)))
     (if (region-active-p)
         (let ((str (buffer-substring-no-properties start end)))
           ;; GHCi's `:{' ... `:}' multiline block has no escape mechanism:
@@ -616,23 +726,66 @@ If region is not active, reload the whole file."
           (comint-send-string hs "\n:}\n"))
       (comint-send-string hs ":r\n"))))
 
+(defun haskell-ts-load-file ()
+  "Load the file visited by the current buffer into the GHCi process.
+Start a session with `run-haskell' if none is running, save the
+buffer first so GHCi reads the contents you see on disk, and
+display the REPL without leaving the current buffer.
+
+The file is loaded by its absolute path.  Relative `import's are
+resolved by GHCi against its working directory, which `run-haskell'
+sets to the project root (see `haskell-ts--cabal-project-root'), so
+sibling modules are normally found.  When the session was started
+with `cabal repl' the project's dependencies and default language
+extensions are in scope as well; see `haskell-ts-use-cabal'."
+  (interactive)
+  (unless buffer-file-name
+    (user-error "Buffer is not visiting a file"))
+  (save-buffer)
+  ;; Capture the path before (possibly) starting GHCi, since
+  ;; `run-haskell' makes the inferior buffer current.
+  (let* ((file buffer-file-name)
+         (proc (haskell-ts-show-repl)))
+    (comint-send-string proc (format ":load \"%s\"\n" file))))
+
 ;;;###autoload
 (defun run-haskell ()
-  "Run an inferior Haskell process."
+  "Run an inferior Haskell process.
+The process is started in the current buffer's cabal project root
+when one is found (so relative imports and the module search path
+resolve from there), falling back to the buffer's directory
+otherwise.  By default `cabal repl' is used inside a cabal project
+and `ghci' elsewhere; see `haskell-ts-use-cabal'.
+
+When starting via cabal, the current buffer's file is passed as the
+`cabal repl' target so cabal opens the component that owns it (see
+`haskell-ts--repl-command').  A `cabal repl' session is bound to
+that one component for its lifetime: loading a file from a
+different component into the same session (e.g. with
+`haskell-ts-load-file') may fail because that component's modules
+and dependencies are not in scope.  Restart the REPL from a buffer
+in the desired component to switch.
+
+The REPL inherits the calling buffer's `process-environment' and
+`exec-path' via `inheritenv', so a toolchain configured
+buffer-locally by envrc/direnv is honoured both when probing the
+`cabal repl' target and when starting the inferior process."
   (interactive)
-  (let ((buffer (get-buffer-create haskell-ts-ghci-buffer-name))
-        (ghci haskell-ts-ghci)
-        (switches haskell-ts-ghci-switches))
-    (pop-to-buffer-same-window
-     (if (comint-check-proc buffer)
-         buffer
+  (inheritenv
+   (let* ((buffer (get-buffer-create haskell-ts-ghci-buffer-name))
+          ;; Capture the file before `make-comint-in-buffer' below makes
+          ;; the inferior buffer current.
+          (file buffer-file-name)
+          (root (haskell-ts--cabal-project-root))
+          (command (haskell-ts--repl-command root file))
+          (program (car command))
+          (switches (cdr command)))
+     (unless (comint-check-proc buffer)
        (with-current-buffer buffer
-         (apply 'make-comint-in-buffer
-                "Haskell"
-                buffer
-                ghci
-                nil
-                switches))))))
+         (when root
+           (setq default-directory (expand-file-name root)))
+         (apply 'make-comint-in-buffer "Haskell" buffer program nil switches)))
+     (pop-to-buffer-same-window buffer))))
 
 (defun haskell-ts-haskell-session ()
   (get-buffer-process haskell-ts-ghci-buffer-name))
