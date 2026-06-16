@@ -36,6 +36,7 @@ Overview of features:
 - Imenu support
 - REPL (=C-c C-r= in the mode to run)
 - Prettify Symbols mode support
+- =M-x align= support (align the =​=​= signs in a region)
 
 * REPL
 
@@ -218,6 +219,21 @@ This will do stuff like prettify =forall= into =∀= and =elem= to =∈=.
 (add-hook 'haskell-ts-mode 'prettify-symbols-mode)
 #+end_src
 
+** Aligning =​=​= signs
+
+Calling =M-x align= on a region lines up the standalone =​=​= signs of
+the bindings and equations it contains, for example:
+
+#+begin_example
+x   = 1
+foo = 2
+ab  = 3
+#+end_example
+
+Only an =​=​= surrounded by whitespace is aligned, so =​==​=, =​=>​=,
+=​<=​=, =​>=​= and =​/=​= are left untouched.  The rule lives in
+=haskell-ts-align-rules-list=.
+
 ** Adjusting font lock level
 
 Set =haskell-ts-font-lock-level= accordingly. The default and highest
@@ -240,7 +256,5 @@ to your =init.el=:
 
 * TODO list
 
-- Support for M-x align, so that calling it will align all the ‘=’ signs
-  in a region.
 - Imenu support for functions with multiple definitions.
 - Merge the indent branch

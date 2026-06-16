@@ -269,6 +269,89 @@ The process layer is stubbed so the test never starts GHCi."
   (should (<= 1 haskell-ts-font-lock-level 4))
   (should (= 4 (length haskell-ts-font-lock-feature-list))))
 
+;;; Align rules
+;;;
+;;; `align' is driven entirely by the regexp in
+;;; `haskell-ts-align-rules-list' and never consults the tree-sitter
+;;; parser, so these tests need neither a parsed buffer nor the grammar.
+;;; The snippets are realistic Haskell only for confidence; what is
+;;; exercised is the regexp on raw text.  (The one test that the *mode*
+;;; installs the rule, below, does need the grammar and is guarded.)
+
+(defun haskell-ts-tests--align (text)
+  "Return TEXT after aligning `=' with `haskell-ts-align-rules-list'.
+Mirrors what \\[align] does to the whole region, with spaces (not
+tabs) for the padding so the expected strings are stable."
+  (require 'align)
+  (with-temp-buffer
+    (let ((indent-tabs-mode nil))
+      (insert text)
+      (align-region (point-min) (point-max) 'entire
+                    haskell-ts-align-rules-list nil)
+      (buffer-string))))
+
+(ert-deftest haskell-ts-test-align-rule-regexp ()
+  "The `=' align regexp matches a standalone `=' but not its lookalikes.
+Group 1 is the whitespace before the `=' that `align' adjusts."
+  (let ((re (cdr (assq 'regexp
+                       (cdr (assq 'haskell-ts-assignment
+                                  haskell-ts-align-rules-list))))))
+    ;; A binding/equation `=' is matched, capturing the leading space.
+    (dolist (line '("x = 1" "foo   = bar" "main = putStrLn s"))
+      (should (string-match re line))
+      (should (match-string 1 line)))
+    ;; Operators that merely contain `=' are left alone.
+    (dolist (line '("x == y" "f :: a => b" "x <= y" "x >= y" "x /= y"))
+      (should-not (string-match re line)))))
+
+(ert-deftest haskell-ts-test-align-aligns-equals ()
+  "A simple block of bindings has its `=' signs lined up."
+  (should (equal (haskell-ts-tests--align
+                  (concat "x = 1\n"
+                          "foo = 2\n"
+                          "ab = 3\n"))
+                 (concat "x   = 1\n"
+                         "foo = 2\n"
+                         "ab  = 3\n"))))
+
+(ert-deftest haskell-ts-test-align-let-block ()
+  "Indented `let' bindings align, with the indentation preserved."
+  (should (equal (haskell-ts-tests--align
+                  (concat "let x = 1\n"
+                          "    yy = 2\n"
+                          "    zzz = 3\n"))
+                 (concat "let x   = 1\n"
+                         "    yy  = 2\n"
+                         "    zzz = 3\n"))))
+
+(ert-deftest haskell-ts-test-align-guards ()
+  "Guard right-hand sides align on their `=', leaving the guards alone."
+  (should (equal (haskell-ts-tests--align
+                  (concat "  | x > 0 = \"pos\"\n"
+                          "  | otherwise = \"neg\"\n"))
+                 (concat "  | x > 0     = \"pos\"\n"
+                         "  | otherwise = \"neg\"\n"))))
+
+(ert-deftest haskell-ts-test-align-keeps-operators ()
+  "Only the binding `=' is aligned; `==' and `/=' on the line are untouched."
+  (should (equal (haskell-ts-tests--align
+                  (concat "a = x == y\n"
+                          "bb = p /= q\n"))
+                 (concat "a  = x == y\n"
+                         "bb = p /= q\n"))))
+
+(ert-deftest haskell-ts-test-align-leaves-fat-arrow-line ()
+  "A line whose only `='-like token is `=>' is never modified."
+  (should (equal (haskell-ts-tests--align "f :: Eq a => a -> Bool\n")
+                 "f :: Eq a => a -> Bool\n")))
+
+(ert-deftest haskell-ts-test-align-idempotent ()
+  "Re-aligning already-aligned bindings changes nothing."
+  (let ((aligned (concat "x   = 1\n"
+                         "foo = 2\n"
+                         "ab  = 3\n")))
+    (should (equal (haskell-ts-tests--align aligned) aligned))))
+
 ;;; --------------------------------------------------------------------
 ;;; Grammar-dependent integration tests (skipped without the grammar)
 ;;; --------------------------------------------------------------------
@@ -333,6 +416,21 @@ and the type synonym from the sample."
     (let ((node (treesit-defun-at-point)))
       (should node)
       (should (equal "greeting" (haskell-ts-defun-name node))))))
+
+(ert-deftest haskell-ts-test-align-wired-into-mode ()
+  "The mode installs the align rule buffer-locally and \\[align] works.
+This is the end-to-end check that plain `M-x align' aligns `=' in a
+real `haskell-ts-mode' buffer; it needs the grammar to activate the mode."
+  (require 'align)
+  (haskell-ts-tests--with-temp-hs "x = 1\nfoo = 2\nab = 3\n"
+    (should (local-variable-p 'align-mode-rules-list))
+    (should (equal align-mode-rules-list haskell-ts-align-rules-list))
+    (let ((indent-tabs-mode nil))
+      (align (point-min) (point-max)))
+    (should (equal (buffer-string)
+                   (concat "x   = 1\n"
+                           "foo = 2\n"
+                           "ab  = 3\n")))))
 
 (provide 'haskell-ts-mode-tests)
 ;;; haskell-ts-mode-tests.el ends here

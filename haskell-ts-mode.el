@@ -42,6 +42,10 @@
 (declare-function treesit-node-child "treesit.c")
 (declare-function treesit-node-type "treesit.c")
 
+;; Loaded lazily by `align'; declared here so byte-compilation does not
+;; warn about a free variable when we set it buffer-locally in the mode.
+(defvar align-mode-rules-list)
+
 (defgroup haskell-ts-mode nil
   "Group that contains haskell-ts-mode variables"
   :group 'langs)
@@ -535,6 +539,15 @@ when `haskell-ts-prettify-words' is non-nil.")
      (text "string")))
   "`treesit-thing-settings' for `haskell-ts-mode'.")
 
+(defvar haskell-ts-align-rules-list
+  '((haskell-ts-assignment
+     (regexp . "\\(\\s-+\\)=\\s-+")))
+  "`align-mode-rules-list' for `haskell-ts-mode'.
+Aligns the standalone `=' signs (binding and equation operators) in
+a region under \\[align].  The trailing `\\s-+' makes the rule skip
+`==', `=>', `<=', `>=' and `/=': only an `=' surrounded by
+whitespace is matched.")
+
 ;; TODO make into a currying function
 (defmacro haskell-ts-imenu-name-function ()
   `(lambda (node)
@@ -570,6 +583,8 @@ when `haskell-ts-prettify-words' is non-nil.")
   ;; Electric
   (setq-local electric-pair-pairs
               '((?` . ?`) (?\( . ?\)) (?{ . ?}) (?\" . ?\") (?\[ . ?\])))
+  ;; Align (M-x align aligns the `=' signs in a region)
+  (setq-local align-mode-rules-list haskell-ts-align-rules-list)
   ;; Navigation
   (setq-local treesit-defun-name-function 'haskell-ts-defun-name)
   (setq-local treesit-thing-settings haskell-ts-thing-settings)
