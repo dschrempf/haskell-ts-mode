@@ -408,6 +408,25 @@ and the type synonym from the sample."
       (should (member "Color" names))
       (should (member "Name" names)))))
 
+(ert-deftest haskell-ts-test-imenu-collapses-equations ()
+  "A function's multiple equations collapse to a single imenu entry."
+  (haskell-ts-tests--with-temp-hs
+      "fib :: Int -> Int
+fib 0 = 1
+fib 1 = 1
+fib n = fib (n - 1) + fib (n - 2)
+
+main :: IO ()
+main = print (fib 10)
+"
+    (let* ((index (funcall imenu-create-index-function))
+           ;; The top-level (uncategorised) function entries.
+           (funcs (cl-remove-if (lambda (e) (consp (cdr e))) index))
+           (names (mapcar #'car funcs)))
+      ;; `fib' has three equations but must appear exactly once.
+      (should (equal 1 (cl-count "fib" names :test #'equal)))
+      (should (member "main" names)))))
+
 (ert-deftest haskell-ts-test-defun-navigation ()
   "`treesit-defun-name' reads the name of the function at point."
   (haskell-ts-tests--with-temp-hs haskell-ts-tests--sample

@@ -19,8 +19,14 @@
 * TODO [#C] Run the test suite in CI
   =nix flake check= already runs byte-compile + ERT against the tek grammar.
 
-* TODO [#C] Imenu: collapse multiple equations of one function
-  Each equation currently produces a duplicate same-named imenu entry.
+* DONE Imenu: collapse multiple equations of one function
+  A multi-equation function used to yield one same-named imenu entry per
+  equation.  =haskell-ts-imenu-func-node-p= now rejects an equation when an
+  earlier top-level sibling already defines the same name
+  (=haskell-ts--imenu-earlier-equation-p=), so only the first equation
+  reaches imenu.  Name extraction was factored out into
+  =haskell-ts--imenu-node-name= (shared by the predicate and the name
+  function).  Covered by =haskell-ts-test-imenu-collapses-equations=.
 
 * DONE Support =M-x align= on the =​=​= sign
   =haskell-ts-mode= sets a buffer-local =align-mode-rules-list= (from
