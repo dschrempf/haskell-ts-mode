@@ -22,8 +22,13 @@
 * TODO [#C] Imenu: collapse multiple equations of one function
   Each equation currently produces a duplicate same-named imenu entry.
 
-* TODO [#C] Support =M-x align= on the =​=​= sign
-  Align all the =​=​= signs in a region.
+* DONE Support =M-x align= on the =​=​= sign
+  =haskell-ts-mode= sets a buffer-local =align-mode-rules-list= (from
+  =haskell-ts-align-rules-list=) so =M-x align= lines up the standalone
+  =​=​= signs in a region.  The rule's trailing =\s-+= skips =​==​=,
+  =​=>​=, =​<=​=, =​>=​= and =​/=​=.  Documented in README; covered by
+  =haskell-ts-test-align-rule-regexp= and
+  =haskell-ts-test-align-aligns-equals=.
 
 * TODO [#C] Send the current line or definition to the REPL
   =C-c C-c= only sends the active region or the whole file;
