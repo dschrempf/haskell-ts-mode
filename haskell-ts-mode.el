@@ -548,13 +548,19 @@ a region under \\[align].  The trailing `\\s-+' makes the rule skip
 `==', `=>', `<=', `>=' and `/=': only an `=' surrounded by
 whitespace is matched.")
 
+(defun haskell-ts--imenu-node-name (node)
+  "Return the name imenu should display for declaration NODE.
+For an operator definition (an `infix' first child, as in
+`a <+> b = ...') this is the operator; otherwise it is the bound
+name as given by `haskell-ts-defun-name'."
+  (let ((nn (treesit-node-child node 0 t)))
+    (if (string= (treesit-node-type nn) "infix")
+        (treesit-node-text (treesit-node-child nn 1))
+      (haskell-ts-defun-name node))))
+
 ;; TODO make into a currying function
 (defmacro haskell-ts-imenu-name-function ()
-  `(lambda (node)
-     (let ((nn (treesit-node-child node 0 t)))
-       (if (string= (treesit-node-type nn) "infix")
-           (treesit-node-text (treesit-node-child nn 1))
-         (haskell-ts-defun-name node)))))
+  `(lambda (node) (haskell-ts--imenu-node-name node)))
 
 (defvar-keymap  haskell-ts-mode-map
   :doc "Keymap for haskell-ts-mode."
@@ -661,8 +667,25 @@ inserted character and is acted on only when it is a newline."
   (and (string-match-p regex (treesit-node-type node))
        (string= (treesit-node-type (treesit-node-parent node)) "declarations")))
 
+(defun haskell-ts--imenu-earlier-equation-p (node)
+  "Return non-nil if an earlier top-level sibling defines the same name as NODE.
+A multi-equation function produces one `function' node per equation;
+only the first should reach imenu, so later equations are recognised
+here by an earlier `function'/`bind' sibling sharing NODE's name."
+  (let ((name (haskell-ts--imenu-node-name node))
+        (prev (treesit-node-prev-sibling node t))
+        (found nil))
+    (while (and prev (not found))
+      (when (and (string-match-p "function\\|bind" (treesit-node-type prev))
+                 (equal name (haskell-ts--imenu-node-name prev)))
+        (setq found t))
+      (setq prev (treesit-node-prev-sibling prev t)))
+    found))
+
 (defun haskell-ts-imenu-func-node-p (node)
-  (haskell-ts-imenu-node-p "function\\|bind" node))
+  (and (haskell-ts-imenu-node-p "function\\|bind" node)
+       ;; Collapse a function's multiple equations into a single entry.
+       (not (haskell-ts--imenu-earlier-equation-p node))))
 
 (defun haskell-ts-imenu-sig-node-p (node)
   (haskell-ts-imenu-node-p "signature" node))
