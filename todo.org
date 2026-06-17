@@ -19,23 +19,6 @@
 * TODO [#C] Run the test suite in CI
   =nix flake check= already runs byte-compile + ERT against the tek grammar.
 
-* DONE Imenu: collapse multiple equations of one function
-  A multi-equation function used to yield one same-named imenu entry per
-  equation.  =haskell-ts-imenu-func-node-p= now rejects an equation when an
-  earlier top-level sibling already defines the same name
-  (=haskell-ts--imenu-earlier-equation-p=), so only the first equation
-  reaches imenu.  Name extraction was factored out into
-  =haskell-ts--imenu-node-name= (shared by the predicate and the name
-  function).  Covered by =haskell-ts-test-imenu-collapses-equations=.
-
-* DONE Support =M-x align= on the =​=​= sign
-  =haskell-ts-mode= sets a buffer-local =align-mode-rules-list= (from
-  =haskell-ts-align-rules-list=) so =M-x align= lines up the standalone
-  =​=​= signs in a region.  The rule's trailing =\s-+= skips =​==​=,
-  =​=>​=, =​<=​=, =​>=​= and =​/=​=.  Documented in README; covered by
-  =haskell-ts-test-align-rule-regexp= and
-  =haskell-ts-test-align-aligns-equals=.
-
 * TODO [#C] Send the current line or definition to the REPL
   =C-c C-c= only sends the active region or the whole file;
   =haskell-mode= and =dante= also send a single line or the enclosing
@@ -49,6 +32,3 @@
   <component>=.  Open questions: remember the choice for the session, and
   offer a prefix-arg override to pick a component even for an unambiguous
   file.
-
-* DONE Brief test suite (byte compilation etc.)
-  Added an ERT suite and =Makefile=; see =tests/= and =make check=.

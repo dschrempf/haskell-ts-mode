@@ -1,0 +1,89 @@
+#+title: haskell-ts-mode changelog
+
+All notable changes to =haskell-ts-mode= are documented here.  The
+format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], and the project aims to follow
+[[https://semver.org/][Semantic Versioning]].
+
+* 1.4 — 2026-06-17
+
+This release retargets the mode at [[https://github.com/tek/tree-sitter-haskell][@tek's tree-sitter-haskell grammar]],
+overhauls the GHCi/REPL integration (=cabal repl=, file loading, a real
+inferior mode), and adds a test suite.
+
+** Added
+
+- *=cabal repl= support.*  Inside a cabal project (a =cabal.project= or
+  =*.cabal= file found by walking up the directory tree) the REPL now
+  starts with =cabal repl= instead of plain =ghci=, so the project's
+  dependencies, default language extensions and GHC options are in
+  scope.  The current file is passed as the target so cabal opens the
+  owning component.  New options: =haskell-ts-use-cabal= (=auto= / =t= /
+  =nil=, default =auto=), =haskell-ts-cabal= and
+  =haskell-ts-cabal-switches=.
+- *=haskell-ts-load-file= (=C-c C-l=).*  Loads the current buffer's file
+  into the REPL with =:load "<absolute-path>"=, starting a session if
+  none is running and saving the buffer first.  Works whether GHCi is
+  fresh or already has modules loaded, sidestepping the =:r= no-op on a
+  freshly started session.  The REPL is displayed without leaving the
+  current buffer.
+- *A dedicated inferior mode, =haskell-ts-inferior-mode=* (derived from
+  =comint-mode=).  It sets a prompt regexp
+  (=haskell-ts-inferior-prompt-regexp=, matching =ghci> = / =ghci| =,
+  =λ>= and the older module-qualified prompts =cabal repl= can
+  produce), makes the prompt read-only, and persists input history via
+  =haskell-ts-inferior-history-file=.  Filename completion and history
+  navigation come from =comint-mode=.
+- *=M-x align= support* for the =​=​= sign.  A buffer-local
+  =align-mode-rules-list= (from =haskell-ts-align-rules-list=) lines up
+  the standalone =​=​= signs of bindings and equations in a region,
+  while leaving =​==​=, =​=>​=, =​<=​=, =​>=​= and =​/=​= untouched.
+- *Test suite and development environment.*  An ERT suite under =tests/=
+  plus a =Makefile= (=make compile= / =test= / =check= / =checkdoc=) and
+  a =flake.nix= that provides an Emacs with =inheritenv= and @tek's
+  grammar wired in via =HASKELL_TS_GRAMMAR_PATH=.  =nix flake check= runs
+  the full suite headlessly.
+
+** Changed
+
+- *Retargeted at @tek's tree-sitter-haskell grammar.*  Font-lock and
+  indentation queries were adapted to @tek's node-type names (e.g.
+  =type_synomym= → =type_synonym=).  The official
+  =tree-sitter/tree-sitter-haskell= grammar is no longer supported and
+  fails silently (missing or wrong highlighting).  See the README for
+  manual grammar-installation instructions.
+- *Renamed =run-haskell= to =haskell-ts-run=* for prefix consistency
+  with every other public command and option.  No alias is kept.
+- The REPL process is now started in the project root when one is found,
+  so relative =import='s and the module search path resolve from there.
+- The =.hs= =auto-mode-alist= entry is now registered unconditionally
+  and autoloaded, so =.hs= files use the mode even when the grammar is
+  installed after the package loads (as the =use-package :config= recipe
+  does).
+- *Imenu now collapses a function's multiple equations into one entry*
+  instead of listing one same-named entry per equation.
+- All =defcustom='s now carry an explicit =:group 'haskell-ts-mode=
+  instead of relying on the file-local defgroup heuristic.
+
+** Fixed
+
+- =haskell-ts-indent-after-newline= inserted whitespace equal to the
+  previous line's full width (instead of its indentation) and ran on
+  every =RET= even when indentation was disabled (the default).  It now
+  measures the previous line's indentation and only installs itself when
+  =haskell-ts-use-indent= is set.
+- Fragile GHCi multiline escaping.  The region-send path rewrote any
+  =:}= line to the invalid =\:}=; since GHCi's =:{=/=:}= block has no
+  escape mechanism, the region is now sent verbatim and a standalone
+  =:}= line raises an explicit =user-error= rather than emitting a
+  broken block.
+- =treesit-simple-imenu-settings= now uses correct node-type
+  pre-filters, so the imenu predicates and name extraction work against
+  the grammar.
+- Numerous docstring and README typos.
+
+** Removed
+
+- Dead, immediately-overwritten =treesit-defun-type-regexp= assignment
+  that referenced non-existent node types (=function_definition=,
+  =struct_definition=).
+- Unused function =haskell-ts-current-function-bound=.

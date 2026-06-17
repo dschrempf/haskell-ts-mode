@@ -5,7 +5,7 @@
 ;; Author: Pranshu Sharma <pranshu@bauherren.ovh>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
 ;; Package-Requires: ((emacs "29.3") (inheritenv "0.1"))
-;; Version: 1.3.5
+;; Version: 1.4
 ;; Keywords: languages, Haskell
 
 ;; This program is free software; you can redistribute it and/or modify
@@ -25,7 +25,7 @@
 
 ;; This is a major mode that uses treesitter to provide all the basic
 ;; major mode stuff, like indentation, font lock, etc...
-;; It uses the grammar at: https://github.com/tree-sitter/tree-sitter-haskell
+;; It uses the grammar at: https://github.com/tek/tree-sitter-haskell
 
 ;;; Code:
 
