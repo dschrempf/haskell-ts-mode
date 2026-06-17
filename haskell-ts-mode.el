@@ -1,8 +1,11 @@
 ;;; haskell-ts-mode.el --- A treesit based major mode for haskell -*- lexical-binding:t -*-
 
 ;; Copyright (C) 2024, 2025 Pranshu Sharma
+;; Copyright (C) 2026 Dominik Schrempf
 
 ;; Author: Pranshu Sharma <pranshu@bauherren.ovh>
+;;         Dominik Schrempf <dominik.schrempf@gmail.com>
+;; Maintainer: Dominik Schrempf <dominik.schrempf@gmail.com>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
 ;; Package-Requires: ((emacs "29.3") (inheritenv "0.1"))
 ;; Version: 1.4

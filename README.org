@@ -1,4 +1,7 @@
 
+*NOTICE:* This is a fork and an experiment based on [[https://codeberg.org/pranshu/haskell-ts-mode][Pranshu's =haskell-ts-mode=]]
+and under active development. The API may change without notice.
+
 *NOTICE:* Indentation has temporarily been disabled by default. SEE
 THE [[p:indent][INDENTATION]] SECTION for why this was needed and what the plan is.  TLDR
 indentation is going through a full rewrite.
