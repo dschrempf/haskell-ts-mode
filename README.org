@@ -58,6 +58,12 @@ The process is started in the project root when one is found, so relative
   session if none is running. The REPL is displayed without leaving the
   current buffer.
 
+The inferior buffer runs =haskell-ts-inferior-mode= (derived from
+=comint-mode=): the prompt is read-only and input history is persisted
+across sessions in =haskell-ts-inferior-history-file=. Filename
+completion and history navigation (=M-p= / =M-n=, =TAB=) come from
+=comint=.
+
 * Comparison with =haskell-mode=
 
 The more interesting features are:
@@ -254,7 +260,10 @@ to your =init.el=:
                '(haskell-ts-mode . ("haskell-language-server-wrapper" "--lsp"))))
 #+end_example
 
+* Changelog
+
+See [[./CHANGELOG.org][CHANGELOG.org]] for the list of notable changes.
+
 * TODO list
 
-- Imenu support for functions with multiple definitions.
 - Merge the indent branch
