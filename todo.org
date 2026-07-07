@@ -1,5 +1,12 @@
-* TODO [#B] Detect the grammar and fail gracefully on wrong queries
-  See https://codeberg.org/pranshu/haskell-ts-mode/pulls/62
+* TODO [#B] Within comments, sentences span across paragraphs
+For example,
+#+begin_src haskell :session ghci :exports code :results none
+-- | Hel_1lo
+--
+-- This sentence is deleted when deleting around sentence from Hello above
+-- (e.g., cursor at _1). It shouldn't be!
+module Test () where
+#+end_src
 
 * TODO [#B] Make checkdoc strict and clear the existing doc-style debt
   =make checkdoc= currently runs informationally only (see
