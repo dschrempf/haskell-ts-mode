@@ -24,22 +24,26 @@
         let
           hpkgs = pkgs.haskellPackages;
 
-          # This mode targets @tek's tree-sitter-haskell grammar
-          # (https://github.com/tek/tree-sitter-haskell), which is more
-          # actively developed than the official one and whose node types
-          # the font-lock and indentation queries are written against.
-          # Override the nixpkgs grammar to that revision; its `src/' is
-          # not pre-generated, so regenerate it with `tree-sitter generate'
-          # before building.
+          # This mode targets a modified version
+          # (https://github.com/dschrempf/tree-sitter-haskell) of tek@'s
+          # tree-sitter-haskell grammar
+          # (https://github.com/tek/tree-sitter-haskell), which is more actively
+          # developed than the official one and whose node types the font-lock
+          # and indentation queries are written against. Override the nixpkgs
+          # grammar to that revision; its `src/' is not pre-generated, so
+          # regenerate it with `tree-sitter generate' before building.
           overrideTreeSitterHaskell =
             tree-sitter-haskell:
+            let
+              rev = "1ad6077a1fb776c255836e00aeb6da57ba564b6a";
+            in
             tree-sitter-haskell.overrideAttrs (old: {
-              version = "2026-03-03";
+              version = "unstable-2026-07-07-${builtins.substring 0 7 rev}";
               src = pkgs.fetchFromGitHub {
-                owner = "tek";
+                owner = "dschrempf";
                 repo = "tree-sitter-haskell";
-                rev = "064b41807b2af4a9a23716c4987597ed7e21947a";
-                hash = "sha256-EJw8AHpfpfzAOwa6RKASm4C+Dt2JAgCodHXxSBO7WzA=";
+                inherit rev;
+                hash = "sha256-kC6HwImFRx5HUY7NDLAA0I/DaSstQ94dWxA9+lMx2gI=";
               };
               nativeBuildInputs = (old.nativeBuildInputs or [ ]) ++ [
                 pkgs.nodejs
@@ -51,14 +55,14 @@
             });
 
           # A directory holding `libtree-sitter-haskell.so' built from the
-          # tek grammar.  The nixpkgs emacs wrapper does not wire grammars
+          # dschrempf grammar.  The nixpkgs emacs wrapper does not wire grammars
           # into `treesit-extra-load-path', so we expose this path via the
           # HASKELL_TS_GRAMMAR_PATH environment variable and the test
           # harness adds it itself (see tests/haskell-ts-mode-tests.el).
           haskellGrammar =
-            (pkgs.emacs.pkgs.treesit-grammars.with-grammars (
-              ps: [ (overrideTreeSitterHaskell ps.tree-sitter-haskell) ]
-            ))
+            (pkgs.emacs.pkgs.treesit-grammars.with-grammars (ps: [
+              (overrideTreeSitterHaskell ps.tree-sitter-haskell)
+            ]))
             + "/lib";
 
           # Emacs with `inheritenv', a hard dependency of haskell-ts-mode.
@@ -79,7 +83,7 @@
           };
 
           # `nix flake check' runs the byte-compile + ERT suite headlessly
-          # against the tek grammar.
+          # against the dschrempf grammar.
           checks.default =
             pkgs.runCommand "haskell-ts-mode-check"
               {
