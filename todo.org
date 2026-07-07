@@ -19,6 +19,55 @@
   =haskell-mode= and =dante= also send a single line or the enclosing
   definition.
 
+* TODO [#B] Imenu mislabels/omits =data_type=/=newtype= declarations that have a leading keyword pair
+  The imenu name extractor for =data_type\|newtype= grabs
+  =(treesit-node-child node 1)= (the second child, all children
+  counted), assuming exactly one leading keyword (=data=/=newtype=)
+  before the name.  The @tek grammar aliases two other productions to
+  the same node types, both of which break that assumption:
+  - =type data Foo = MkFoo= (the =TypeData= extension) parses as
+    =data_type= with *two* leading keywords, =type= then =data=; index 1
+    is the =data= keyword, so imenu shows "data" instead of "Foo".
+  - =data instance Foo Int = Bar Int= / =newtype instance ...= (data
+    family instances) parse as a =data_type=/=newtype= node wrapped in
+    an outer =data_instance= node.  Since
+    =haskell-ts-imenu-node-p= requires the node's *parent* to be
+    literally =declarations=, and the parent here is =data_instance=,
+    these declarations are silently missing from imenu instead of
+    mislabeled.
+  Root cause is using a positional child index instead of the =name=
+  field, which every one of these productions actually populates.
+  Fix by extracting the name with
+  =treesit-node-child-by-field-name node "name"= instead, and decide
+  whether =data_instance=/=type_instance= wrappers should also be
+  unwrapped so family instances show up in imenu at all.
+
+* TODO [#C] =haskell-ts-defun-name= shows the whole pattern for infix-headed functions
+  For =a <+> b = ...=, =haskell-ts-defun-name= (used for
+  =treesit-defun-name-function=, e.g. which-function-mode) returns the
+  text of child 0, which is the entire =infix= node ("a <+> b"), not
+  just the operator.  =haskell-ts--imenu-node-name= already special-cases
+  this (see its =infix= check) to show just the operator; teach
+  =haskell-ts-defun-name= the same trick, or share the logic between
+  the two.
+
+* TODO [#C] Highlight more Haskell keywords
+  The =:feature 'keyword= token list is missing several keywords that
+  are plain anonymous tokens in the @tek grammar and cost nothing to
+  add: =forall=, =pattern= (pattern synonyms), the deriving-strategy
+  keywords =via=/=stock=/=anyclass=, the fixity keywords
+  =infix=/=infixl=/=infixr=, and the arrow-notation keywords
+  =mdo=/=rec=.  (=deriving= itself, =as=/=hiding=/=qualified= are
+  already handled by the =constructors=/=import= features
+  respectively.)
+
+* TODO [#C] Highlight the do-notation bind arrow (=<-=)
+  The list-comprehension generator's =<-= is highlighted (see the
+  =match= feature's =list_comprehension= rule), but the same =<-= in a
+  plain do-block bind (=x <- action=, the =bind= node's =arrow= field)
+  is not highlighted anywhere, which is an inconsistency between two
+  syntactically identical tokens.
+
 * TODO [#C] Interactive component picker for ambiguous =cabal repl= targets
   When a file belongs to several components, =cabal repl= cannot choose
   one and =haskell-ts--cabal-file-target= aborts with a =user-error=
@@ -27,3 +76,32 @@
   <component>=.  Open questions: remember the choice for the session, and
   offer a prefix-arg override to pick a component even for an unambiguous
   file.
+
+* Upstream: possible issues in =tree-sitter-haskell= itself (not fixable here)
+
+  These are not =haskell-ts-mode= bugs; they'd need to be reported/fixed in the
+  =@tek/tree-sitter-haskell= grammar repo. Nothing below is actionable in this
+  repo directly.
+
+** Known parser failures on real-world code
+   The grammar's own =test/known-failures/= lists files from real Haskell
+   codebases that its test suite already knows fail to parse:
+   - =compiler.txt=: GHC's =GHC/Builtin/PrimOps.hs=.
+   - =haskell-language-server.txt=: =FuncTestFail.hs=, =Symbol.hs=.
+   - =semantic.txt=: 7 fixtures covering function declarations, algebraic
+     datatype declarations, newtype declarations, type synonyms, and
+     Template Haskell.
+   - =lens.txt=, =polysemy.txt=: one file each.
+   I looked at two of the =semantic= fixture pairs
+   (=function-declarations.{A,B}.hs=,
+   =algebraic-datatype-declarations.{A,B}.hs=); each packs dozens of
+   unrelated constructs (records, punning, wildcards, =TypeApplications=,
+   unboxed types, =DatatypeContexts=, existentials, ...) into one file, so
+   pinpointing *which* construct actually breaks the parse needs the
+   grammar's own test harness (=tree-sitter parse=/=test/parse-lib=)
+   running against a built parser — I did not build/run that in this
+   session.  Follow-up (separate session): build the grammar (nix or
+   =tree-sitter generate= + a C compiler), run
+   =test/parse-lib <name>= for the failing libs, and bisect each
+   known-failure file down to the breaking construct before reporting
+   upstream.
