@@ -2,15 +2,6 @@
 *NOTICE:* This is a fork and an experiment based on [[https://codeberg.org/pranshu/haskell-ts-mode][Pranshu's =haskell-ts-mode=]]
 and under active development. The API may change without notice.
 
-*NOTICE:* Indentation has temporarily been disabled by default. SEE
-THE [[p:indent][INDENTATION]] SECTION for why this was needed and what the plan is.  TLDR
-indentation is going through a full rewrite.
-
-* Contributing
-
-Please contribute ideas on how the new indentation system would work.
-See [[p:rewrite][rewriting the indentation]] section.
-
 * Haskell mode based on treesitter
 
 A [[https://www.haskell.org/][Haskell]] mode that uses [[https://tree-sitter.github.io/tree-sitter/][Tree-sitter]].
@@ -26,8 +17,6 @@ with =prettify-symbols-mode= enabled.
 - =C-c C-r= Open REPL
 - =C-c C-c= Send region to REPL (or reload with =:r= when no region is active)
 - =C-c C-l= Load the current file into the REPL (starts one if needed)
-- =M-q= Indent the function (only when indentation is enabled; see
-  =haskell-ts-use-indent=, disabled by default)
 
 * Features
 
@@ -35,7 +24,6 @@ Overview of features:
 
 - Syntax highlighting
 - Structural navigation
-- Indentation (now disabled)
 - Imenu support
 - REPL (=C-c C-r= in the mode to run)
 - Prettify Symbols mode support
@@ -129,9 +117,6 @@ Add this into your init.el:
   :ensure t
   :custom
   (haskell-ts-font-lock-level 4)
-  ;; Indentation is opt-in and currently being rewritten; see the
-  ;; Indentation section before enabling it.
-  ;; (haskell-ts-use-indent t)
   (haskell-ts-ghci "ghci"))
 #+end_src
 
@@ -148,10 +133,10 @@ grammar]] below.
 [[https://github.com/tree-sitter/tree-sitter-haskell][tree-sitter/tree-sitter-haskell]]
 grammar.  @tek's grammar is the more actively maintained one and fixes
 node-type names that the official grammar gets wrong (for example
-=type_synomym= → =type_synonym=).  The font-lock and indentation queries
-rely on the corrected names, so the official grammar does *not* work with
-this mode: it fails silently — usually as missing or wrong highlighting
-rather than an error.
+=type_synomym= → =type_synonym=).  The font-lock queries rely on the
+corrected names, so the official grammar does *not* work with this mode:
+it fails silently — usually as missing or wrong highlighting rather than
+an error.
 
 The grammar has to be installed manually.  =M-x
 treesit-install-language-grammar= cannot do it, for two reasons: it
@@ -181,39 +166,6 @@ development:
 - [[https://github.com/emacsmirror/hcel][hcel]] Codebase navigator, if you want a lighter alternative to a full blown LSP.
   
 * Customization
-
-** Indentation <<p:indent>>
-
-*Indentation has been disabled by default*.  To enable it, use the following code.
-
-#+begin_src emacs-lisp
-(setq haskell-ts-use-indent t)
-#+end_src
-
-*** Why indentation has been disabled temporarily
-
-Simply because the indention code became a monstrosity.  Don't believe
-me? check the =haskell-ts-indent-rules= variable.  Bugs are rampant,
-fixing one bug created another.  Its a torturous game of whack-a-mole
-with no end in sight.
-
-*** Indentation rewrite <<p:rewrite>>
-
-Check out the =newindent= branch to see the repo to see the progress.
-
-There are some options to rewriting indentation:
-
-1. Do the same approach of having strict indentation that doesn't
-   modify the syntax tree, just implement it better, potentially using
-   a style guide, [[https://github.com/tibbe/haskell-style-guide/blob/master/haskell-style.md][like this one]].
-2. Rely on a external package like [[https://github.com/nilcons/hi2][hi2]] or [[https://github.com/iquiw/hyai][hyai]], at the compromise they don't
-   use treesitter, so just end up inefficiently reparsing haskell.
-3. My preferred: try to implement haskell-mode type indentation. I have
-   no idea how we would do this, since each indentation attempt could
-   change the parse tree, changing the treesitter concrete syntax
-   tree.
-4. Adaptive indentation: Like =python-mode=, we can try memorise the
-   user's indentation preferences.
 
 ** Prettify Symbols mode
 
@@ -266,7 +218,3 @@ to your =init.el=:
 * Changelog
 
 See [[./CHANGELOG.org][CHANGELOG.org]] for the list of notable changes.
-
-* TODO list
-
-- Merge the indent branch
