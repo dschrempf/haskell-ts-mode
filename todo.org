@@ -9,11 +9,6 @@
 * TODO [#B] Add package-lint (and perhaps relint) to the test suite
   Lints headers, dependencies and naming conventions for ELPA/MELPA.
 
-* TODO [#B] Fix or remove the indentation handling
-  =haskell-ts-use-indent= defaults to nil because =haskell-ts-indent-rules= is
-  buggy. Either finish the rewrite (=newindent= branch of =@pranshu=) or drop
-  the indentation code entirely.
-
 * TODO [#C] Split into =haskell-ts-mode= and a separate REPL file (name?)
 
 * TODO [#C] Run the test suite in CI

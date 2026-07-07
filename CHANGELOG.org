@@ -4,6 +4,18 @@ All notable changes to =haskell-ts-mode= are documented here.  The
 format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], and the project aims to follow
 [[https://semver.org/][Semantic Versioning]].
 
+* Unreleased
+
+** Removed
+
+- *Tree-sitter indentation support.*  =haskell-ts-use-indent=,
+  =haskell-ts-indent-rules= and =haskell-ts-indent-after-newline= are
+  gone.  The rule set was disabled by default and, per its own
+  comments, an unmaintainable hack; nothing in the mode depended on it.
+  =haskell-ts--stand-alone-parent=, its only caller, is removed as
+  well.  =haskell-ts--ignore-types= is kept — it is also used by
+  structural navigation.
+
 * 1.4 — 2026-06-17
 
 This release retargets the mode at [[https://github.com/tek/tree-sitter-haskell][@tek's tree-sitter-haskell grammar]],
