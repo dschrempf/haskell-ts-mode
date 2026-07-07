@@ -6,6 +6,15 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 
 * Unreleased
 
+** Changed
+
+- *Exact comment-marker bounds for sentence navigation.*  The grammar
+  now splits =comment=/=haddock= nodes into a =marker= child (=--=,
+  =-- |=, =-- ^=, ={-=, ...) and a =content= child holding the body;
+  =haskell-ts--forward-sentence= uses the =content= field directly
+  instead of guessing the marker's shape with a regexp
+  (=haskell-ts--comment-marker-regexp=, now removed).
+
 ** Removed
 
 - *Tree-sitter indentation support.*  =haskell-ts-use-indent=,

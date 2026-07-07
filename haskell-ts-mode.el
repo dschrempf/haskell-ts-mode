@@ -338,13 +338,18 @@ when `haskell-ts-prettify-words' is non-nil.")
      (not (and (string= "operator" (treesit-node-field-name node))
                (= 1 (length node-text)))))))
 
-(defconst haskell-ts--comment-marker-regexp
-  "\\(?:-\\{2,\\}\\|{-\\)[ \t]*[|^]?[ \t]*"
-  "A comment's opening syntax marker, e.g. `--', `-- |', `-- ^', `{-'.
-Matched at the start of a `comment'/`haddock' node so
-`haskell-ts--forward-sentence' can exclude it from the node's text:
-otherwise deleting the comment's first sentence also deletes the
-marker, turning it into code.")
+(defun haskell-ts--text-node-parent (node)
+  "Resolve NODE to its enclosing `comment'/`haddock' node, or return NODE.
+A `comment'/`haddock' node is compound, with a `marker' and (unless
+the comment is empty) a `content' child; `treesit-node-at' returns
+the innermost node touching a position, which for a position inside a
+comment is one of those children rather than the comment/haddock node
+itself.  Callers that test a node's own type against `text' (which
+matches `comment'/`haddock'/`string', not `marker'/`content') need
+the parent instead."
+  (if (and node (member (treesit-node-type node) '("marker" "content")))
+      (treesit-node-parent node)
+    node))
 
 (defun haskell-ts--text-node-at (pos)
   "Return the `text' node touching POS, or nil.
@@ -358,9 +363,10 @@ text\" and fall through to `treesit-forward-sentence''s AST-based
 equations); a file with no equation before POS (e.g. only bindings,
 signatures and comments) has no such node to stop at, so the search
 runs all the way to the start of the buffer."
-  (or (let ((node (treesit-node-at pos)))
+  (or (let ((node (haskell-ts--text-node-parent (treesit-node-at pos))))
         (and (treesit-node-match-p node 'text t) node))
-      (let ((node (and (> pos (point-min)) (treesit-node-at (1- pos)))))
+      (let ((node (haskell-ts--text-node-parent
+                    (and (> pos (point-min)) (treesit-node-at (1- pos))))))
         (and node (= (treesit-node-end node) pos)
              (treesit-node-match-p node 'text t)
              node))))
@@ -378,7 +384,18 @@ with no blank line in between is then not a paragraph boundary
 either, so prose sentence movement runs past the comment into the
 surrounding code (or vice versa).  And without excluding the marker,
 the first sentence in a comment starts at `--' itself, so deleting it
-deletes the marker along with the sentence.
+deletes the marker along with the sentence.  The marker itself is
+excluded via the grammar's `content' field on `comment'/`haddock'
+nodes; an empty comment has no `content' child, so its bounds fall
+back to the whole (marker-only) node.  `content' still includes the
+horizontal whitespace between the marker and the prose (e.g. the
+space in `-- | Module'), which must be skipped too: left in, it is
+the narrowed region's first character, and paragraph motion (used by
+`forward-sentence-default-function' to find a sentence's start when
+no preceding sentence end matches) skips over leading whitespace,
+landing one character past where it started -- turning a same-place
+`backward-sentence' at the marker/content boundary into a net forward
+move.
 
 When point sits on the marker itself (before the trimmed start) and
 ARG asks to move backward, this leaves point untouched rather than
@@ -390,12 +407,14 @@ backward motion that fails to move point backward."
   (setq arg (or arg 1))
   (let ((node (haskell-ts--text-node-at (point))))
     (if node
-        (let ((start (treesit-node-start node))
-              (end (treesit-node-end node)))
-          (save-excursion
-            (goto-char start)
-            (when (looking-at haskell-ts--comment-marker-regexp)
-              (setq start (match-end 0))))
+        (let* ((content (treesit-node-child-by-field-name node "content"))
+               (start (if content
+                          (save-excursion
+                            (goto-char (treesit-node-start content))
+                            (skip-chars-forward " \t")
+                            (point))
+                        (treesit-node-start node)))
+               (end (treesit-node-end node)))
           (unless (and (< arg 0) (< (point) start))
             (save-restriction
               (narrow-to-region start end)
