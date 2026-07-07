@@ -34,6 +34,12 @@
 ;;
 ;;     nix develop -c make test     # or just `make test' under direnv
 ;;     nix flake check              # headless compile + test
+;;
+;; * Evil integration tests exercise `evil'\\='s sentence text objects
+;;   (`d a s'/`d i s') directly, since `haskell-ts-mode' does not
+;;   depend on `evil' itself.  They likewise skip, not fail, when
+;;   `evil' cannot be found; point `HASKELL_TS_EVIL_PATH' at a checkout
+;;   or installed copy to exercise them.
 
 ;;; Code:
 
@@ -52,6 +58,15 @@
   (when (and grammar-path (not (string-empty-p grammar-path)))
     (add-to-list 'treesit-extra-load-path
                  (file-name-as-directory grammar-path))))
+
+;; Likewise for `evil': `haskell-ts-mode' has no dependency on it, so it
+;; is not on `load-path' by default.  Honour `HASKELL_TS_EVIL_PATH' when
+;; set so a dev shell can opt into the evil-integration tests below;
+;; otherwise fall back to whatever the running Emacs already knows, and
+;; those tests skip if that is nothing.
+(let ((evil-path (getenv "HASKELL_TS_EVIL_PATH")))
+  (when (and evil-path (not (string-empty-p evil-path)))
+    (add-to-list 'load-path (file-name-as-directory evil-path))))
 
 (require 'haskell-ts-mode)
 
@@ -557,6 +572,80 @@ real `haskell-ts-mode' buffer; it needs the grammar to activate the mode."
                    (concat "x   = 1\n"
                            "foo = 2\n"
                            "ab  = 3\n")))))
+
+;;; --------------------------------------------------------------------
+;;; Evil integration tests (skipped unless `evil' is available)
+;;; --------------------------------------------------------------------
+;;;
+;;; `haskell-ts-mode' does not depend on `evil'.  These tests exercise
+;;; `evil-select-an-object'/`evil-select-inner-object' (what `d a s'/
+;;; `d i s' call) directly rather than through `execute-kbd-macro':
+;;; the latter turned out to be unreliable in `--batch' mode -- it lost
+;;; track of the current buffer even for a plain `x' in a plain-text
+;;; buffer, unrelated to anything under test here.
+
+(defmacro haskell-ts-tests--with-temp-hs-evil (text &rest body)
+  "Like `haskell-ts-tests--with-temp-hs', but also enable `evil-local-mode'.
+Skips the test unless `evil' can be loaded (see `HASKELL_TS_EVIL_PATH'
+above)."
+  (declare (indent 1) (debug (form body)))
+  `(progn
+     (skip-unless (require 'evil nil t))
+     (haskell-ts-tests--with-temp-hs ,text
+       (evil-local-mode 1)
+       (evil-normal-state)
+       ,@body)))
+
+(defun haskell-ts-tests--evil-object-at (needle selector)
+  "Move to just after NEEDLE and return the text SELECTOR selects.
+SELECTOR is `evil-select-an-object' or `evil-select-inner-object',
+called for the `evil-sentence' thing."
+  (goto-char (point-min))
+  (search-forward needle)
+  (let ((range (funcall selector 'evil-sentence nil nil 'inclusive 1)))
+    (buffer-substring-no-properties
+     (evil-range-beginning range) (evil-range-end range))))
+
+(defconst haskell-ts-tests--evil-sentence-sample
+  "-- | Module bla.
+
+x :: Int
+x = 10
+
+-- Hello. This is a sentence.
+"
+  "Sample reproducing the reported `evil' sentence-object bugs:
+comments with no preceding `match' node (only bindings, signatures
+and other comments), a comment with more than one sentence, and a
+Haddock marker (`-- |') distinct from a plain one (`--').")
+
+(ert-deftest haskell-ts-test-evil-a-sentence ()
+  "`evil-a-sentence' (`d a s') never includes a comment's marker or
+spills into surrounding code -- including with point on the marker
+itself, where the worst case is one adjoining space."
+  (haskell-ts-tests--with-temp-hs-evil haskell-ts-tests--evil-sentence-sample
+    (should (equal "Module bla."
+                   (haskell-ts-tests--evil-object-at "-- | M" #'evil-select-an-object)))
+    (should (equal "Hello. "
+                   (haskell-ts-tests--evil-object-at "Hell" #'evil-select-an-object)))
+    (should (equal " This is a sentence."
+                   (haskell-ts-tests--evil-object-at "is a" #'evil-select-an-object)))
+    (should (equal " Module bla."
+                   (haskell-ts-tests--evil-object-at "-- |" #'evil-select-an-object)))))
+
+(ert-deftest haskell-ts-test-evil-inner-sentence ()
+  "`evil-inner-sentence' (`d i s') never includes a comment's marker or
+spills into surrounding code -- including with point on the marker
+itself, where the worst case is a single stray space."
+  (haskell-ts-tests--with-temp-hs-evil haskell-ts-tests--evil-sentence-sample
+    (should (equal "Module bla."
+                   (haskell-ts-tests--evil-object-at "-- | M" #'evil-select-inner-object)))
+    (should (equal "Hello."
+                   (haskell-ts-tests--evil-object-at "Hell" #'evil-select-inner-object)))
+    (should (equal "This is a sentence."
+                   (haskell-ts-tests--evil-object-at "is a" #'evil-select-inner-object)))
+    (should (equal " "
+                   (haskell-ts-tests--evil-object-at "-- |" #'evil-select-inner-object)))))
 
 (provide 'haskell-ts-mode-tests)
 ;;; haskell-ts-mode-tests.el ends here
