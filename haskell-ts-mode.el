@@ -338,13 +338,81 @@ when `haskell-ts-prettify-words' is non-nil.")
      (not (and (string= "operator" (treesit-node-field-name node))
                (= 1 (length node-text)))))))
 
+(defconst haskell-ts--comment-marker-regexp
+  "\\(?:-\\{2,\\}\\|{-\\)[ \t]*[|^]?[ \t]*"
+  "A comment's opening syntax marker, e.g. `--', `-- |', `-- ^', `{-'.
+Matched at the start of a `comment'/`haddock' node so
+`haskell-ts--forward-sentence' can exclude it from the node's text:
+otherwise deleting the comment's first sentence also deletes the
+marker, turning it into code.")
+
+(defun haskell-ts--text-node-at (pos)
+  "Return the `text' node touching POS, or nil.
+`treesit-node-at' uses a half-open range, so a node's own end
+position resolves to whatever follows it (typically an enclosing
+node) rather than to the node itself.  Callers that land exactly on
+that boundary -- as `bounds-of-thing-at-point' does when it moves
+forward to find a thing's end -- would otherwise see POS as \"not
+text\" and fall through to `treesit-forward-sentence''s AST-based
+`sentence' thing.  That thing only matches `match' nodes (function
+equations); a file with no equation before POS (e.g. only bindings,
+signatures and comments) has no such node to stop at, so the search
+runs all the way to the start of the buffer."
+  (or (let ((node (treesit-node-at pos)))
+        (and (treesit-node-match-p node 'text t) node))
+      (let ((node (and (> pos (point-min)) (treesit-node-at (1- pos)))))
+        (and node (= (treesit-node-end node) pos)
+             (treesit-node-match-p node 'text t)
+             node))))
+
+(defun haskell-ts--forward-sentence (&optional arg)
+  "`forward-sentence-function' for `haskell-ts-mode'.
+Like `treesit-forward-sentence', but when point is at or inside a
+`text' node (a comment or a string), prose movement is confined to
+that node's text -- excluding a comment's opening marker -- rather
+than the whole buffer.  Without the node-bounds narrowing,
+`forward-sentence-default-function' falls back to
+`paragraph-start'/`paragraph-separate', which in `prog-mode' do not
+treat a comment as its own paragraph; a comment directly above code
+with no blank line in between is then not a paragraph boundary
+either, so prose sentence movement runs past the comment into the
+surrounding code (or vice versa).  And without excluding the marker,
+the first sentence in a comment starts at `--' itself, so deleting it
+deletes the marker along with the sentence.
+
+When point sits on the marker itself (before the trimmed start) and
+ARG asks to move backward, this leaves point untouched rather than
+following `narrow-to-region''s usual behaviour of clamping point
+forward into the narrowed part -- moving \"backward\" to a position
+after point confuses callers (`evil-bounds-of-not-thing-at-point', in
+particular) that infer \"already at the start of the buffer\" from a
+backward motion that fails to move point backward."
+  (setq arg (or arg 1))
+  (let ((node (haskell-ts--text-node-at (point))))
+    (if node
+        (let ((start (treesit-node-start node))
+              (end (treesit-node-end node)))
+          (save-excursion
+            (goto-char start)
+            (when (looking-at haskell-ts--comment-marker-regexp)
+              (setq start (match-end 0))))
+          (unless (and (< arg 0) (< (point) start))
+            (save-restriction
+              (narrow-to-region start end)
+              (funcall #'forward-sentence-default-function arg))))
+      (treesit-forward-sentence arg))))
+
 (defvar haskell-ts-thing-settings
   `((haskell
      (sexp haskell-ts-sexp)
      (sentence "match")
      (string "string")
-     (text "string")))
-  "`treesit-thing-settings' for `haskell-ts-mode'.")
+     (text ,(regexp-opt '("comment" "haddock" "string")))))
+  "`treesit-thing-settings' for `haskell-ts-mode'.
+`text' must include `comment' and `haddock' (not just `string'), or
+`haskell-ts--forward-sentence' treats point inside a comment as
+\"inside code\" and jumps by the `sentence' thing (a `match' node)
+instead of by prose sentence, spilling into surrounding code.")
 
 (defvar haskell-ts-align-rules-list
   '((haskell-ts-assignment
@@ -384,6 +452,9 @@ name as given by `haskell-ts-defun-name'."
   (setq-local comment-start "-- ")
   (setq-local comment-use-syntax t)
   (setq-local comment-start-skip "\\(?: \\|^\\)--+")
+  ;; Haddock and plain comments end sentences with a single space, not
+  ;; the double space `sentence-end' otherwise requires.
+  (setq-local sentence-end-double-space nil)
   ;; Electric
   (setq-local electric-pair-pairs
               '((?` . ?`) (?\( . ?\)) (?{ . ?}) (?\" . ?\") (?\[ . ?\])))
@@ -422,7 +493,8 @@ name as given by `haskell-ts-defun-name'."
   (setq-local treesit-font-lock-settings haskell-ts-font-lock)
   (setq-local treesit-font-lock-feature-list
               haskell-ts-font-lock-feature-list)
-  (treesit-major-mode-setup))
+  (treesit-major-mode-setup)
+  (setq-local forward-sentence-function #'haskell-ts--forward-sentence))
 
 (defun haskell-ts--fontify-func (node face)
   (if (string= "variable" (treesit-node-type node))

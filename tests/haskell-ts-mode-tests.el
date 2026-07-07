@@ -436,6 +436,113 @@ main = print (fib 10)
       (should node)
       (should (equal "greeting" (haskell-ts-defun-name node))))))
 
+(ert-deftest haskell-ts-test-sentence-motion-confined-to-comment ()
+  "Sentence motion inside a `--' comment never crosses into surrounding
+code, with code both directly above and below the comment (no blank
+line separating either side, so `prog-mode' paragraph boundaries
+don't help).
+Regression test, two bugs in sequence:
+- `text' in `haskell-ts-thing-settings' must include `comment' (not
+  just `string'), or `treesit-forward-sentence' treats the comment as
+  code and jumps by the code-level `sentence' thing (a `match' node),
+  landing in the following function.
+- Even with that fixed, `forward-sentence-default-function' is
+  paragraph-based; since a comment glued to code is not its own
+  paragraph, backward motion runs all the way up through the
+  preceding code (this is what broke an `evil' `d a s' text object
+  on such a comment) unless `haskell-ts--forward-sentence' narrows to
+  the comment node's bounds first."
+  (haskell-ts-tests--with-temp-hs
+      "module Main where
+
+greeting :: String
+greeting = \"hi\"
+-- Hello. This is a sentence.
+main :: IO ()
+main = putStrLn greeting
+"
+    (search-forward "is a")
+    (let* ((comment-start (line-beginning-position))
+           (comment-end (line-end-position))
+           (start (point)))
+      (forward-sentence)
+      (should (< start (point)))
+      (should (<= (point) comment-end))
+      (goto-char start)
+      (backward-sentence)
+      (should (< (point) start))
+      (should (>= (point) comment-start)))))
+
+(defun haskell-ts-tests--sentence-at-point ()
+  "Return the text `backward-sentence'/`forward-sentence' bound at point.
+This is what an `evil' `d a s' (or plain `M-a' `M-e') would operate on
+from the current position.  The two bounds are computed independently
+from the original point rather than chained (forward, then backward
+from the result), since the latter can land exactly on the enclosing
+comment node's end boundary, where `treesit-node-at' resolves to the
+following node instead."
+  (let ((beg (save-excursion (backward-sentence) (point)))
+        (end (save-excursion (forward-sentence) (point))))
+    (buffer-substring-no-properties beg end)))
+
+(ert-deftest haskell-ts-test-sentence-excludes-comment-marker ()
+  "Sentence motion never includes the comment's opening marker.
+Regression test: a comment's `text' node starts at `--' (or `-- |'
+for Haddock) itself, so without excluding the marker from the
+narrowed region in `haskell-ts--forward-sentence', selecting the
+comment's first sentence also selects -- and an `evil' `d a s' also
+deletes -- the marker, turning the comment into code."
+  (haskell-ts-tests--with-temp-hs
+      "-- | Module bla.
+
+x :: Int
+x = 10
+
+-- Hello. This is a sentence.
+"
+    (search-forward "Module")
+    (should (equal "Module bla." (haskell-ts-tests--sentence-at-point)))
+    (search-forward "Hell")
+    (should (equal "Hello." (haskell-ts-tests--sentence-at-point)))))
+
+(ert-deftest haskell-ts-test-backward-sentence-noop-on-marker ()
+  "`backward-sentence' never moves point backward past its own start
+when point sits on a comment's opening marker (before the trimmed
+sentence text) -- it should leave point where it is, at most.
+Regression test: `narrow-to-region' clamps an out-of-range point
+forward into the narrowed part before searching, so without a
+directional guard, calling `backward-sentence' from the marker moves
+point FORWARD instead.  `evil'\\='s `evil-bounds-of-not-thing-at-point'
+infers \"already at the start of the buffer\" whenever a backward
+attempt reports net forward motion, so this single wrong-direction
+move is what turns an `evil' `d a s' on the very next sentence into
+deleting from the start of the buffer."
+  (haskell-ts-tests--with-temp-hs "-- | Module bla.\n"
+    (goto-char (point-min))
+    (forward-char 4)                   ; right after `-- |', before the space
+    (let ((start (point)))
+      (backward-sentence)
+      (should (<= (point) start)))))
+
+(ert-deftest haskell-ts-test-sentence-motion-multiple-sentences-in-comment ()
+  "Each sentence in a multi-sentence comment is bounded independently.
+Regression test: with the default `sentence-end-double-space' (t),
+`sentence-end' requires two spaces after a period, but Haddock/plain
+comments conventionally use one; the first sentence then fails to
+count as a sentence boundary at all, and motion from the second
+sentence runs back through the first (and, per
+`haskell-ts-test-sentence-motion-confined-to-comment', beyond)."
+  (haskell-ts-tests--with-temp-hs
+      "-- | Module bla.
+
+x :: Int
+x = 10
+
+-- Hello. This is a sentence.
+"
+    (search-forward "is a")
+    (should (equal "This is a sentence." (haskell-ts-tests--sentence-at-point)))))
+
 (ert-deftest haskell-ts-test-align-wired-into-mode ()
   "The mode installs the align rule buffer-locally and \\[align] works.
 This is the end-to-end check that plain `M-x align' aligns `=' in a
