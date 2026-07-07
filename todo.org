@@ -83,6 +83,21 @@
   =@tek/tree-sitter-haskell= grammar repo. Nothing below is actionable in this
   repo directly.
 
+** Split a comment's opening marker into its own node
+   Haddock/plain comments (=--=, =-- |=, =-- ^=, ={-=, ...) are a single
+   opaque =comment=/=haddock= node covering marker and text together.
+   =haskell-ts--forward-sentence= (sentence-navigation support for
+   =evil='s =d a s= and friends) has to re-find the marker with a regexp
+   (=haskell-ts--comment-marker-regexp=) to exclude it from prose
+   movement; an explicit child node for the marker, separate from the
+   content, would let this be exact instead of a guess.  This is a
+   syntax distinction Haddock already cares about, unlike parsing
+   sentence structure itself (see the docstring of
+   =haskell-ts--forward-sentence=: no tree-sitter grammar for any
+   language parses natural-language sentences inside comments, and
+   that's rightly out of scope upstream) -- so it's a plausible ask,
+   just a nice-to-have, not a blocker.
+
 ** Known parser failures on real-world code
    The grammar's own =test/known-failures/= lists files from real Haskell
    codebases that its test suite already knows fail to parse:
