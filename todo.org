@@ -1,4 +1,4 @@
-* TODO [#B] Within comments, sentences span across paragraphs
+* TODO [#B] Within comments, sentence detection skips paragraphs
 For example,
 #+begin_src haskell :session ghci :exports code :results none
 -- | Hel_1lo
@@ -8,10 +8,20 @@ For example,
 module Test () where
 #+end_src
 
+Also, paragraph detection is flawed.
+
+Can we check that all text objects work? Can we use
+https://github.com/meain/evil-textobj-tree-sitter to that purpose? Otherwise, it
+feels like reinventing the wheel. (But that would also not work in comments I
+guess, because they are not interpreted by tree sitter).
+
+In the end, what we are trying to do is: Remove the -- {- etc comment
+delimiters, and then do classical text object detection like in prose.
+
 * TODO [#B] Make checkdoc strict and clear the existing doc-style debt
-  =make checkdoc= currently runs informationally only (see
-  =tests/checkdoc.el=); document many internal helpers, then gate it by
-  setting =HASKELL_TS_CHECKDOC_STRICT=1= in =make check=.
+  =make checkdoc= currently runs informationally only (see =tests/checkdoc.el=);
+  document many internal helpers, then gate it by setting
+  =HASKELL_TS_CHECKDOC_STRICT=1= in =make check=.
 
 * TODO [#B] Add package-lint (and perhaps relint) to the test suite
   Lints headers, dependencies and naming conventions for ELPA/MELPA.
