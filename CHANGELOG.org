@@ -6,6 +6,16 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 
 * Unreleased
 
+** Added
+
+- *Comment continuation on newline.*  Breaking the line inside a =--=
+  comment (plain or Haddock) now repeats the marker on the next line
+  instead of leaving the comment, e.g. =-- Comment= + newline gives
+  =-- Comment= / =-- =.  This covers plain =RET= and, since =newline=
+  itself is advised rather than a key rebound, Evil's =o=/=O= as well,
+  which insert a line by calling =newline= directly.  Block comments
+  (={- -}=) and code are unaffected.
+
 ** Changed
 
 - *Exact comment-marker bounds for sentence navigation.*  The grammar

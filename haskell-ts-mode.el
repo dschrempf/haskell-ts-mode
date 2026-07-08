@@ -371,6 +371,14 @@ runs all the way to the start of the buffer."
              (treesit-node-match-p node 'text t)
              node))))
 
+(defun haskell-ts--in-line-comment-p (pos)
+  "Return non-nil if POS is inside a `--' comment (plain or Haddock).
+A block comment (marker `{-') and a string both count as `text' too,
+but neither has a marker starting with `--', so both are excluded."
+  (let* ((node (haskell-ts--text-node-at pos))
+         (marker (and node (treesit-node-child-by-field-name node "marker"))))
+    (and marker (string-prefix-p "--" (treesit-node-text marker t)))))
+
 (defun haskell-ts--forward-sentence (&optional arg)
   "`forward-sentence-function' for `haskell-ts-mode'.
 Like `treesit-forward-sentence', but when point is at or inside a
@@ -452,6 +460,29 @@ name as given by `haskell-ts-defun-name'."
         (treesit-node-text (treesit-node-child nn 1))
       (haskell-ts-defun-name node))))
 
+(defvar haskell-ts--newline-in-progress nil
+  "Non-nil while `haskell-ts--newline' is redirecting to `default-indent-new-line'.
+`default-indent-new-line' itself breaks the line by calling `newline',
+which would otherwise re-enter `haskell-ts--newline' and recurse
+forever, since point is still inside the comment at that point.")
+
+(defun haskell-ts--newline (orig-fun &rest args)
+  "Continue a `--' comment when breaking the line inside one.
+`RET' and Evil's `o'/`O' (which insert a line by calling `newline'
+directly, bypassing the keymap) should all continue a `--' comment
+rather than leave it, so `newline' itself -- not a keymap binding --
+is advised.  Outside such a comment, or while already handling a
+redirect (see `haskell-ts--newline-in-progress'), ORIG-FUN runs
+unchanged with ARGS, adding no indentation behaviour of its own."
+  (if (and (not haskell-ts--newline-in-progress)
+           (derived-mode-p 'haskell-ts-mode)
+           (haskell-ts--in-line-comment-p (point)))
+      (let ((haskell-ts--newline-in-progress t))
+        (default-indent-new-line))
+    (apply orig-fun args)))
+
+(advice-add 'newline :around #'haskell-ts--newline)
+
 (defvar-keymap  haskell-ts-mode-map
   :doc "Keymap for haskell-ts-mode."
   "C-c C-c" #'haskell-ts-compile-region-and-go
@@ -470,7 +501,7 @@ name as given by `haskell-ts-defun-name'."
   ;; Comment
   (setq-local comment-start "-- ")
   (setq-local comment-use-syntax t)
-  (setq-local comment-start-skip "\\(?: \\|^\\)--+")
+  (setq-local comment-start-skip "\\(?: \\|^\\)--+\\s-*")
   ;; Haddock and plain comments end sentences with a single space, not
   ;; the double space `sentence-end' otherwise requires.
   (setq-local sentence-end-double-space nil)
