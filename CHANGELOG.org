@@ -11,10 +11,15 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 - *Comment continuation on newline.*  Breaking the line inside a =--=
   comment (plain or Haddock) now repeats the marker on the next line
   instead of leaving the comment, e.g. =-- Comment= + newline gives
-  =-- Comment= / =-- =.  This covers plain =RET= and, since =newline=
-  itself is advised rather than a key rebound, Evil's =o=/=O= as well,
-  which insert a line by calling =newline= directly.  Block comments
-  (={- -}=) and code are unaffected.
+  =-- Comment= / =-- =.  This covers plain =RET= (=newline= itself is
+  advised rather than a key rebound) and, via a second, dedicated
+  advice on =evil-insert-newline-above=/=evil-insert-newline-below=,
+  Evil's =o=/=O= as well — those insert their line with a plain
+  =insert= rather than calling =newline=, so they need their own hook.
+  The continuation is inserted directly instead of delegating to
+  =default-indent-new-line=, whose =delete-horizontal-space= calls
+  would strip a bare marker's trailing space before it could be
+  repeated.  Block comments (={- -}=) and code are unaffected.
 - *=evil= bundled into the flake's dev-shell Emacs.*  The
   evil-integration tests in =tests/haskell-ts-mode-tests.el= now run
   (rather than skip) under =nix develop=/=nix flake check=;
