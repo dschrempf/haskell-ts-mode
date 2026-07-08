@@ -558,6 +558,39 @@ x = 10
     (search-forward "is a")
     (should (equal "This is a sentence." (haskell-ts-tests--sentence-at-point)))))
 
+;;; `newline' comment continuation
+
+(ert-deftest haskell-ts-test-newline-continues-line-comment ()
+  "Breaking the line inside a `--' comment repeats the marker.
+Also covers a direct, non-interactive call to `newline' -- the path
+Evil's `o'/`O' use, bypassing the keymap entirely."
+  (haskell-ts-tests--with-temp-hs "-- Comment"
+    (goto-char (point-max))
+    (newline)
+    (should (equal (buffer-string) "-- Comment\n-- "))
+    (should (= (point) (point-max)))))
+
+(ert-deftest haskell-ts-test-newline-continues-indented-haddock ()
+  "The repeated marker keeps the original line's indentation."
+  (haskell-ts-tests--with-temp-hs "    -- | Haddock doc"
+    (goto-char (point-max))
+    (newline)
+    (should (equal (buffer-string) "    -- | Haddock doc\n    -- "))))
+
+(ert-deftest haskell-ts-test-newline-leaves-block-comment-alone ()
+  "A `{- -}' block comment is not mistaken for a `--' line comment."
+  (haskell-ts-tests--with-temp-hs "{- block"
+    (goto-char (point-max))
+    (newline)
+    (should (equal (buffer-string) "{- block\n"))))
+
+(ert-deftest haskell-ts-test-newline-leaves-code-alone ()
+  "Outside a comment, `newline' is unaffected by the advice."
+  (haskell-ts-tests--with-temp-hs "foo = 1"
+    (goto-char (point-max))
+    (newline)
+    (should (equal (buffer-string) "foo = 1\n"))))
+
 (ert-deftest haskell-ts-test-align-wired-into-mode ()
   "The mode installs the align rule buffer-locally and \\[align] works.
 This is the end-to-end check that plain `M-x align' aligns `=' in a
