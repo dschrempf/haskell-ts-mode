@@ -65,9 +65,17 @@
             ]))
             + "/lib";
 
-          # Emacs with `inheritenv', a hard dependency of haskell-ts-mode.
+          # Emacs.
+          #
           # The grammar is provided separately, via HASKELL_TS_GRAMMAR_PATH.
-          emacsForTests = pkgs.emacs.pkgs.withPackages (epkgs: [ epkgs.inheritenv ]);
+          emacsForTests = pkgs.emacs.pkgs.withPackages (epkgs: [
+            # Hard dependencies of `haskell-ts-mode`.
+            epkgs.inheritenv
+
+            # Optional dependencies (only exercised by the evil-integration
+            # tests in tests/haskell-ts-mode-tests.el, which otherwise skip).
+            epkgs.evil
+          ]);
         in
         {
           devShells.default = pkgs.mkShell {

@@ -38,8 +38,9 @@
 ;; * Evil integration tests exercise `evil'\\='s sentence text objects
 ;;   (`d a s'/`d i s') directly, since `haskell-ts-mode' does not
 ;;   depend on `evil' itself.  They likewise skip, not fail, when
-;;   `evil' cannot be found; point `HASKELL_TS_EVIL_PATH' at a checkout
-;;   or installed copy to exercise them.
+;;   `evil' cannot be found.  The flake's dev shell bundles `evil' into
+;;   its Emacs so these always run there; outside the flake, point
+;;   `HASKELL_TS_EVIL_PATH' at a checkout or installed copy instead.
 
 ;;; Code:
 
@@ -60,10 +61,12 @@
                  (file-name-as-directory grammar-path))))
 
 ;; Likewise for `evil': `haskell-ts-mode' has no dependency on it, so it
-;; is not on `load-path' by default.  Honour `HASKELL_TS_EVIL_PATH' when
-;; set so a dev shell can opt into the evil-integration tests below;
-;; otherwise fall back to whatever the running Emacs already knows, and
-;; those tests skip if that is nothing.
+;; is not on `load-path' by default.  The flake's Emacs bundles it as a
+;; package, so it is already on `load-path' under `nix develop'/`nix
+;; flake check'.  Elsewhere, honour `HASKELL_TS_EVIL_PATH' when set so a
+;; dev shell can opt into the evil-integration tests below; otherwise
+;; fall back to whatever the running Emacs already knows, and those
+;; tests skip if that is nothing.
 (let ((evil-path (getenv "HASKELL_TS_EVIL_PATH")))
   (when (and evil-path (not (string-empty-p evil-path)))
     (add-to-list 'load-path (file-name-as-directory evil-path))))
