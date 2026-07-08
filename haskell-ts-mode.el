@@ -371,13 +371,25 @@ runs all the way to the start of the buffer."
              (treesit-node-match-p node 'text t)
              node))))
 
-(defun haskell-ts--in-line-comment-p (pos)
-  "Return non-nil if POS is inside a `--' comment (plain or Haddock).
-A block comment (marker `{-') and a string both count as `text' too,
-but neither has a marker starting with `--', so both are excluded."
+(defun haskell-ts--comment-continuation-prefix (pos)
+  "Return the text that continues the `--' comment at POS on a new line.
+The result is POS's line's leading whitespace, followed by the
+comment marker's leading dashes and a single space -- e.g. \"-- \" or,
+for an indented Haddock comment \"    -- | ...\", \"    -- \" (the `|'
+sigil is not repeated).  Return nil if POS is not inside a `--'
+comment (plain or Haddock): a block comment (marker `{-') and a
+string both count as `text' too, but neither has a marker starting
+with `--'."
   (let* ((node (haskell-ts--text-node-at pos))
-         (marker (and node (treesit-node-child-by-field-name node "marker"))))
-    (and marker (string-prefix-p "--" (treesit-node-text marker t)))))
+         (marker (and node (treesit-node-child-by-field-name node "marker")))
+         (marker-text (and marker (treesit-node-text marker t))))
+    (when (and marker-text (string-prefix-p "--" marker-text))
+      (save-excursion
+        (goto-char (treesit-node-start marker))
+        (concat (buffer-substring-no-properties (line-beginning-position) (point))
+                (progn (string-match "\\`-+" marker-text)
+                       (match-string 0 marker-text))
+                " ")))))
 
 (defun haskell-ts--forward-sentence (&optional arg)
   "`forward-sentence-function' for `haskell-ts-mode'.
@@ -460,28 +472,41 @@ name as given by `haskell-ts-defun-name'."
         (treesit-node-text (treesit-node-child nn 1))
       (haskell-ts-defun-name node))))
 
-(defvar haskell-ts--newline-in-progress nil
-  "Non-nil while `haskell-ts--newline' is redirecting to `default-indent-new-line'.
-`default-indent-new-line' itself breaks the line by calling `newline',
-which would otherwise re-enter `haskell-ts--newline' and recurse
-forever, since point is still inside the comment at that point.")
-
 (defun haskell-ts--newline (orig-fun &rest args)
   "Continue a `--' comment when breaking the line inside one.
-`RET' and Evil's `o'/`O' (which insert a line by calling `newline'
-directly, bypassing the keymap) should all continue a `--' comment
-rather than leave it, so `newline' itself -- not a keymap binding --
-is advised.  Outside such a comment, or while already handling a
-redirect (see `haskell-ts--newline-in-progress'), ORIG-FUN runs
-unchanged with ARGS, adding no indentation behaviour of its own."
-  (if (and (not haskell-ts--newline-in-progress)
-           (derived-mode-p 'haskell-ts-mode)
-           (haskell-ts--in-line-comment-p (point)))
-      (let ((haskell-ts--newline-in-progress t))
-        (default-indent-new-line))
-    (apply orig-fun args)))
+`RET' should continue a `--' comment rather than leave it, so
+`newline' itself -- not a keymap binding -- is advised, which also
+covers any other caller of `newline' (e.g. `open-line').  The
+continuation is inserted directly, rather than by delegating to
+`default-indent-new-line', because the latter's `delete-horizontal-space'
+calls strip a bare marker's trailing space (a comment line with
+nothing typed after it yet) before it can be repeated -- see
+`haskell-ts--comment-continuation-prefix'.  Outside such a comment,
+ORIG-FUN runs unchanged with ARGS, adding no indentation behaviour of
+its own."
+  (let ((prefix (and (derived-mode-p 'haskell-ts-mode)
+                      (haskell-ts--comment-continuation-prefix (point)))))
+    (if prefix
+        (insert "\n" prefix)
+      (apply orig-fun args))))
 
 (advice-add 'newline :around #'haskell-ts--newline)
+
+(defun haskell-ts--evil-continue-comment (orig-fun &rest args)
+  "Continue a `--' comment for Evil's `o'/`O'.
+`evil-insert-newline-above'/`evil-insert-newline-below' insert their
+blank line with a plain `insert', bypassing `newline' -- and the
+advice on it above -- entirely, so they need this advice of their own
+to get the same comment continuation."
+  (let ((prefix (and (derived-mode-p 'haskell-ts-mode)
+                      (haskell-ts--comment-continuation-prefix (point)))))
+    (apply orig-fun args)
+    (when prefix
+      (insert prefix))))
+
+(with-eval-after-load 'evil
+  (advice-add 'evil-insert-newline-above :around #'haskell-ts--evil-continue-comment)
+  (advice-add 'evil-insert-newline-below :around #'haskell-ts--evil-continue-comment))
 
 (defvar-keymap  haskell-ts-mode-map
   :doc "Keymap for haskell-ts-mode."

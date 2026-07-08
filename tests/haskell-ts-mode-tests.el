@@ -594,6 +594,21 @@ Evil's `o'/`O' use, bypassing the keymap entirely."
     (newline)
     (should (equal (buffer-string) "foo = 1\n"))))
 
+(ert-deftest haskell-ts-test-newline-repeated-on-bare-marker ()
+  "Breaking the line again on a bare `-- ' line keeps the trailing space.
+Regression test: delegating to `default-indent-new-line' (as the
+original, broken implementation did) runs `delete-horizontal-space'
+around the break point, which strips a bare marker's trailing space
+before it is captured for re-insertion -- and since the new line is
+bare again, every subsequent `newline' reproduces the strip."
+  (haskell-ts-tests--with-temp-hs "-- foo"
+    (goto-char (point-max))
+    (newline)
+    (should (equal (buffer-string) "-- foo\n-- "))
+    (newline)
+    (should (equal (buffer-string) "-- foo\n-- \n-- "))
+    (should (= (point) (point-max)))))
+
 (ert-deftest haskell-ts-test-align-wired-into-mode ()
   "The mode installs the align rule buffer-locally and \\[align] works.
 This is the end-to-end check that plain `M-x align' aligns `=' in a
@@ -682,6 +697,33 @@ itself, where the worst case is a single stray space."
                    (haskell-ts-tests--evil-object-at "is a" #'evil-select-inner-object)))
     (should (equal " "
                    (haskell-ts-tests--evil-object-at "-- |" #'evil-select-inner-object)))))
+
+;;; `evil' `o'/`O' comment continuation
+
+(ert-deftest haskell-ts-test-evil-open-below-continues-comment ()
+  "Evil's `o' (`evil-open-below') continues a `--' comment like `RET' does.
+Regression test: `evil-insert-newline-below' breaks the line with a
+plain `insert', bypassing `newline' -- and the advice on it -- entirely,
+so it needs the dedicated advice on `evil-insert-newline-below' to pick
+up the same continuation."
+  (haskell-ts-tests--with-temp-hs-evil "-- Comment"
+    (goto-char (point-max))
+    (evil-open-below 1)
+    (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                   "-- Comment\n-- "))
+    (should (= (point) (point-max)))))
+
+(ert-deftest haskell-ts-test-evil-open-above-continues-comment ()
+  "Evil's `O' (`evil-open-above') continues a `--' comment above it.
+Same rationale as `haskell-ts-test-evil-open-below-continues-comment',
+but for `evil-insert-newline-above': the new blank line precedes the
+original one and point lands right after the repeated marker."
+  (haskell-ts-tests--with-temp-hs-evil "-- Comment"
+    (goto-char (point-max))
+    (evil-open-above 1)
+    (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                   "-- \n-- Comment"))
+    (should (equal (buffer-substring-no-properties (point-min) (point)) "-- "))))
 
 (provide 'haskell-ts-mode-tests)
 ;;; haskell-ts-mode-tests.el ends here
