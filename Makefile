@@ -15,7 +15,7 @@
 EMACS ?= emacs
 BATCH  = $(EMACS) -Q --batch -L .
 
-EL      = haskell-ts-mode.el
+EL      = haskell-ts-navigation.el haskell-ts-mode.el
 TESTS   = tests/haskell-ts-mode-tests.el
 
 .PHONY: all check compile checkdoc test clean
