@@ -27,6 +27,15 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 
 ** Changed
 
+- *Sexp/prose navigation and text objects split into =haskell-ts-navigation.el=.*
+  =haskell-ts-sexp=, =haskell-ts-thing-settings=, comment-aware sentence
+  motion (=haskell-ts--forward-sentence= and its helpers), the paragraph
+  text-object confinement advice for a comment glued to code, and the
+  =RET=/Evil =o=/=O= comment-continuation advice all moved out of
+  =haskell-ts-mode.el= into the new file, =require=d by it.  No behaviour
+  change; a package manager or build script that only compiled/loaded
+  =haskell-ts-mode.el= directly (bypassing =Makefile=/=require=) now needs
+  =haskell-ts-navigation.el= alongside it.
 - *Exact comment-marker bounds for sentence navigation.*  The grammar
   now splits =comment=/=haddock= nodes into a =marker= child (=--=,
   =-- |=, =-- ^=, ={-=, ...) and a =content= child holding the body;
