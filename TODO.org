@@ -21,6 +21,30 @@
   =haskell-mode= and =dante= also send a single line or the enclosing
   definition.
 
+* TODO [#C] Investigate coarse top-level =forward-sexp=
+  From point at column 0 of a top-level binding (e.g. =x = 1=),
+  =forward-sexp= jumps to the end of the buffer rather than stepping
+  token by token; motion *inside* an expression (parenthesised groups,
+  list elements) works as expected (see =haskell-ts-test-sexp-navigation=).
+  Investigate whether =haskell-ts-sexp= (via =treesit-thing-settings=)
+  should treat a whole =declarations= run as one sexp at top level, and
+  whether that is intended or a rough edge worth fixing.
+
+* TODO [#C] Let prose motion fall through the comment↔code boundary
+  =haskell-ts--forward-sentence= runs prose motion over one =text= node's
+  text alone, so reaching a comment's first/last sentence and moving
+  again stops at the node boundary rather than continuing into the
+  surrounding code (the scratch buffer's edge signal is now caught, not
+  propagated — see its docstring).  Confinement was only ever a means to
+  get text objects working inside comments, not a goal; ideally plain
+  =M-e=/=M-a= would cross into code.  Risky, though: the fix must not let
+  text objects (=evil= =d a s=, =a p=) spill past the comment, and it pokes
+  the same =evil= bounds machinery that has already broken three times
+  (see =NOTES.org=).  Sketch: on the caught buffer-edge signal, if arg is
+  unspent, delegate the remainder to =treesit-forward-sentence= from the
+  mapped-back real boundary — verify against the evil text-object tests
+  first.
+
 * TODO [#B] Imenu mislabels/omits =data_type=/=newtype= declarations that have a leading keyword pair
   The imenu name extractor for =data_type\|newtype= grabs
   =(treesit-node-child node 1)= (the second child, all children

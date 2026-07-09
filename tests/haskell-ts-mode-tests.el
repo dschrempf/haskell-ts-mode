@@ -370,6 +370,36 @@ Group 1 is the whitespace before the `=' that `align' adjusts."
                          "ab  = 3\n")))
     (should (equal (haskell-ts-tests--align aligned) aligned))))
 
+;;; Virtual-text mapping helpers
+;;;
+;;; `haskell-ts--virtual-text-and-table' and its inverse pair
+;;; `haskell-ts--real-to-virtual'/`haskell-ts--virtual-to-real' operate
+;;; on plain (START . END) buffer ranges, so they can be exercised
+;;; directly -- no parser, no grammar -- with hand-built segments.
+
+(ert-deftest haskell-ts-test-virtual-text-and-table-roundtrip ()
+  "Two segments join with a single newline and map back and forth 1:1.
+A position in the stripped gap between segments (a continuation
+marker) maps forward to the next segment, flagged as on-a-marker."
+  (with-temp-buffer
+    (insert "aaa\nBBB\nccc")           ; "BBB" stands in for a stripped marker
+    (let* ((segments '((1 . 4) (9 . 12)))
+           (tt (haskell-ts--virtual-text-and-table segments))
+           (vtext (car tt))
+           (table (cdr tt)))
+      (should (equal vtext "aaa\nccc"))
+      ;; Every real point inside a segment round-trips exactly and is
+      ;; not flagged as sitting on a stripped marker.
+      (dolist (real '(1 2 4 9 11 12))
+        (let ((loc (haskell-ts--real-to-virtual real table)))
+          (should-not (cdr loc))
+          (should (= real (haskell-ts--virtual-to-real (car loc) table)))))
+      ;; A point in the gap ("BBB") has no virtual counterpart: it is
+      ;; flagged and clamped forward to the next segment's start.
+      (let ((loc (haskell-ts--real-to-virtual 6 table)))
+        (should (cdr loc))
+        (should (= 9 (haskell-ts--virtual-to-real (car loc) table)))))))
+
 ;;; --------------------------------------------------------------------
 ;;; Grammar-dependent integration tests (skipped without the grammar)
 ;;; --------------------------------------------------------------------
@@ -453,6 +483,32 @@ main = print (fib 10)
     (let ((node (treesit-defun-at-point)))
       (should node)
       (should (equal "greeting" (haskell-ts-defun-name node))))))
+
+(ert-deftest haskell-ts-test-sexp-navigation ()
+  "`forward-sexp'/`backward-sexp' step by `haskell-ts-sexp' nodes.
+A parenthesised group is one sexp, and list elements are stepped over
+individually in either direction.  This is the package's namesake
+motion, exercised via `treesit-thing-settings'."
+  ;; A parenthesised group is traversed as a single sexp.
+  (haskell-ts-tests--with-temp-hs "r = f (g x) y\n"
+    (goto-char (point-min))
+    (search-forward "f ")
+    (let ((start (point)))
+      (forward-sexp)
+      (should (equal "(g x)"
+                     (buffer-substring-no-properties start (point))))))
+  ;; Individual list elements are stepped over, forward and backward.
+  (haskell-ts-tests--with-temp-hs "xs = [foo, bar, baz]\n"
+    (goto-char (point-min))
+    (search-forward "[")
+    (let ((start (point)))
+      (forward-sexp)
+      (should (equal "foo" (buffer-substring-no-properties start (point)))))
+    (goto-char (point-min))
+    (search-forward "baz")
+    (let ((end (point)))
+      (backward-sexp)
+      (should (equal "baz" (buffer-substring-no-properties (point) end))))))
 
 (ert-deftest haskell-ts-test-sentence-motion-confined-to-comment ()
   "Sentence motion inside a `--' comment never crosses into surrounding
@@ -594,6 +650,41 @@ one -- `backward-sentence' never moves point forward past it."
       (backward-sentence)
       (should (<= (point) start)))))
 
+(ert-deftest haskell-ts-test-sentence-motion-in-string ()
+  "Prose motion inside a string treats its interior as text.
+The surrounding quotes are stripped like a comment's `--' marker, so
+a sentence never includes them."
+  (haskell-ts-tests--with-temp-hs "x = \"First. Second. Third.\"\n"
+    (search-forward "First")
+    (should (equal "First." (haskell-ts-tests--sentence-at-point)))
+    (search-forward "Second")
+    (should (equal "Second." (haskell-ts-tests--sentence-at-point)))))
+
+(ert-deftest haskell-ts-test-sentence-motion-in-block-comment ()
+  "Prose motion inside a `{- -}' block comment works.
+The grammar folds the closing `-}' into the comment's content; it is
+trimmed off so it never counts as sentence text."
+  (haskell-ts-tests--with-temp-hs "{- First. Second. -}\nx = 1\n"
+    (search-forward "First")
+    (should (equal "First." (haskell-ts-tests--sentence-at-point)))
+    (search-forward "Second")
+    (should (equal "Second." (haskell-ts-tests--sentence-at-point)))))
+
+(ert-deftest haskell-ts-test-sentence-motion-stops-at-comment-end ()
+  "`forward-sentence' at a comment's last sentence stops at the comment's
+end without signalling, even though code follows below.
+Regression test: prose motion runs in a scratch buffer holding only
+the comment's text, so reaching its end raised a buffer-edge error --
+which, unlike at the real buffer's edge, fired mid-file and broke
+plain `M-e'/`kill-sentence' on a comment glued to code.  Point must
+stop at the boundary (not spill into the code) and not error."
+  (haskell-ts-tests--with-temp-hs "-- One sentence.\nmain = putStrLn x\n"
+    (search-forward "One")
+    (forward-sentence)                  ; move to the comment's end
+    (let ((at-end (point)))
+      (forward-sentence)                ; must neither error nor advance
+      (should (= (point) at-end)))))
+
 ;;; `newline' comment continuation
 
 (ert-deftest haskell-ts-test-newline-continues-line-comment ()
@@ -665,6 +756,16 @@ bare again, every subsequent `newline' reproduces the strip."
     (newline)
     (should (equal (buffer-string) "-- foo\n-- "))
     (newline)
+    (should (equal (buffer-string) "-- foo\n-- \n-- "))
+    (should (= (point) (point-max)))))
+
+(ert-deftest haskell-ts-test-newline-honours-repeat-count ()
+  "`newline' with a repeat count continues each requested line.
+Regression test: the advice inserted a single continuation
+unconditionally, silently dropping `newline''s count argument."
+  (haskell-ts-tests--with-temp-hs "-- foo"
+    (goto-char (point-max))
+    (newline 2)
     (should (equal (buffer-string) "-- foo\n-- \n-- "))
     (should (= (point) (point-max)))))
 
