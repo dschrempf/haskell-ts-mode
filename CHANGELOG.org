@@ -75,6 +75,16 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   =mark-paragraph=, and =evil='s own =d a s=-style motions that end up
   calling them) are separately clamped to the same comment, without
   needing the narrowing trick, since none of them do that round trip.
+  The forward clamp/narrowing bound is one past the node's own end, not
+  the end itself: a comment's text excludes its trailing newline, but
+  =forward-paragraph= normally consumes it as part of the paragraph, so
+  clamping to the tighter bound left point exactly at the comment's
+  last character with nothing beyond to move into within the clamp --
+  indistinguishable from already being past the object's end, which
+  made =evil= decide the comment was not the object at point after all
+  and fall back to selecting from the start of the buffer whenever a
+  comment was glued to code on one side only (e.g. a Haddock comment
+  preceded by a blank line but glued to the next binding below).
   See =NOTES.org= for a related case (=evil='s =}=/={=) left unfixed.
 - *Spurious comment continuation on a blank line below a buffer-final
   comment.*  =treesit-node-at= returns the *previous* node, not =nil=,

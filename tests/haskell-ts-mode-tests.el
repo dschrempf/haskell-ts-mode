@@ -818,9 +818,37 @@ function above and below it too."
 -- Comment
 g = y
 "
-    (should (equal "-- Comment"
+    (should (equal "-- Comment\n"
                    (haskell-ts-tests--evil-object-at
                     "Comment" #'evil-select-an-object 'evil-paragraph t)))))
+
+(ert-deftest haskell-ts-test-evil-a-paragraph-glued-to-code-below-only ()
+  "`d a p' on a Haddock comment preceded by a blank line but glued
+directly to code below (no blank line there) is confined to the
+comment alone, on both sides.
+Regression test: clamping a glued boundary to `treesit-node-end'
+itself, rather than one past it, left point exactly at the comment's
+last character with nothing beyond within the clamp to move into.
+`bounds-of-thing-at-point' -- which restores point since it wraps its
+own probing in `save-excursion' -- then finds point is not *strictly
+before* that (unmoved) end, so `evil-select-an-object' decides the
+comment is not the object at point after all, and falls through to
+its no-thing-found fallback of `(point-min) . (point-max)': every
+line from the start of the buffer, not just the comment.  Distinct
+from `haskell-ts-test-evil-a-paragraph-glued-to-code' above: there,
+both sides are glued, so that same wrong fallback range happens to
+still coincide with the comment's own (narrowed) bounds; here, only
+the *below* side is glued, so the fallback's un-narrowed above side
+gives the wrong, too-large answer instead."
+  (haskell-ts-tests--with-temp-hs-evil
+      "f = x
+
+-- | This is a sentence and a paragraph.
+g = id
+"
+    (should (equal "\n-- | This is a sentence and a paragraph.\n"
+                   (haskell-ts-tests--evil-object-at
+                    "paragraph." #'evil-select-an-object 'evil-paragraph t)))))
 
 ;;; `evil' `o'/`O' comment continuation
 
