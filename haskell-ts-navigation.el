@@ -44,7 +44,7 @@
 (declare-function treesit-forward-sentence "treesit.c")
 
 (defun haskell-ts-sexp (node)
-  "Returns non-nil on a sexp node."
+  "Return non-nil when NODE is a sexp for `forward-sexp'/`backward-sexp'."
   (let ((node-text (treesit-node-text node 1)))
     (and
      (not (member node-text '( "{" "}" "[" "]" "(" ")" ";")))
@@ -151,8 +151,10 @@ continuation line's repeated marker stripped, via
 `haskell-ts--comment-line-segments'.  For a `{- -}' block comment, a
 single range with the closing `-}' trimmed off -- the grammar folds
 it into CONTENT rather than giving it a field of its own.  For a
-string, or an empty (marker-only) comment with no CONTENT child at
-all, the node's own bounds."
+string, a single range with the surrounding quotes stripped, so its
+interior reads as prose the same way a `--' marker is stripped above.
+For an empty (marker-only) comment with no CONTENT child at all, the
+node's own bounds."
   (let* ((content (treesit-node-child-by-field-name node "content"))
          (marker (treesit-node-child-by-field-name node "marker"))
          (marker-text (and marker (treesit-node-text marker t))))
@@ -165,6 +167,10 @@ all, the node's own bounds."
                      (skip-chars-forward " \t")
                      (point)))
             (end (- (treesit-node-end content) 2)))
+        (list (cons start (max start end)))))
+     ((equal (treesit-node-type node) "string")
+      (let ((start (1+ (treesit-node-start node)))
+            (end (1- (treesit-node-end node))))
         (list (cons start (max start end)))))
      (t
       (list (cons (treesit-node-start node) (treesit-node-end node)))))))
@@ -246,7 +252,15 @@ spans a continuation line from including that line's marker once
 mapped back to the real buffer: motion only returns a point, and the
 region between two such points is whatever real text sits between
 them, markers included.  Avoiding that would mean teaching deletion
-commands about markers, not sentence motion."
+commands about markers, not sentence motion.
+
+Prose motion runs over the node's text alone, so reaching the node's
+first/last sentence and moving again stops at that boundary rather
+than continuing into surrounding code (the buffer-edge signal from
+the scratch buffer is caught, not propagated).  This keeps text
+objects such as `evil''s `d a s' bounded to the comment; letting
+plain motion fall through into code is a separate, riskier change
+tracked in TODO.org."
   (setq arg (or arg 1))
   (let ((node (haskell-ts--text-node-at (point))))
     (if (not node)
@@ -262,7 +276,14 @@ commands about markers, not sentence motion."
               (setq-local sentence-end-double-space nil)
               (insert vtext)
               (goto-char vpoint)
-              (forward-sentence-default-function arg)
+              ;; Prose motion signals `beginning-of-buffer'/`end-of-buffer'
+              ;; at the virtual text's edge.  The real buffer usually
+              ;; continues past the node (a comment glued to code, say),
+              ;; so that signal must not escape -- stop at the node
+              ;; boundary instead (see the docstring's boundary note).
+              (condition-case nil
+                  (forward-sentence-default-function arg)
+                ((beginning-of-buffer end-of-buffer) nil))
               (setq vpoint (point)))
             (goto-char (haskell-ts--virtual-to-real vpoint table))))))))
 
@@ -270,7 +291,6 @@ commands about markers, not sentence motion."
   `((haskell
      (sexp haskell-ts-sexp)
      (sentence "match")
-     (string "string")
      (text ,(regexp-opt '("comment" "haddock" "string")))))
   "`treesit-thing-settings' for `haskell-ts-mode'.
 `text' must include `comment' and `haddock' (not just `string'), or
@@ -434,6 +454,14 @@ clamp -- see that variable's docstring for why."
   (advice-add 'evil-select-an-object :around #'haskell-ts--confine-evil-paragraph-object)
   (advice-add 'evil-select-inner-object :around #'haskell-ts--confine-evil-paragraph-object))
 
+(defun haskell-ts--continuation-prefix ()
+  "Return the `--' comment continuation prefix for point, or nil.
+Non-nil only in a `haskell-ts-mode' buffer with point inside a `--'
+comment; see `haskell-ts--comment-continuation-prefix'.  Shared by the
+`newline' and Evil `o'/`O' advice below."
+  (and (derived-mode-p 'haskell-ts-mode)
+       (haskell-ts--comment-continuation-prefix (point))))
+
 (defun haskell-ts--newline (orig-fun &rest args)
   "Continue a `--' comment when breaking the line inside one.
 `RET' should continue a `--' comment rather than leave it, so
@@ -443,13 +471,14 @@ continuation is inserted directly, rather than by delegating to
 `default-indent-new-line', because the latter's `delete-horizontal-space'
 calls strip a bare marker's trailing space (a comment line with
 nothing typed after it yet) before it can be repeated -- see
-`haskell-ts--comment-continuation-prefix'.  Outside such a comment,
-ORIG-FUN runs unchanged with ARGS, adding no indentation behaviour of
-its own."
-  (let ((prefix (and (derived-mode-p 'haskell-ts-mode)
-                      (haskell-ts--comment-continuation-prefix (point)))))
+`haskell-ts--comment-continuation-prefix'.  `newline''s repeat count
+\(ARGS' first element) is honoured, so each of the requested lines is
+continued.  Outside such a comment, ORIG-FUN runs unchanged with ARGS,
+adding no indentation behaviour of its own."
+  (let ((prefix (haskell-ts--continuation-prefix)))
     (if prefix
-        (insert "\n" prefix)
+        (dotimes (_ (prefix-numeric-value (car args)))
+          (insert "\n" prefix))
       (apply orig-fun args))))
 
 (advice-add 'newline :around #'haskell-ts--newline)
@@ -460,8 +489,7 @@ its own."
 blank line with a plain `insert', bypassing `newline' -- and the
 advice on it above -- entirely, so they need this advice of their own
 to get the same comment continuation."
-  (let ((prefix (and (derived-mode-p 'haskell-ts-mode)
-                      (haskell-ts--comment-continuation-prefix (point)))))
+  (let ((prefix (haskell-ts--continuation-prefix)))
     (apply orig-fun args)
     (when prefix
       (insert prefix))))

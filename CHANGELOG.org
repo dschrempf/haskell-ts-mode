@@ -42,6 +42,14 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   =haskell-ts--forward-sentence= uses the =content= field directly
   instead of guessing the marker's shape with a regexp
   (=haskell-ts--comment-marker-regexp=, now removed).
+- *String prose motion strips the surrounding quotes.*  Sentence/text
+  motion inside a string literal now treats its interior as prose the
+  same way a =--= marker is stripped from a comment, so a sentence no
+  longer includes the opening ="=.
+- *Dropped the unused =string= entry from =haskell-ts-thing-settings=.*
+  Nothing referenced the =(string "string")= thing; the =text= thing
+  already covers strings for sentence motion, and removing it leaves
+  =forward-sexp= behaviour unchanged.
 
 ** Fixed
 
@@ -119,6 +127,17 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   *following* node instead).  =haskell-ts--text-node-at= now also
   rejects a node that ends at or before point, so =RET= on such a
   line leaves it blank instead of continuing the comment.
+- *Spurious =end-of-buffer= from =forward-sentence= inside a comment.*
+  Prose motion runs in a scratch buffer holding only the comment's
+  text, so reaching the comment's first/last sentence and moving again
+  raised a buffer-edge signal.  Unlike at the real buffer's edge that
+  fired mid-file, breaking plain =M-e=/=kill-sentence= on a comment
+  glued to code.  The signal is now caught: motion stops at the
+  comment boundary instead.  (Letting it *fall through* into the
+  surrounding code is tracked in =TODO.org=.)
+- *=newline= repeat count dropped inside a comment.*  =C-u N RET= (and
+  any =(newline N)=) continued the comment on a single line instead of
+  =N=; the advice now honours the count.
 
 ** Removed
 
