@@ -85,6 +85,21 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   and fall back to selecting from the start of the buffer whenever a
   comment was glued to code on one side only (e.g. a Haddock comment
   preceded by a blank line but glued to the next binding below).
+  Separately, that same per-call clamp also fired for point in plain
+  *code* glued to an unrelated comment elsewhere in the buffer: while
+  computing an object's bounds, `bounds-of-thing-at-point'/=evil='s
+  whitespace-detection helpers re-probe =forward-paragraph=/
+  =start-of-paragraph-text= from intermediate positions found *during*
+  that computation, which need not be anywhere near the object's actual
+  start -- one probe could land inside some other comment and get
+  clamped to its bounds while another, from the object's real start,
+  did not, breaking the invariant that motion reaches the same end
+  from any point within one object.  =evil= again concluded there was
+  no consistent object and fell back to the start of the buffer.  The
+  per-call clamp now stays out of the way for the whole
+  =evil-select-an-object=/=evil-select-inner-object= call
+  (`haskell-ts--confining-evil-paragraph-object'), deferring entirely
+  to that call's own, single, consistent narrowing.
   See =NOTES.org= for a related case (=evil='s =}=/={=) left unfixed.
 - *Spurious comment continuation on a blank line below a buffer-final
   comment.*  =treesit-node-at= returns the *previous* node, not =nil=,

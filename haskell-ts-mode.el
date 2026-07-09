@@ -604,6 +604,27 @@ case, a paragraph's start is not offset by a newline."
   (and (haskell-ts--node-glued-p (treesit-node-start node) -1)
        (treesit-node-start node)))
 
+(defvar haskell-ts--confining-evil-paragraph-object nil
+  "Non-nil while `haskell-ts--confine-evil-paragraph-object' runs.
+Suppresses `haskell-ts--confine-paragraph-motion''s own, separate
+clamp for the duration: `bounds-of-thing-at-point' and `evil''s
+whitespace-detection helpers re-probe with `forward-paragraph'/
+`start-of-paragraph-text' from intermediate positions found *during*
+the very computation of an object's bounds -- e.g. the buffer's very
+first comment, visited while computing the bounds of an unrelated
+paragraph elsewhere -- which need not have anything to do with where
+the object being computed actually starts.  Clamping those to
+whatever node they happen to land in mid-probe breaks the invariant
+`evil' relies on, that `forward-paragraph' started from any point
+within an object's bounds reaches the same end: some probes would be
+clamped and others not, depending only on which position they
+happened to (re)start from.  `haskell-ts--confine-evil-paragraph-object'
+already narrows the buffer once for the whole call, based on the
+object's actual start, which is the correct level to confine at; with
+that in effect, every probe naturally stays consistent no matter
+where it (re)starts from, and this per-call clamp would only add back
+the same inconsistency it narrowed to avoid.")
+
 (defun haskell-ts--confine-paragraph-motion (orig-fun args dir)
   "Run ORIG-FUN, then clamp point to the `text' node enclosing the start.
 DIR is the motion's direction: positive for `forward-paragraph',
@@ -617,10 +638,17 @@ short-circuit the round trip `evil' uses (moving forward then back,
 or vice versa) to detect whitespace *beyond* the node, e.g. between
 two comments separated by a blank line, mistaking \"clamped, so no
 progress\" for \"nothing further to find\" and swallowing everything up
-to `point-max'/`point-min' instead.
+to `point-max'/`point-min' instead.  Also stays out of the way while
+`haskell-ts--confining-evil-paragraph-object' is non-nil, for the same
+underlying reason -- see its docstring.
 ORIG-FUN runs unmodified outside a comment/string, or at one not
-glued to code, adding no behaviour of its own there."
-  (let* ((node (and (derived-mode-p 'haskell-ts-mode)
+glued to code, adding no behaviour of its own there.  Returns
+ORIG-FUN's own result unchanged, even when clamping, so callers that
+inspect it (e.g. `evil-motion-loop', via how many paragraphs were
+*not* traversed) see the traversal ORIG-FUN actually performed rather
+than the buffer position `goto-char' would otherwise return."
+  (let* ((node (and (not haskell-ts--confining-evil-paragraph-object)
+                     (derived-mode-p 'haskell-ts-mode)
                      (haskell-ts--text-node-at (point))))
          (clamp (and node
                      (if (> dir 0)
@@ -628,10 +656,11 @@ glued to code, adding no behaviour of its own there."
                        (haskell-ts--node-backward-clamp node)))))
     (if (not clamp)
         (apply orig-fun args)
-      (apply orig-fun args)
-      (if (> dir 0)
-          (goto-char (min (point) clamp))
-        (goto-char (max (point) clamp))))))
+      (let ((result (apply orig-fun args)))
+        (if (> dir 0)
+            (goto-char (min (point) clamp))
+          (goto-char (max (point) clamp)))
+        result))))
 
 (defun haskell-ts--confine-forward-paragraph (orig-fun &rest args)
   "Around advice for `forward-paragraph'.
@@ -668,10 +697,18 @@ edge, `point-max'/`point-min' there is the wrong fallback: it is the
 real buffer's, not the node's.  Narrowing to the glued side(s) of the
 enclosing node for the whole call, rather than clamping call by call,
 fixes this at the source: within the narrowing, `point-max'/`point-min'
-*are* the node's boundary, so the fallback is correct either way."
+*are* the node's boundary, so the fallback is correct either way.
+
+Binds `haskell-ts--confining-evil-paragraph-object' for the whole
+call, node found or not: the object's bounds may end up computed via
+an intermediate position far from where this call started (e.g. some
+other, unrelated comment elsewhere in the buffer), and any node found
+there must not trigger `haskell-ts--confine-paragraph-motion''s own
+clamp -- see that variable's docstring for why."
   (if (not (and (derived-mode-p 'haskell-ts-mode) (eq thing 'evil-paragraph)))
       (apply orig-fun thing args)
-    (let ((node (haskell-ts--text-node-at (point))))
+    (let ((haskell-ts--confining-evil-paragraph-object t)
+          (node (haskell-ts--text-node-at (point))))
       (if (not node)
           (apply orig-fun thing args)
         (let ((lo (or (haskell-ts--node-backward-clamp node) (point-min)))

@@ -30,3 +30,24 @@
   about the text object, not the motion; would need advising
   =evil-forward-paragraph=/=evil-backward-paragraph= (or =evil-forward-end=/
   =evil-backward-beginning=) themselves.
+
+* Confining =evil='s paragraph object to a glued comment has been fragile
+  Three bugs in a row in the same feature (see CHANGELOG.org, "Unreleased",
+  the =v a p=/=d a p= entries): each fix for one reported case (both sides
+  glued; one side glued; a probe from *code* landing in an *unrelated*
+  comment elsewhere) broke, or narrowly avoided breaking, another, because
+  `evil-select-an-object'/`bounds-of-thing-at-point' repeatedly re-probe
+  =forward-paragraph=/=start-of-paragraph-text= from intermediate positions
+  during a single object computation, and those positions are not
+  predictable from the call site.  The current fix (narrow once, for the
+  whole call, based on the object's actual start; suppress the separate
+  per-call clamp for that whole call so it can never fire on an unrelated
+  probe) resolves the three known cases and passes an explicit stress test
+  (chained comment+function pairs, point in code vs. in comment, on either
+  side), but the pattern of "another `evil' internal detail invalidates the
+  fix" recurring three times in a row is reason enough to distrust that
+  this is the last one.  If another case surfaces, resist patching a fourth
+  special case on top of the last three; re-derive from how `evil' actually
+  computes bounds (verified empirically each time above, not from
+  documentation, since `thingatpt'/`evil' source is not distributed as
+  plain text on this system) rather than reacting to the new symptom.
