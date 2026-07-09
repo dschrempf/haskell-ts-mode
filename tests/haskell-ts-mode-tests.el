@@ -639,6 +639,20 @@ found node actually starts at or before POS is needed to tell
     (newline)
     (should (equal (buffer-string) "\n\n-- Comment."))))
 
+(ert-deftest haskell-ts-test-newline-below-buffer-final-comment-does-not-continue-it ()
+  "`newline' on a blank line below a buffer-final comment does not
+continue it.
+Regression test: `treesit-node-at' returns the *previous* node when
+POS sits in whitespace covered by no node and nothing follows to fall
+forward to -- as the blank line below a buffer-final comment is --
+rather than nil, so a check that the found node actually ends after
+POS (not just starts at or before it) is needed to tell \"just below
+the comment\" apart from \"inside it\"."
+  (haskell-ts-tests--with-temp-hs "-- Bla\n--\n\n"
+    (goto-char (point-max))
+    (newline)
+    (should (equal (buffer-string) "-- Bla\n--\n\n\n"))))
+
 (ert-deftest haskell-ts-test-newline-repeated-on-bare-marker ()
   "Breaking the line again on a bare `-- ' line keeps the trailing space.
 Regression test: delegating to `default-indent-new-line' (as the
@@ -692,13 +706,13 @@ above)."
        (evil-normal-state)
        ,@body)))
 
-(defun haskell-ts-tests--evil-object-at (needle selector)
+(defun haskell-ts-tests--evil-object-at (needle selector &optional thing)
   "Move to just after NEEDLE and return the text SELECTOR selects.
 SELECTOR is `evil-select-an-object' or `evil-select-inner-object',
-called for the `evil-sentence' thing."
+called for THING (`evil-sentence' by default)."
   (goto-char (point-min))
   (search-forward needle)
-  (let ((range (funcall selector 'evil-sentence nil nil 'inclusive 1)))
+  (let ((range (funcall selector (or thing 'evil-sentence) nil nil 'inclusive 1)))
     (buffer-substring-no-properties
      (evil-range-beginning range) (evil-range-end range))))
 
@@ -757,6 +771,33 @@ on \"Hello\" swallows the entire next paragraph too."
 "
     (should (equal "Hello"
                    (haskell-ts-tests--evil-object-at "Hel" #'evil-select-an-object)))))
+
+(ert-deftest haskell-ts-test-evil-a-paragraph-inside-comment ()
+  "`d a p' on one paragraph of a multi-line comment never reaches into
+a later paragraph of the same comment, even when a real blank line
+(a separate `haddock' node) follows.
+Regression test: a `--'-only line between two paragraphs of one
+`haddock' node is not a real blank line in the buffer, so
+`paragraph-start'/`paragraph-separate' must be taught to treat it as
+one -- `forward-paragraph'/`backward-paragraph' (unlike sentence
+motion) work directly off those variables, not off
+`haskell-ts--forward-sentence''s dedented copy."
+  (haskell-ts-tests--with-temp-hs-evil
+      "-- Paragraph 1
+--
+-- Paragraph 2
+
+-- Paragraph 3
+"
+    (should (equal "-- Paragraph 1\n"
+                   (haskell-ts-tests--evil-object-at
+                    "Paragraph 1" #'evil-select-an-object 'evil-paragraph)))
+    (should (equal "-- Paragraph 2\n"
+                   (haskell-ts-tests--evil-object-at
+                    "Paragraph 2" #'evil-select-an-object 'evil-paragraph)))
+    (should (equal "-- Paragraph 3\n"
+                   (haskell-ts-tests--evil-object-at
+                    "Paragraph 3" #'evil-select-an-object 'evil-paragraph)))))
 
 ;;; `evil' `o'/`O' comment continuation
 

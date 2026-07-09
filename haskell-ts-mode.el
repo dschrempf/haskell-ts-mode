@@ -367,9 +367,14 @@ runs all the way to the start of the buffer.
 `treesit-node-at' returns the first node after POS when POS sits in
 whitespace covered by no node -- e.g. a blank line above a comment --
 rather than nil; the first branch below must reject such a node
-itself, since it starts after POS rather than at or before it."
+itself, since it starts after POS rather than at or before it.  It
+also returns the *previous* node when POS sits in whitespace covered
+by no node and nothing follows to fall forward to -- e.g. a blank
+line below a buffer-final comment -- so the first branch must also
+reject a node that ends at or before POS."
   (or (let ((node (haskell-ts--text-node-parent (treesit-node-at pos))))
         (and node (<= (treesit-node-start node) pos)
+             (< pos (treesit-node-end node))
              (treesit-node-match-p node 'text t) node))
       (let ((node (haskell-ts--text-node-parent
                     (and (> pos (point-min)) (treesit-node-at (1- pos))))))
@@ -637,6 +642,14 @@ to get the same comment continuation."
   ;; Haddock and plain comments end sentences with a single space, not
   ;; the double space `sentence-end' otherwise requires.
   (setq-local sentence-end-double-space nil)
+  ;; A `--'-only line (whitespace and dashes, nothing else) is always a
+  ;; marker-only comment line, never code -- `--' immediately followed by
+  ;; end-of-line or whitespace can only start a comment, not an operator.
+  ;; Counting it as blank lets `forward-paragraph'/`backward-paragraph'
+  ;; (and callers like `evil''s `a p'/`i p') split paragraphs inside one
+  ;; multi-line comment, where such a line is not a real blank line.
+  (setq-local paragraph-start (concat paragraph-start "\\|[ \t]*--+[ \t]*$"))
+  (setq-local paragraph-separate (concat paragraph-separate "\\|[ \t]*--+[ \t]*$"))
   ;; Electric
   (setq-local electric-pair-pairs
               '((?` . ?`) (?\( . ?\)) (?{ . ?}) (?\" . ?\") (?\[ . ?\])))
