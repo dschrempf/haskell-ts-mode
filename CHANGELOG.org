@@ -34,6 +34,20 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   instead of guessing the marker's shape with a regexp
   (=haskell-ts--comment-marker-regexp=, now removed).
 
+** Fixed
+
+- *Paragraph breaks inside a multi-line =--=/Haddock comment.*  The
+  grammar folds a run of adjacent =--= lines with no intervening blank
+  code line into a single =comment=/=haddock= node, so a =--=-only line
+  meant to separate two paragraphs of the same comment was not a real
+  blank line in the buffer and did not register as a paragraph break;
+  sentence/paragraph motion (and =evil='s =d a s=/=d i s=) ran straight
+  through it into the next paragraph.  =haskell-ts--forward-sentence=
+  now runs prose motion on a dedented copy of the comment's text —
+  each continuation line's repeated marker stripped — and maps the
+  result back onto the real buffer, so a marker-only line reads as
+  blank like it would in plain prose.
+
 ** Removed
 
 - *Tree-sitter indentation support.*  =haskell-ts-use-indent=,
