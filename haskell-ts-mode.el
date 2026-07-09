@@ -397,55 +397,156 @@ with `--'."
                        (match-string 0 marker-text))
                 " ")))))
 
+(defun haskell-ts--comment-line-segments (content)
+  "Return CONTENT's per-line prose ranges, continuation markers stripped.
+A multi-line `--'/Haddock comment is one CONTENT node spanning every
+line: only the first line's marker is its own `marker' field, and
+every line after that repeats the marker as ordinary CONTENT text.
+Left in, a marker-only line does not read as blank to prose paragraph
+detection (so a paragraph break inside a comment is missed), and a
+continuation line's marker ends up inside whatever sentence spans
+into it.  Stripping it here, before `haskell-ts--forward-sentence'
+runs paragraph/sentence detection on the dedented result, fixes both."
+  (save-excursion
+    (let ((end (treesit-node-end content))
+          (pos (progn
+                 (goto-char (treesit-node-start content))
+                 (skip-chars-forward " \t")
+                 (point)))
+          segments)
+      (while (<= pos end)
+        (let ((line-end (min end (progn (goto-char pos) (line-end-position)))))
+          (push (cons pos line-end) segments)
+          (setq pos (1+ line-end))
+          (when (<= pos end)
+            (goto-char pos)
+            (when (looking-at "[ \t]*--+")
+              (goto-char (match-end 0))
+              (skip-chars-forward " \t")
+              (setq pos (point))))))
+      (nreverse segments))))
+
+(defun haskell-ts--text-node-segments (node)
+  "Return NODE's prose text as a list of (START . END) buffer ranges.
+For a `--'/Haddock comment, one range per physical line with each
+continuation line's repeated marker stripped, via
+`haskell-ts--comment-line-segments'.  For a `{- -}' block comment, a
+single range with the closing `-}' trimmed off -- the grammar folds
+it into CONTENT rather than giving it a field of its own.  For a
+string, or an empty (marker-only) comment with no CONTENT child at
+all, the node's own bounds."
+  (let* ((content (treesit-node-child-by-field-name node "content"))
+         (marker (treesit-node-child-by-field-name node "marker"))
+         (marker-text (and marker (treesit-node-text marker t))))
+    (cond
+     ((and content marker-text (string-prefix-p "--" marker-text))
+      (haskell-ts--comment-line-segments content))
+     (content
+      (let ((start (save-excursion
+                     (goto-char (treesit-node-start content))
+                     (skip-chars-forward " \t")
+                     (point)))
+            (end (- (treesit-node-end content) 2)))
+        (list (cons start (max start end)))))
+     (t
+      (list (cons (treesit-node-start node) (treesit-node-end node)))))))
+
+(defun haskell-ts--virtual-text-and-table (segments)
+  "Return (VTEXT . TABLE) standing in for SEGMENTS' real buffer text.
+VTEXT is SEGMENTS' text joined by newlines: with continuation markers
+already stripped by `haskell-ts--text-node-segments', a marker-only
+line becomes a blank line in VTEXT, i.e. an ordinary paragraph
+separator once `haskell-ts--forward-sentence' runs prose motion on it
+in a scratch buffer.  TABLE is a list of (RSTART REND VSTART) triples,
+one per segment, giving the real buffer range and where it begins in
+VTEXT; `haskell-ts--real-to-virtual'/`haskell-ts--virtual-to-real' use
+it to translate points between the two."
+  (let ((vstart 1) parts table)
+    (dolist (seg segments)
+      (let* ((rstart (car seg)) (rend (cdr seg))
+             (text (buffer-substring-no-properties rstart rend)))
+        (push text parts)
+        (push (list rstart rend vstart) table)
+        (setq vstart (+ vstart (length text) 1))))
+    (cons (mapconcat #'identity (nreverse parts) "\n") (nreverse table))))
+
+(defun haskell-ts--real-to-virtual (pos table)
+  "Map real buffer POS to a point in the virtual text described by TABLE.
+Return (VPOINT . ON-MARKERP).  ON-MARKERP is non-nil when POS sits on
+a stripped marker -- the node's own opening marker (POS before the
+first segment) or a continuation line's repeated one (POS between two
+segments) -- in which case VPOINT is clamped forward to the marker's
+following segment, since the marker itself has no counterpart in the
+virtual text at all."
+  (catch 'done
+    (dolist (entry table)
+      (let ((rstart (nth 0 entry)) (rend (nth 1 entry)) (vstart (nth 2 entry)))
+        (cond
+         ((and (<= rstart pos) (<= pos rend))
+          (throw 'done (cons (+ vstart (- pos rstart)) nil)))
+         ((< pos rstart)
+          (throw 'done (cons vstart t))))))
+    (let* ((last (car (last table)))
+           (vstart (nth 2 last)))
+      (cons (+ vstart (- (nth 1 last) (nth 0 last))) nil))))
+
+(defun haskell-ts--virtual-to-real (vpoint table)
+  "Inverse of `haskell-ts--real-to-virtual': map VPOINT back via TABLE.
+Every point in the virtual text maps to some segment: TABLE's entries
+are built back to back with exactly one joining newline between them,
+so consecutive segments' virtual ranges never touch or overlap."
+  (catch 'done
+    (dolist (entry table)
+      (let* ((rstart (nth 0 entry)) (rend (nth 1 entry)) (vstart (nth 2 entry))
+             (vend (+ vstart (- rend rstart))))
+        (when (<= vstart vpoint vend)
+          (throw 'done (+ rstart (- vpoint vstart))))))))
+
 (defun haskell-ts--forward-sentence (&optional arg)
   "`forward-sentence-function' for `haskell-ts-mode'.
-Like `treesit-forward-sentence', but when point is at or inside a
-`text' node (a comment or a string), prose movement is confined to
-that node's text -- excluding a comment's opening marker -- rather
-than the whole buffer.  Without the node-bounds narrowing,
-`forward-sentence-default-function' falls back to
-`paragraph-start'/`paragraph-separate', which in `prog-mode' do not
-treat a comment as its own paragraph; a comment directly above code
-with no blank line in between is then not a paragraph boundary
-either, so prose sentence movement runs past the comment into the
-surrounding code (or vice versa).  And without excluding the marker,
-the first sentence in a comment starts at `--' itself, so deleting it
-deletes the marker along with the sentence.  The marker itself is
-excluded via the grammar's `content' field on `comment'/`haddock'
-nodes; an empty comment has no `content' child, so its bounds fall
-back to the whole (marker-only) node.  `content' still includes the
-horizontal whitespace between the marker and the prose (e.g. the
-space in `-- | Module'), which must be skipped too: left in, it is
-the narrowed region's first character, and paragraph motion (used by
-`forward-sentence-default-function' to find a sentence's start when
-no preceding sentence end matches) skips over leading whitespace,
-landing one character past where it started -- turning a same-place
-`backward-sentence' at the marker/content boundary into a net forward
-move.
+Move point by ARG sentences (`forward-sentence-default-function''s
+convention: negative for backward).  Like `treesit-forward-sentence',
+but when point is at or inside a `text' node (a comment or a string),
+prose motion runs over a dedented copy of that node's text --
+continuation markers stripped, per `haskell-ts--text-node-segments' --
+in a scratch buffer, and the result is mapped back onto the real
+buffer.
 
-When point sits on the marker itself (before the trimmed start) and
-ARG asks to move backward, this leaves point untouched rather than
-following `narrow-to-region''s usual behaviour of clamping point
-forward into the narrowed part -- moving \"backward\" to a position
-after point confuses callers (`evil-bounds-of-not-thing-at-point', in
-particular) that infer \"already at the start of the buffer\" from a
-backward motion that fails to move point backward."
+Two problems follow from running `forward-sentence-default-function'
+on the raw buffer text instead.  It falls back to
+`paragraph-start'/`paragraph-separate' to bound a sentence search when
+it finds no sentence end, and `prog-mode' does not treat a comment
+glued to code (no blank line above or below) as its own paragraph, so
+motion overruns the comment; dedenting fixes this by making a
+marker-only line -- meant to separate paragraphs within one multi-line
+comment -- read as an actual blank line, which it is not in the real
+buffer.  And a comment's marker is otherwise just text: left in, a
+comment's first sentence starts at `--' itself.
+
+Dedenting does *not*, however, stop a single sentence that itself
+spans a continuation line from including that line's marker once
+mapped back to the real buffer: motion only returns a point, and the
+region between two such points is whatever real text sits between
+them, markers included.  Avoiding that would mean teaching deletion
+commands about markers, not sentence motion."
   (setq arg (or arg 1))
   (let ((node (haskell-ts--text-node-at (point))))
-    (if node
-        (let* ((content (treesit-node-child-by-field-name node "content"))
-               (start (if content
-                          (save-excursion
-                            (goto-char (treesit-node-start content))
-                            (skip-chars-forward " \t")
-                            (point))
-                        (treesit-node-start node)))
-               (end (treesit-node-end node)))
-          (unless (and (< arg 0) (< (point) start))
-            (save-restriction
-              (narrow-to-region start end)
-              (funcall #'forward-sentence-default-function arg))))
-      (treesit-forward-sentence arg))))
+    (if (not node)
+        (treesit-forward-sentence arg)
+      (let* ((segments (haskell-ts--text-node-segments node))
+             (text-and-table (haskell-ts--virtual-text-and-table segments))
+             (vtext (car text-and-table))
+             (table (cdr text-and-table))
+             (loc (haskell-ts--real-to-virtual (point) table)))
+        (unless (and (< arg 0) (cdr loc))
+          (let ((vpoint (car loc)))
+            (with-temp-buffer
+              (setq-local sentence-end-double-space nil)
+              (insert vtext)
+              (goto-char vpoint)
+              (forward-sentence-default-function arg)
+              (setq vpoint (point)))
+            (goto-char (haskell-ts--virtual-to-real vpoint table))))))))
 
 (defvar haskell-ts-thing-settings
   `((haskell

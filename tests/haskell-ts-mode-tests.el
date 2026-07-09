@@ -561,6 +561,39 @@ x = 10
     (search-forward "is a")
     (should (equal "This is a sentence." (haskell-ts-tests--sentence-at-point)))))
 
+(ert-deftest haskell-ts-test-sentence-paragraph-inside-multiline-comment ()
+  "A blank (marker-only) line inside one multi-line Haddock comment is a
+paragraph break.
+Regression test: the grammar folds a run of adjacent `--' lines with
+no intervening blank *code* line into a single `haddock' node, so a
+`--'-only line meant to separate paragraphs is not a real blank line
+in the buffer and does not register with `paragraph-separate' on its
+own -- sentence motion ran through it into the next paragraph unless
+`haskell-ts--forward-sentence' dedents (strips the repeated marker
+from) each line before running prose motion."
+  (haskell-ts-tests--with-temp-hs
+      "-- | Hello
+--
+-- This sentence is deleted when deleting around sentence from Hello above
+-- (e.g., cursor at _1). It shouldn't be!
+module Test () where
+"
+    (search-forward "Hel")
+    (should (equal "Hello" (haskell-ts-tests--sentence-at-point)))
+    (search-forward "shouldn")
+    (should (equal "It shouldn't be!" (haskell-ts-tests--sentence-at-point)))))
+
+(ert-deftest haskell-ts-test-backward-sentence-noop-on-continuation-marker ()
+  "Like `haskell-ts-test-backward-sentence-noop-on-marker', but for a
+continuation line's repeated marker rather than the comment's opening
+one -- `backward-sentence' never moves point forward past it."
+  (haskell-ts-tests--with-temp-hs "-- | Long sentence that\n-- continues. Short.\n"
+    (goto-char (point-min))
+    (search-forward "\n-- continues")   ; right after the newline, before `--'
+    (let ((start (point)))
+      (backward-sentence)
+      (should (<= (point) start)))))
+
 ;;; `newline' comment continuation
 
 (ert-deftest haskell-ts-test-newline-continues-line-comment ()
@@ -709,6 +742,21 @@ itself, where the worst case is a single stray space."
                    (haskell-ts-tests--evil-object-at "is a" #'evil-select-inner-object)))
     (should (equal " "
                    (haskell-ts-tests--evil-object-at "-- |" #'evil-select-inner-object)))))
+
+(ert-deftest haskell-ts-test-evil-a-sentence-paragraph-inside-comment ()
+  "`d a s' on a comment's first paragraph never reaches into a later
+paragraph of the same multi-line comment.
+Regression test for the originally reported bug: without dedenting
+each line before running prose motion, a `--'-only line between two
+paragraphs of one `haddock' node is not a paragraph break, and `d a s'
+on \"Hello\" swallows the entire next paragraph too."
+  (haskell-ts-tests--with-temp-hs-evil
+      "-- | Hello
+--
+-- This is the next paragraph.
+"
+    (should (equal "Hello"
+                   (haskell-ts-tests--evil-object-at "Hel" #'evil-select-an-object)))))
 
 ;;; `evil' `o'/`O' comment continuation
 
