@@ -565,6 +565,103 @@ commands about markers, not sentence motion."
 \"inside code\" and jumps by the `sentence' thing (a `match' node)
 instead of by prose sentence, spilling into surrounding code.")
 
+(defun haskell-ts--node-glued-p (pos dir)
+  "Non-nil if NODE's boundary at POS abuts real code, not a blank line.
+DIR is the direction the boundary faces: positive for a node's end
+\(check the line *after* it), negative for its start (check the line
+*before* it).  Used to tell a comment glued directly to code -- no
+blank line separating them, so `paragraph-start'/`paragraph-separate'
+see nothing there to stop paragraph motion -- from one that already
+has a real separating line, where they need no help."
+  (save-excursion
+    (goto-char pos)
+    (if (if (> dir 0) (eobp) (bobp))
+        nil
+      (forward-line dir)
+      (not (looking-at-p paragraph-separate)))))
+
+(defun haskell-ts--confine-paragraph-motion (orig-fun args dir)
+  "Run ORIG-FUN, then clamp point to the `text' node enclosing the start.
+DIR is the motion's direction: positive for `forward-paragraph',
+negative for `start-of-paragraph-text' (always backward).  Only
+intervenes when that boundary is glued to code with no blank line of
+its own to stop at (`haskell-ts--node-glued-p'); when a real blank (or
+`--'-only) line already borders the node, ORIG-FUN already stops
+there unaided, and clamping would be actively wrong -- it would
+short-circuit the round trip `evil' uses (moving forward then back,
+or vice versa) to detect whitespace *beyond* the node, e.g. between
+two comments separated by a blank line, mistaking \"clamped, so no
+progress\" for \"nothing further to find\" and swallowing everything up
+to `point-max'/`point-min' instead.
+ORIG-FUN runs unmodified outside a comment/string, or at one not
+glued to code, adding no behaviour of its own there."
+  (let ((node (and (derived-mode-p 'haskell-ts-mode)
+                    (haskell-ts--text-node-at (point)))))
+    (if (not (and node
+                  (haskell-ts--node-glued-p
+                   (if (> dir 0) (treesit-node-end node) (treesit-node-start node))
+                   dir)))
+        (apply orig-fun args)
+      (apply orig-fun args)
+      (if (> dir 0)
+          (goto-char (min (point) (treesit-node-end node)))
+        (goto-char (max (point) (treesit-node-start node)))))))
+
+(defun haskell-ts--confine-forward-paragraph (orig-fun &rest args)
+  "Around advice for `forward-paragraph'.
+See `haskell-ts--confine-paragraph-motion'."
+  (haskell-ts--confine-paragraph-motion orig-fun args (if (< (or (car args) 1) 0) -1 1)))
+
+(defun haskell-ts--confine-start-of-paragraph-text (orig-fun &rest args)
+  "Around advice for `start-of-paragraph-text'.
+See `haskell-ts--confine-paragraph-motion'.
+Unlike `backward-paragraph' (a thin wrapper that calls
+`forward-paragraph' with a negated count, and so needs no advice of
+its own), `evil''s `}'/`{' (`evil-forward-paragraph'/
+`evil-backward-paragraph') and `a p'/`i p' all reach the beginning of
+a paragraph via `start-of-paragraph-text' directly."
+  (haskell-ts--confine-paragraph-motion orig-fun args -1))
+
+(advice-add 'forward-paragraph :around #'haskell-ts--confine-forward-paragraph)
+(advice-add 'start-of-paragraph-text :around #'haskell-ts--confine-start-of-paragraph-text)
+
+(defun haskell-ts--confine-evil-paragraph-object (orig-fun thing &rest args)
+  "Around advice for `evil-select-an-object'/`evil-select-inner-object'.
+Only `a p'/`i p' (THING `evil-paragraph') are handled; every other
+text object runs ORIG-FUN unmodified.
+
+Clamping each individual `forward-paragraph'/`start-of-paragraph-text'
+call, as `haskell-ts--confine-paragraph-motion' does, is not enough
+for these two: to detect whitespace *beyond* the current paragraph,
+`evil' moves forward then back (or vice versa) and compares against
+the starting point, falling back to `point-max'/`point-min' when the
+round trip does not return further out than where it started -- which
+is also what happens when a clamped call is stopped short by a glued
+node boundary instead of a real one, and unlike at a genuine buffer
+edge, `point-max'/`point-min' there is the wrong fallback: it is the
+real buffer's, not the node's.  Narrowing to the glued side(s) of the
+enclosing node for the whole call, rather than clamping call by call,
+fixes this at the source: within the narrowing, `point-max'/`point-min'
+*are* the node's boundary, so the fallback is correct either way."
+  (if (not (and (derived-mode-p 'haskell-ts-mode) (eq thing 'evil-paragraph)))
+      (apply orig-fun thing args)
+    (let ((node (haskell-ts--text-node-at (point))))
+      (if (not node)
+          (apply orig-fun thing args)
+        (let ((lo (if (haskell-ts--node-glued-p (treesit-node-start node) -1)
+                      (treesit-node-start node)
+                    (point-min)))
+              (hi (if (haskell-ts--node-glued-p (treesit-node-end node) 1)
+                      (treesit-node-end node)
+                    (point-max))))
+          (save-restriction
+            (narrow-to-region lo hi)
+            (apply orig-fun thing args)))))))
+
+(with-eval-after-load 'evil
+  (advice-add 'evil-select-an-object :around #'haskell-ts--confine-evil-paragraph-object)
+  (advice-add 'evil-select-inner-object :around #'haskell-ts--confine-evil-paragraph-object))
+
 (defvar haskell-ts-align-rules-list
   '((haskell-ts-assignment
      (regexp . "\\(\\s-+\\)=\\s-+")))

@@ -13,3 +13,20 @@
   opaque leaf node, with no notion of sentences/paragraphs inside it — that's an
   inherently textual problem, which is why this mode reimplements it manually
   rather than deferring to the grammar.
+
+* =evil='s =}=/={= do not confine to a comment glued to code, unlike =a p=/=i p=
+  =d a p=/=v a p= (=evil-select-an-object=/=evil-select-inner-object=) are fixed
+  (see CHANGELOG.org, "Unreleased") by narrowing the buffer to the comment
+  before =evil= computes the object, when the comment has no blank line
+  separating it from surrounding code.  =evil-forward-paragraph=/
+  =evil-backward-paragraph= (the =}=/={= motions) go through the same
+  =forward-paragraph=/=start-of-paragraph-text= primitives, also advised to clamp
+  to such a comment -- but =evil-forward-end=, which those two motions call,
+  nudges point one character past the comment's end (or before its start)
+  *before* searching, specifically so that starting already at a thing's
+  boundary still counts as progress.  That one-character nudge lands outside
+  the comment node, so the clamp never triggers and =}=/={= still run straight
+  through into the surrounding code.  Not fixed, since the reported bug was
+  about the text object, not the motion; would need advising
+  =evil-forward-paragraph=/=evil-backward-paragraph= (or =evil-forward-end=/
+  =evil-backward-beginning=) themselves.
