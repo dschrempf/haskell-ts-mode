@@ -56,6 +56,26 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   a paragraph break there either.  Both variables now also match a
   line consisting solely of dashes and whitespace — always a
   marker-only comment line, never code.
+- *Paragraph text objects (=evil='s =v a p=/=d a p=) spanning into
+  code around a comment with no blank line of its own.*  A =--=/
+  Haddock comment glued directly to code above and/or below it has no
+  blank line for =paragraph-start=/=paragraph-separate= to stop at
+  either, so the object spilled into the surrounding function(s) too.
+  =evil-select-an-object=/=evil-select-inner-object= are now advised to
+  narrow the buffer to the comment first when it is so glued, one side
+  at a time — narrowing (rather than clamping each individual
+  =forward-paragraph=/=start-of-paragraph-text= call) is needed because
+  =evil= detects a trailing/leading blank line to add to the selection
+  by moving forward then back (or vice versa) and falling back to
+  =point-max=/=point-min= when that round trip makes no net progress;
+  a clamped call can hit that same "no progress" case at the comment's
+  boundary without actually being at =point-max=/=point-min=, and
+  narrowing is what makes those two coincide correctly.  Plain
+  =forward-paragraph=/=start-of-paragraph-text= (hence =M-}=/=M-{= and
+  =mark-paragraph=, and =evil='s own =d a s=-style motions that end up
+  calling them) are separately clamped to the same comment, without
+  needing the narrowing trick, since none of them do that round trip.
+  See =NOTES.org= for a related case (=evil='s =}=/={=) left unfixed.
 - *Spurious comment continuation on a blank line below a buffer-final
   comment.*  =treesit-node-at= returns the *previous* node, not =nil=,
   when a position sits in whitespace covered by no node and nothing

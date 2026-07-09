@@ -706,13 +706,17 @@ above)."
        (evil-normal-state)
        ,@body)))
 
-(defun haskell-ts-tests--evil-object-at (needle selector &optional thing)
+(defun haskell-ts-tests--evil-object-at (needle selector &optional thing line)
   "Move to just after NEEDLE and return the text SELECTOR selects.
 SELECTOR is `evil-select-an-object' or `evil-select-inner-object',
-called for THING (`evil-sentence' by default)."
+called for THING (`evil-sentence' by default).  LINE matches the
+LINE argument the real `evil-a-paragraph'/`evil-inner-paragraph'
+text objects pass (t, since paragraph objects are linewise) -- it
+matters here because it changes which internal helper functions
+`evil' calls, not just the returned range's type."
   (goto-char (point-min))
   (search-forward needle)
-  (let ((range (funcall selector (or thing 'evil-sentence) nil nil 'inclusive 1)))
+  (let ((range (funcall selector (or thing 'evil-sentence) nil nil 'inclusive 1 line)))
     (buffer-substring-no-properties
      (evil-range-beginning range) (evil-range-end range))))
 
@@ -789,15 +793,34 @@ motion) work directly off those variables, not off
 
 -- Paragraph 3
 "
-    (should (equal "-- Paragraph 1\n"
+    (should (equal "-- Paragraph 1\n--\n"
                    (haskell-ts-tests--evil-object-at
-                    "Paragraph 1" #'evil-select-an-object 'evil-paragraph)))
-    (should (equal "-- Paragraph 2\n"
+                    "Paragraph 1" #'evil-select-an-object 'evil-paragraph t)))
+    (should (equal "-- Paragraph 2\n\n"
                    (haskell-ts-tests--evil-object-at
-                    "Paragraph 2" #'evil-select-an-object 'evil-paragraph)))
-    (should (equal "-- Paragraph 3\n"
+                    "Paragraph 2" #'evil-select-an-object 'evil-paragraph t)))
+    (should (equal "\n-- Paragraph 3\n"
                    (haskell-ts-tests--evil-object-at
-                    "Paragraph 3" #'evil-select-an-object 'evil-paragraph)))))
+                    "Paragraph 3" #'evil-select-an-object 'evil-paragraph t)))))
+
+(ert-deftest haskell-ts-test-evil-a-paragraph-glued-to-code ()
+  "`d a p' on a `--' comment with code directly above and below it (no
+blank line separating either side) is confined to the comment alone.
+Regression test: `paragraph-start'/`paragraph-separate' cannot mark a
+glued comment's boundary against code the way they can a marker-only
+line inside one multi-line comment (see
+`haskell-ts-test-evil-a-paragraph-inside-comment'), so without
+`haskell-ts--confine-evil-paragraph-object' narrowing the buffer to
+the comment before `evil' computes the object, `d a p' swallowed the
+function above and below it too."
+  (haskell-ts-tests--with-temp-hs-evil
+      "f = x
+-- Comment
+g = y
+"
+    (should (equal "-- Comment"
+                   (haskell-ts-tests--evil-object-at
+                    "Comment" #'evil-select-an-object 'evil-paragraph t)))))
 
 ;;; `evil' `o'/`O' comment continuation
 
