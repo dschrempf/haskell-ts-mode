@@ -362,9 +362,15 @@ text\" and fall through to `treesit-forward-sentence''s AST-based
 `sentence' thing.  That thing only matches `match' nodes (function
 equations); a file with no equation before POS (e.g. only bindings,
 signatures and comments) has no such node to stop at, so the search
-runs all the way to the start of the buffer."
+runs all the way to the start of the buffer.
+
+`treesit-node-at' returns the first node after POS when POS sits in
+whitespace covered by no node -- e.g. a blank line above a comment --
+rather than nil; the first branch below must reject such a node
+itself, since it starts after POS rather than at or before it."
   (or (let ((node (haskell-ts--text-node-parent (treesit-node-at pos))))
-        (and (treesit-node-match-p node 'text t) node))
+        (and node (<= (treesit-node-start node) pos)
+             (treesit-node-match-p node 'text t) node))
       (let ((node (haskell-ts--text-node-parent
                     (and (> pos (point-min)) (treesit-node-at (1- pos))))))
         (and node (= (treesit-node-end node) pos)

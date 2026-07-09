@@ -594,6 +594,18 @@ Evil's `o'/`O' use, bypassing the keymap entirely."
     (newline)
     (should (equal (buffer-string) "foo = 1\n"))))
 
+(ert-deftest haskell-ts-test-newline-above-comment-does-not-continue-it ()
+  "`newline' on a blank line above a comment does not continue it.
+Regression test: `treesit-node-at' returns the first node *after*
+POS when POS sits in whitespace covered by no node -- as a blank
+line above a comment is -- rather than nil, so a check that the
+found node actually starts at or before POS is needed to tell
+\"before the comment\" apart from \"inside it\"."
+  (haskell-ts-tests--with-temp-hs "\n-- Comment."
+    (goto-char (point-min))
+    (newline)
+    (should (equal (buffer-string) "\n\n-- Comment."))))
+
 (ert-deftest haskell-ts-test-newline-repeated-on-bare-marker ()
   "Breaking the line again on a bare `-- ' line keeps the trailing space.
 Regression test: delegating to `default-indent-new-line' (as the
