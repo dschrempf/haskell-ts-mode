@@ -850,6 +850,37 @@ g = id
                    (haskell-ts-tests--evil-object-at
                     "paragraph." #'evil-select-an-object 'evil-paragraph t)))))
 
+(ert-deftest haskell-ts-test-evil-a-paragraph-from-code-glued-to-comment ()
+  "`d a p' from *code* glued to a comment above it (no blank line
+there) stays within that code+comment pair -- it must not reach into
+a second, unrelated comment+code pair elsewhere in the buffer.
+Regression test: `bounds-of-thing-at-point' and `evil''s
+whitespace-detection helpers re-probe with `forward-paragraph'/
+`start-of-paragraph-text' from intermediate positions found while
+computing an object's bounds -- here, from point in \"f = id\", one
+such probe lands on the *first character* of the unrelated \"-- | Hello\"
+comment.  `haskell-ts--confine-paragraph-motion' used to clamp that
+probe to `--| Hello''s own bounds regardless of where the object being
+computed actually started, breaking the invariant `evil' relies on
+that `forward-paragraph' reaches the same end from any point within an
+object -- one probe got clamped, another (from \"f = id\" itself) did
+not, and `evil' concluded there was no consistent object at point at
+all, falling back to selecting from the start of the buffer.
+`haskell-ts--confining-evil-paragraph-object' now suppresses that
+per-call clamp for the whole `evil-select-an-object' call, deferring
+entirely to the buffer-narrowing `haskell-ts--confine-evil-paragraph-object'
+already applies once, consistently, for the object's own start."
+  (haskell-ts-tests--with-temp-hs-evil
+      "-- | Hello
+f = id
+
+-- | Test.
+g = id
+"
+    (should (equal "-- | Hello\nf = id\n\n"
+                   (haskell-ts-tests--evil-object-at
+                    "id" #'evil-select-an-object 'evil-paragraph t)))))
+
 ;;; `evil' `o'/`O' comment continuation
 
 (ert-deftest haskell-ts-test-evil-open-below-continues-comment ()
