@@ -580,13 +580,38 @@ has a real separating line, where they need no help."
       (forward-line dir)
       (not (looking-at-p paragraph-separate)))))
 
+(defun haskell-ts--node-forward-clamp (node)
+  "Return where to stop forward paragraph motion confined to NODE, or nil.
+Nil means NODE's end already borders a real separator line, needing
+no clamp.  Otherwise this is one past `treesit-node-end', not
+`treesit-node-end' itself: a comment node's own text excludes its
+trailing newline, but `forward-paragraph' normally stops one line
+*below* a paragraph's last line, having consumed that newline as part
+of the paragraph -- clamping to the tighter, newline-excluded bound
+left point sitting exactly at the comment's last character with
+nothing beyond it to move into, which is indistinguishable, to code
+like `evil-select-an-object' expecting the usual convention, from
+already being past the object's end (see
+`haskell-ts--confine-evil-paragraph-object')."
+  (and (haskell-ts--node-glued-p (treesit-node-end node) 1)
+       (1+ (treesit-node-end node))))
+
+(defun haskell-ts--node-backward-clamp (node)
+  "Return where to stop backward paragraph motion confined to NODE, or nil.
+Nil means NODE's start already borders a real separator line, needing
+no clamp; otherwise `treesit-node-start' itself -- unlike the forward
+case, a paragraph's start is not offset by a newline."
+  (and (haskell-ts--node-glued-p (treesit-node-start node) -1)
+       (treesit-node-start node)))
+
 (defun haskell-ts--confine-paragraph-motion (orig-fun args dir)
   "Run ORIG-FUN, then clamp point to the `text' node enclosing the start.
 DIR is the motion's direction: positive for `forward-paragraph',
 negative for `start-of-paragraph-text' (always backward).  Only
-intervenes when that boundary is glued to code with no blank line of
-its own to stop at (`haskell-ts--node-glued-p'); when a real blank (or
-`--'-only) line already borders the node, ORIG-FUN already stops
+intervenes when the relevant boundary is glued to code with no blank
+line of its own to stop at (`haskell-ts--node-forward-clamp'/
+`haskell-ts--node-backward-clamp' return non-nil); when a real blank
+\(or `--'-only) line already borders the node, ORIG-FUN already stops
 there unaided, and clamping would be actively wrong -- it would
 short-circuit the round trip `evil' uses (moving forward then back,
 or vice versa) to detect whitespace *beyond* the node, e.g. between
@@ -595,17 +620,18 @@ progress\" for \"nothing further to find\" and swallowing everything up
 to `point-max'/`point-min' instead.
 ORIG-FUN runs unmodified outside a comment/string, or at one not
 glued to code, adding no behaviour of its own there."
-  (let ((node (and (derived-mode-p 'haskell-ts-mode)
-                    (haskell-ts--text-node-at (point)))))
-    (if (not (and node
-                  (haskell-ts--node-glued-p
-                   (if (> dir 0) (treesit-node-end node) (treesit-node-start node))
-                   dir)))
+  (let* ((node (and (derived-mode-p 'haskell-ts-mode)
+                     (haskell-ts--text-node-at (point))))
+         (clamp (and node
+                     (if (> dir 0)
+                         (haskell-ts--node-forward-clamp node)
+                       (haskell-ts--node-backward-clamp node)))))
+    (if (not clamp)
         (apply orig-fun args)
       (apply orig-fun args)
       (if (> dir 0)
-          (goto-char (min (point) (treesit-node-end node)))
-        (goto-char (max (point) (treesit-node-start node)))))))
+          (goto-char (min (point) clamp))
+        (goto-char (max (point) clamp))))))
 
 (defun haskell-ts--confine-forward-paragraph (orig-fun &rest args)
   "Around advice for `forward-paragraph'.
@@ -648,12 +674,8 @@ fixes this at the source: within the narrowing, `point-max'/`point-min'
     (let ((node (haskell-ts--text-node-at (point))))
       (if (not node)
           (apply orig-fun thing args)
-        (let ((lo (if (haskell-ts--node-glued-p (treesit-node-start node) -1)
-                      (treesit-node-start node)
-                    (point-min)))
-              (hi (if (haskell-ts--node-glued-p (treesit-node-end node) 1)
-                      (treesit-node-end node)
-                    (point-max))))
+        (let ((lo (or (haskell-ts--node-backward-clamp node) (point-min)))
+              (hi (or (haskell-ts--node-forward-clamp node) (point-max))))
           (save-restriction
             (narrow-to-region lo hi)
             (apply orig-fun thing args)))))))
