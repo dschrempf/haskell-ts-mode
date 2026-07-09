@@ -47,6 +47,24 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   each continuation line's repeated marker stripped — and maps the
   result back onto the real buffer, so a marker-only line reads as
   blank like it would in plain prose.
+- *Paragraph text objects (=evil='s =v a p=/=d a p=) spanning a
+  =--=-only line.*  Unlike sentence motion, =forward-paragraph=/
+  =backward-paragraph= work directly off =paragraph-start=/
+  =paragraph-separate= rather than through
+  =haskell-ts--forward-sentence='s dedented copy, so the same
+  marker-only line within one multi-line comment did not register as
+  a paragraph break there either.  Both variables now also match a
+  line consisting solely of dashes and whitespace — always a
+  marker-only comment line, never code.
+- *Spurious comment continuation on a blank line below a buffer-final
+  comment.*  =treesit-node-at= returns the *previous* node, not =nil=,
+  when a position sits in whitespace covered by no node and nothing
+  follows to fall forward to — e.g. the blank line right after a
+  comment at the end of the buffer — mirroring the already-handled
+  case of a blank line *above* a comment (where it returns the
+  *following* node instead).  =haskell-ts--text-node-at= now also
+  rejects a node that ends at or before point, so =RET= on such a
+  line leaves it blank instead of continuing the comment.
 
 ** Removed
 
