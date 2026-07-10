@@ -1,6 +1,6 @@
 ;;; haskell-ts-mode-tests.el --- Tests for haskell-ts-mode -*- lexical-binding:t -*-
 
-;; Copyright (C) 2025, 2026 Pranshu Sharma
+;; Copyright (C) 2026 Dominik Schrempf
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -424,42 +424,45 @@ main = putStrLn (greeting \"world\")
 
 (ert-deftest haskell-ts-test-mode-activates ()
   "`haskell-ts-mode' activates and installs a primary parser."
-  (haskell-ts-tests--with-temp-hs haskell-ts-tests--sample
-    (should (eq major-mode 'haskell-ts-mode))
-    (should treesit-primary-parser)
-    (should (treesit-parser-p treesit-primary-parser))))
+  (haskell-ts-tests--with-temp-hs
+   haskell-ts-tests--sample
+   (should (eq major-mode 'haskell-ts-mode))
+   (should treesit-primary-parser)
+   (should (treesit-parser-p treesit-primary-parser))))
 
 (ert-deftest haskell-ts-test-font-lock-applies ()
   "Fontifying the sample assigns the keyword face to `module'."
-  (haskell-ts-tests--with-temp-hs haskell-ts-tests--sample
-    (treesit-font-lock-fontify-region (point-min) (point-max))
-    (goto-char (point-min))
-    (search-forward "module")
-    (should (eq 'font-lock-keyword-face
-                (get-text-property (match-beginning 0) 'face)))))
+  (haskell-ts-tests--with-temp-hs
+   haskell-ts-tests--sample
+   (treesit-font-lock-fontify-region (point-min) (point-max))
+   (goto-char (point-min))
+   (search-forward "module")
+   (should (eq 'font-lock-keyword-face
+               (get-text-property (match-beginning 0) 'face)))))
 
 (ert-deftest haskell-ts-test-imenu-entries ()
   "Imenu finds the top-level functions, the signature, the data type
 and the type synonym from the sample."
-  (haskell-ts-tests--with-temp-hs haskell-ts-tests--sample
-    (let* ((index (funcall imenu-create-index-function))
-           (flatten (lambda (alist)
-                      ;; Collapse one level of submenus (e.g. "Signatures..").
-                      (cl-loop for entry in alist
-                               if (and (consp (cdr entry))
-                                       (consp (cadr entry)))
-                               append (mapcar #'car (cdr entry))
-                               else collect (car entry))))
-           (names (funcall flatten index)))
-      (should (member "main" names))
-      (should (member "greeting" names))
-      (should (member "Color" names))
-      (should (member "Name" names)))))
+  (haskell-ts-tests--with-temp-hs
+   haskell-ts-tests--sample
+   (let* ((index (funcall imenu-create-index-function))
+          (flatten (lambda (alist)
+                     ;; Collapse one level of submenus (e.g. "Signatures..").
+                     (cl-loop for entry in alist
+                              if (and (consp (cdr entry))
+                                      (consp (cadr entry)))
+                              append (mapcar #'car (cdr entry))
+                              else collect (car entry))))
+          (names (funcall flatten index)))
+     (should (member "main" names))
+     (should (member "greeting" names))
+     (should (member "Color" names))
+     (should (member "Name" names)))))
 
 (ert-deftest haskell-ts-test-imenu-collapses-equations ()
   "A function's multiple equations collapse to a single imenu entry."
   (haskell-ts-tests--with-temp-hs
-      "fib :: Int -> Int
+   "fib :: Int -> Int
 fib 0 = 1
 fib 1 = 1
 fib n = fib (n - 1) + fib (n - 2)
@@ -467,22 +470,23 @@ fib n = fib (n - 1) + fib (n - 2)
 main :: IO ()
 main = print (fib 10)
 "
-    (let* ((index (funcall imenu-create-index-function))
-           ;; The top-level (uncategorised) function entries.
-           (funcs (cl-remove-if (lambda (e) (consp (cdr e))) index))
-           (names (mapcar #'car funcs)))
-      ;; `fib' has three equations but must appear exactly once.
-      (should (equal 1 (cl-count "fib" names :test #'equal)))
-      (should (member "main" names)))))
+   (let* ((index (funcall imenu-create-index-function))
+          ;; The top-level (uncategorised) function entries.
+          (funcs (cl-remove-if (lambda (e) (consp (cdr e))) index))
+          (names (mapcar #'car funcs)))
+     ;; `fib' has three equations but must appear exactly once.
+     (should (equal 1 (cl-count "fib" names :test #'equal)))
+     (should (member "main" names)))))
 
 (ert-deftest haskell-ts-test-defun-navigation ()
   "`treesit-defun-name' reads the name of the function at point."
-  (haskell-ts-tests--with-temp-hs haskell-ts-tests--sample
-    (goto-char (point-min))
-    (search-forward "greeting name")
-    (let ((node (treesit-defun-at-point)))
-      (should node)
-      (should (equal "greeting" (haskell-ts-defun-name node))))))
+  (haskell-ts-tests--with-temp-hs
+   haskell-ts-tests--sample
+   (goto-char (point-min))
+   (search-forward "greeting name")
+   (let ((node (treesit-defun-at-point)))
+     (should node)
+     (should (equal "greeting" (haskell-ts-defun-name node))))))
 
 (ert-deftest haskell-ts-test-sexp-navigation ()
   "`forward-sexp'/`backward-sexp' step by `haskell-ts-sexp' nodes.
@@ -490,25 +494,27 @@ A parenthesised group is one sexp, and list elements are stepped over
 individually in either direction.  This is the package's namesake
 motion, exercised via `treesit-thing-settings'."
   ;; A parenthesised group is traversed as a single sexp.
-  (haskell-ts-tests--with-temp-hs "r = f (g x) y\n"
-    (goto-char (point-min))
-    (search-forward "f ")
-    (let ((start (point)))
-      (forward-sexp)
-      (should (equal "(g x)"
-                     (buffer-substring-no-properties start (point))))))
+  (haskell-ts-tests--with-temp-hs
+   "r = f (g x) y\n"
+   (goto-char (point-min))
+   (search-forward "f ")
+   (let ((start (point)))
+     (forward-sexp)
+     (should (equal "(g x)"
+                    (buffer-substring-no-properties start (point))))))
   ;; Individual list elements are stepped over, forward and backward.
-  (haskell-ts-tests--with-temp-hs "xs = [foo, bar, baz]\n"
-    (goto-char (point-min))
-    (search-forward "[")
-    (let ((start (point)))
-      (forward-sexp)
-      (should (equal "foo" (buffer-substring-no-properties start (point)))))
-    (goto-char (point-min))
-    (search-forward "baz")
-    (let ((end (point)))
-      (backward-sexp)
-      (should (equal "baz" (buffer-substring-no-properties (point) end))))))
+  (haskell-ts-tests--with-temp-hs
+   "xs = [foo, bar, baz]\n"
+   (goto-char (point-min))
+   (search-forward "[")
+   (let ((start (point)))
+     (forward-sexp)
+     (should (equal "foo" (buffer-substring-no-properties start (point)))))
+   (goto-char (point-min))
+   (search-forward "baz")
+   (let ((end (point)))
+     (backward-sexp)
+     (should (equal "baz" (buffer-substring-no-properties (point) end))))))
 
 (ert-deftest haskell-ts-test-sentence-motion-confined-to-comment ()
   "Sentence motion inside a `--' comment never crosses into surrounding
@@ -527,7 +533,7 @@ Regression test, two bugs in sequence:
   on such a comment) unless `haskell-ts--forward-sentence' narrows to
   the comment node's bounds first."
   (haskell-ts-tests--with-temp-hs
-      "module Main where
+   "module Main where
 
 greeting :: String
 greeting = \"hi\"
@@ -535,17 +541,17 @@ greeting = \"hi\"
 main :: IO ()
 main = putStrLn greeting
 "
-    (search-forward "is a")
-    (let* ((comment-start (line-beginning-position))
-           (comment-end (line-end-position))
-           (start (point)))
-      (forward-sentence)
-      (should (< start (point)))
-      (should (<= (point) comment-end))
-      (goto-char start)
-      (backward-sentence)
-      (should (< (point) start))
-      (should (>= (point) comment-start)))))
+   (search-forward "is a")
+   (let* ((comment-start (line-beginning-position))
+          (comment-end (line-end-position))
+          (start (point)))
+     (forward-sentence)
+     (should (< start (point)))
+     (should (<= (point) comment-end))
+     (goto-char start)
+     (backward-sentence)
+     (should (< (point) start))
+     (should (>= (point) comment-start)))))
 
 (defun haskell-ts-tests--sentence-at-point ()
   "Return the text `backward-sentence'/`forward-sentence' bound at point.
@@ -567,17 +573,17 @@ narrowed region in `haskell-ts--forward-sentence', selecting the
 comment's first sentence also selects -- and an `evil' `d a s' also
 deletes -- the marker, turning the comment into code."
   (haskell-ts-tests--with-temp-hs
-      "-- | Module bla.
+   "-- | Module bla.
 
 x :: Int
 x = 10
 
 -- Hello. This is a sentence.
 "
-    (search-forward "Module")
-    (should (equal "Module bla." (haskell-ts-tests--sentence-at-point)))
-    (search-forward "Hell")
-    (should (equal "Hello." (haskell-ts-tests--sentence-at-point)))))
+   (search-forward "Module")
+   (should (equal "Module bla." (haskell-ts-tests--sentence-at-point)))
+   (search-forward "Hell")
+   (should (equal "Hello." (haskell-ts-tests--sentence-at-point)))))
 
 (ert-deftest haskell-ts-test-backward-sentence-noop-on-marker ()
   "`backward-sentence' never moves point backward past its own start
@@ -591,12 +597,13 @@ infers \"already at the start of the buffer\" whenever a backward
 attempt reports net forward motion, so this single wrong-direction
 move is what turns an `evil' `d a s' on the very next sentence into
 deleting from the start of the buffer."
-  (haskell-ts-tests--with-temp-hs "-- | Module bla.\n"
-    (goto-char (point-min))
-    (forward-char 4)                   ; right after `-- |', before the space
-    (let ((start (point)))
-      (backward-sentence)
-      (should (<= (point) start)))))
+  (haskell-ts-tests--with-temp-hs
+   "-- | Module bla.\n"
+   (goto-char (point-min))
+   (forward-char 4)                   ; right after `-- |', before the space
+   (let ((start (point)))
+     (backward-sentence)
+     (should (<= (point) start)))))
 
 (ert-deftest haskell-ts-test-sentence-motion-multiple-sentences-in-comment ()
   "Each sentence in a multi-sentence comment is bounded independently.
@@ -607,15 +614,15 @@ count as a sentence boundary at all, and motion from the second
 sentence runs back through the first (and, per
 `haskell-ts-test-sentence-motion-confined-to-comment', beyond)."
   (haskell-ts-tests--with-temp-hs
-      "-- | Module bla.
+   "-- | Module bla.
 
 x :: Int
 x = 10
 
 -- Hello. This is a sentence.
 "
-    (search-forward "is a")
-    (should (equal "This is a sentence." (haskell-ts-tests--sentence-at-point)))))
+   (search-forward "is a")
+   (should (equal "This is a sentence." (haskell-ts-tests--sentence-at-point)))))
 
 (ert-deftest haskell-ts-test-sentence-paragraph-inside-multiline-comment ()
   "A blank (marker-only) line inside one multi-line Haddock comment is a
@@ -628,47 +635,50 @@ own -- sentence motion ran through it into the next paragraph unless
 `haskell-ts--forward-sentence' dedents (strips the repeated marker
 from) each line before running prose motion."
   (haskell-ts-tests--with-temp-hs
-      "-- | Hello
+   "-- | Hello
 --
 -- This sentence is deleted when deleting around sentence from Hello above
 -- (e.g., cursor at _1). It shouldn't be!
 module Test () where
 "
-    (search-forward "Hel")
-    (should (equal "Hello" (haskell-ts-tests--sentence-at-point)))
-    (search-forward "shouldn")
-    (should (equal "It shouldn't be!" (haskell-ts-tests--sentence-at-point)))))
+   (search-forward "Hel")
+   (should (equal "Hello" (haskell-ts-tests--sentence-at-point)))
+   (search-forward "shouldn")
+   (should (equal "It shouldn't be!" (haskell-ts-tests--sentence-at-point)))))
 
 (ert-deftest haskell-ts-test-backward-sentence-noop-on-continuation-marker ()
   "Like `haskell-ts-test-backward-sentence-noop-on-marker', but for a
 continuation line's repeated marker rather than the comment's opening
 one -- `backward-sentence' never moves point forward past it."
-  (haskell-ts-tests--with-temp-hs "-- | Long sentence that\n-- continues. Short.\n"
-    (goto-char (point-min))
-    (search-forward "\n-- continues")   ; right after the newline, before `--'
-    (let ((start (point)))
-      (backward-sentence)
-      (should (<= (point) start)))))
+  (haskell-ts-tests--with-temp-hs
+   "-- | Long sentence that\n-- continues. Short.\n"
+   (goto-char (point-min))
+   (search-forward "\n-- continues")   ; right after the newline, before `--'
+   (let ((start (point)))
+     (backward-sentence)
+     (should (<= (point) start)))))
 
 (ert-deftest haskell-ts-test-sentence-motion-in-string ()
   "Prose motion inside a string treats its interior as text.
 The surrounding quotes are stripped like a comment's `--' marker, so
 a sentence never includes them."
-  (haskell-ts-tests--with-temp-hs "x = \"First. Second. Third.\"\n"
-    (search-forward "First")
-    (should (equal "First." (haskell-ts-tests--sentence-at-point)))
-    (search-forward "Second")
-    (should (equal "Second." (haskell-ts-tests--sentence-at-point)))))
+  (haskell-ts-tests--with-temp-hs
+   "x = \"First. Second. Third.\"\n"
+   (search-forward "First")
+   (should (equal "First." (haskell-ts-tests--sentence-at-point)))
+   (search-forward "Second")
+   (should (equal "Second." (haskell-ts-tests--sentence-at-point)))))
 
 (ert-deftest haskell-ts-test-sentence-motion-in-block-comment ()
   "Prose motion inside a `{- -}' block comment works.
 The grammar folds the closing `-}' into the comment's content; it is
 trimmed off so it never counts as sentence text."
-  (haskell-ts-tests--with-temp-hs "{- First. Second. -}\nx = 1\n"
-    (search-forward "First")
-    (should (equal "First." (haskell-ts-tests--sentence-at-point)))
-    (search-forward "Second")
-    (should (equal "Second." (haskell-ts-tests--sentence-at-point)))))
+  (haskell-ts-tests--with-temp-hs
+   "{- First. Second. -}\nx = 1\n"
+   (search-forward "First")
+   (should (equal "First." (haskell-ts-tests--sentence-at-point)))
+   (search-forward "Second")
+   (should (equal "Second." (haskell-ts-tests--sentence-at-point)))))
 
 (ert-deftest haskell-ts-test-sentence-motion-stops-at-comment-end ()
   "`forward-sentence' at a comment's last sentence stops at the comment's
@@ -678,12 +688,13 @@ the comment's text, so reaching its end raised a buffer-edge error --
 which, unlike at the real buffer's edge, fired mid-file and broke
 plain `M-e'/`kill-sentence' on a comment glued to code.  Point must
 stop at the boundary (not spill into the code) and not error."
-  (haskell-ts-tests--with-temp-hs "-- One sentence.\nmain = putStrLn x\n"
-    (search-forward "One")
-    (forward-sentence)                  ; move to the comment's end
-    (let ((at-end (point)))
-      (forward-sentence)                ; must neither error nor advance
-      (should (= (point) at-end)))))
+  (haskell-ts-tests--with-temp-hs
+   "-- One sentence.\nmain = putStrLn x\n"
+   (search-forward "One")
+   (forward-sentence)                  ; move to the comment's end
+   (let ((at-end (point)))
+     (forward-sentence)                ; must neither error nor advance
+     (should (= (point) at-end)))))
 
 (ert-deftest haskell-ts-test-sentence-in-code-confined-to-paragraph ()
   "Sentence motion in code stops at the paragraph boundary, not the next
@@ -695,21 +706,21 @@ number of blank lines and comments, so from a `data' declaration `M-e'
 below into the following binding.  `haskell-ts--forward-sentence'
 bounds the motion by the paragraph instead."
   (haskell-ts-tests--with-temp-hs
-      "data Hu_hu = Huhu
+   "data Hu_hu = Huhu
 
 -- Why should we freeze the bread? We have rolls, and things.
 f = id
 g = id
 "
-    (search-forward "Hu_")
-    ;; The whole declaration line, nothing past the blank line below it.
-    (should (equal "data Hu_hu = Huhu"
-                   (haskell-ts-tests--sentence-at-point)))
-    (let ((decl-end (line-end-position)))
-      (forward-sentence)
-      (should (= (point) decl-end))     ; end of the declaration, not below
-      (backward-sentence)
-      (should (= (point) (line-beginning-position))))))
+   (search-forward "Hu_")
+   ;; The whole declaration line, nothing past the blank line below it.
+   (should (equal "data Hu_hu = Huhu"
+                  (haskell-ts-tests--sentence-at-point)))
+   (let ((decl-end (line-end-position)))
+     (forward-sentence)
+     (should (= (point) decl-end))     ; end of the declaration, not below
+     (backward-sentence)
+     (should (= (point) (line-beginning-position))))))
 
 (ert-deftest haskell-ts-test-sentence-in-code-keeps-equation-granularity ()
   "Sentence motion in code still steps equation by equation within one
@@ -719,10 +730,11 @@ Confining the motion to the current paragraph (see
 coarsen it: two adjacent bindings with no blank line between them are
 still separate sentences, as `treesit-forward-sentence' has them, not
 one paragraph-sized sentence spanning both."
-  (haskell-ts-tests--with-temp-hs "f = id\ng = id\n"
-    (goto-char (point-min))
-    (forward-sentence)                  ; end of the first equation
-    (should (= (point) (line-end-position 1)))))
+  (haskell-ts-tests--with-temp-hs
+   "f = id\ng = id\n"
+   (goto-char (point-min))
+   (forward-sentence)                  ; end of the first equation
+   (should (= (point) (line-end-position 1)))))
 
 (ert-deftest haskell-ts-test-sentence-in-code-confined-by-glued-comment ()
   "Sentence motion in code stops at a comment glued to it with no blank
@@ -733,16 +745,18 @@ blank-line paragraph bound alone did not stop motion at it;
 `haskell-ts--forward-sentence' also clamps to the nearest comment
 edge."
   ;; Comment glued below: forward stops before the comment line.
-  (haskell-ts-tests--with-temp-hs "data X = X\n-- c.\nf = id\n"
-    (search-forward "data X")
-    (should (equal "data X = X"
-                   (haskell-ts-tests--sentence-at-point))))
+  (haskell-ts-tests--with-temp-hs
+   "data X = X\n-- c.\nf = id\n"
+   (search-forward "data X")
+   (should (equal "data X = X"
+                  (haskell-ts-tests--sentence-at-point))))
   ;; Comment glued above: backward stays in the code, not up into the comment.
-  (haskell-ts-tests--with-temp-hs "-- c.\ndata X = X\n"
-    (search-forward "data X")
-    (let ((code-bol (line-beginning-position)))
-      (backward-sentence)
-      (should (>= (point) code-bol)))))
+  (haskell-ts-tests--with-temp-hs
+   "-- c.\ndata X = X\n"
+   (search-forward "data X")
+   (let ((code-bol (line-beginning-position)))
+     (backward-sentence)
+     (should (>= (point) code-bol)))))
 
 (ert-deftest haskell-ts-test-sentence-in-code-keeps-string-whole ()
   "A period inside a string literal does not split a code sentence.
@@ -751,10 +765,11 @@ one-space-after-period comments), so `forward-sentence-default-function'
 would treat a `. ' inside a string as a sentence end and stop there;
 code sentence motion is bounded by the paragraph, not that function, so
 the whole equation is one sentence."
-  (haskell-ts-tests--with-temp-hs "foo = \"a. b. c\"\ng = id\n"
-    (goto-char (point-min))
-    (forward-sentence)
-    (should (= (point) (line-end-position 1)))))
+  (haskell-ts-tests--with-temp-hs
+   "foo = \"a. b. c\"\ng = id\n"
+   (goto-char (point-min))
+   (forward-sentence)
+   (should (= (point) (line-end-position 1)))))
 
 ;;; `newline' comment continuation
 
@@ -762,32 +777,36 @@ the whole equation is one sentence."
   "Breaking the line inside a `--' comment repeats the marker.
 Also covers a direct, non-interactive call to `newline' -- the path
 Evil's `o'/`O' use, bypassing the keymap entirely."
-  (haskell-ts-tests--with-temp-hs "-- Comment"
-    (goto-char (point-max))
-    (newline)
-    (should (equal (buffer-string) "-- Comment\n-- "))
-    (should (= (point) (point-max)))))
+  (haskell-ts-tests--with-temp-hs
+   "-- Comment"
+   (goto-char (point-max))
+   (newline)
+   (should (equal (buffer-string) "-- Comment\n-- "))
+   (should (= (point) (point-max)))))
 
 (ert-deftest haskell-ts-test-newline-continues-indented-haddock ()
   "The repeated marker keeps the original line's indentation."
-  (haskell-ts-tests--with-temp-hs "    -- | Haddock doc"
-    (goto-char (point-max))
-    (newline)
-    (should (equal (buffer-string) "    -- | Haddock doc\n    -- "))))
+  (haskell-ts-tests--with-temp-hs
+   "    -- | Haddock doc"
+   (goto-char (point-max))
+   (newline)
+   (should (equal (buffer-string) "    -- | Haddock doc\n    -- "))))
 
 (ert-deftest haskell-ts-test-newline-leaves-block-comment-alone ()
   "A `{- -}' block comment is not mistaken for a `--' line comment."
-  (haskell-ts-tests--with-temp-hs "{- block"
-    (goto-char (point-max))
-    (newline)
-    (should (equal (buffer-string) "{- block\n"))))
+  (haskell-ts-tests--with-temp-hs
+   "{- block"
+   (goto-char (point-max))
+   (newline)
+   (should (equal (buffer-string) "{- block\n"))))
 
 (ert-deftest haskell-ts-test-newline-leaves-code-alone ()
   "Outside a comment, `newline' is unaffected by the advice."
-  (haskell-ts-tests--with-temp-hs "foo = 1"
-    (goto-char (point-max))
-    (newline)
-    (should (equal (buffer-string) "foo = 1\n"))))
+  (haskell-ts-tests--with-temp-hs
+   "foo = 1"
+   (goto-char (point-max))
+   (newline)
+   (should (equal (buffer-string) "foo = 1\n"))))
 
 (ert-deftest haskell-ts-test-newline-above-comment-does-not-continue-it ()
   "`newline' on a blank line above a comment does not continue it.
@@ -796,10 +815,11 @@ POS when POS sits in whitespace covered by no node -- as a blank
 line above a comment is -- rather than nil, so a check that the
 found node actually starts at or before POS is needed to tell
 \"before the comment\" apart from \"inside it\"."
-  (haskell-ts-tests--with-temp-hs "\n-- Comment."
-    (goto-char (point-min))
-    (newline)
-    (should (equal (buffer-string) "\n\n-- Comment."))))
+  (haskell-ts-tests--with-temp-hs
+   "\n-- Comment."
+   (goto-char (point-min))
+   (newline)
+   (should (equal (buffer-string) "\n\n-- Comment."))))
 
 (ert-deftest haskell-ts-test-newline-below-buffer-final-comment-does-not-continue-it ()
   "`newline' on a blank line below a buffer-final comment does not
@@ -810,10 +830,11 @@ forward to -- as the blank line below a buffer-final comment is --
 rather than nil, so a check that the found node actually ends after
 POS (not just starts at or before it) is needed to tell \"just below
 the comment\" apart from \"inside it\"."
-  (haskell-ts-tests--with-temp-hs "-- Bla\n--\n\n"
-    (goto-char (point-max))
-    (newline)
-    (should (equal (buffer-string) "-- Bla\n--\n\n\n"))))
+  (haskell-ts-tests--with-temp-hs
+   "-- Bla\n--\n\n"
+   (goto-char (point-max))
+   (newline)
+   (should (equal (buffer-string) "-- Bla\n--\n\n\n"))))
 
 (ert-deftest haskell-ts-test-newline-repeated-on-bare-marker ()
   "Breaking the line again on a bare `-- ' line keeps the trailing space.
@@ -822,38 +843,41 @@ original, broken implementation did) runs `delete-horizontal-space'
 around the break point, which strips a bare marker's trailing space
 before it is captured for re-insertion -- and since the new line is
 bare again, every subsequent `newline' reproduces the strip."
-  (haskell-ts-tests--with-temp-hs "-- foo"
-    (goto-char (point-max))
-    (newline)
-    (should (equal (buffer-string) "-- foo\n-- "))
-    (newline)
-    (should (equal (buffer-string) "-- foo\n-- \n-- "))
-    (should (= (point) (point-max)))))
+  (haskell-ts-tests--with-temp-hs
+   "-- foo"
+   (goto-char (point-max))
+   (newline)
+   (should (equal (buffer-string) "-- foo\n-- "))
+   (newline)
+   (should (equal (buffer-string) "-- foo\n-- \n-- "))
+   (should (= (point) (point-max)))))
 
 (ert-deftest haskell-ts-test-newline-honours-repeat-count ()
   "`newline' with a repeat count continues each requested line.
 Regression test: the advice inserted a single continuation
 unconditionally, silently dropping `newline''s count argument."
-  (haskell-ts-tests--with-temp-hs "-- foo"
-    (goto-char (point-max))
-    (newline 2)
-    (should (equal (buffer-string) "-- foo\n-- \n-- "))
-    (should (= (point) (point-max)))))
+  (haskell-ts-tests--with-temp-hs
+   "-- foo"
+   (goto-char (point-max))
+   (newline 2)
+   (should (equal (buffer-string) "-- foo\n-- \n-- "))
+   (should (= (point) (point-max)))))
 
 (ert-deftest haskell-ts-test-align-wired-into-mode ()
   "The mode installs the align rule buffer-locally and \\[align] works.
 This is the end-to-end check that plain `M-x align' aligns `=' in a
 real `haskell-ts-mode' buffer; it needs the grammar to activate the mode."
   (require 'align)
-  (haskell-ts-tests--with-temp-hs "x = 1\nfoo = 2\nab = 3\n"
-    (should (local-variable-p 'align-mode-rules-list))
-    (should (equal align-mode-rules-list haskell-ts-align-rules-list))
-    (let ((indent-tabs-mode nil))
-      (align (point-min) (point-max)))
-    (should (equal (buffer-string)
-                   (concat "x   = 1\n"
-                           "foo = 2\n"
-                           "ab  = 3\n")))))
+  (haskell-ts-tests--with-temp-hs
+   "x = 1\nfoo = 2\nab = 3\n"
+   (should (local-variable-p 'align-mode-rules-list))
+   (should (equal align-mode-rules-list haskell-ts-align-rules-list))
+   (let ((indent-tabs-mode nil))
+     (align (point-min) (point-max)))
+   (should (equal (buffer-string)
+                  (concat "x   = 1\n"
+                          "foo = 2\n"
+                          "ab  = 3\n")))))
 
 ;;; --------------------------------------------------------------------
 ;;; Evil integration tests (skipped unless `evil' is available)
@@ -873,10 +897,11 @@ above)."
   (declare (indent 1) (debug (form body)))
   `(progn
      (skip-unless (require 'evil nil t))
-     (haskell-ts-tests--with-temp-hs ,text
-       (evil-local-mode 1)
-       (evil-normal-state)
-       ,@body)))
+     (haskell-ts-tests--with-temp-hs
+      ,text
+      (evil-local-mode 1)
+      (evil-normal-state)
+      ,@body)))
 
 (defun haskell-ts-tests--evil-object-at (needle selector &optional thing line)
   "Move to just after NEEDLE and return the text SELECTOR selects.
@@ -909,15 +934,16 @@ Haddock marker (`-- |') distinct from a plain one (`--').")
   "`evil-a-sentence' (`d a s') never includes a comment's marker or
 spills into surrounding code -- including with point on the marker
 itself, where the worst case is one adjoining space."
-  (haskell-ts-tests--with-temp-hs-evil haskell-ts-tests--evil-sentence-sample
-    (should (equal "Module bla."
-                   (haskell-ts-tests--evil-object-at "-- | M" #'evil-select-an-object)))
-    (should (equal "Hello. "
-                   (haskell-ts-tests--evil-object-at "Hell" #'evil-select-an-object)))
-    (should (equal " This is a sentence."
-                   (haskell-ts-tests--evil-object-at "is a" #'evil-select-an-object)))
-    (should (equal " Module bla."
-                   (haskell-ts-tests--evil-object-at "-- |" #'evil-select-an-object)))))
+  (haskell-ts-tests--with-temp-hs-evil
+   haskell-ts-tests--evil-sentence-sample
+   (should (equal "Module bla."
+                  (haskell-ts-tests--evil-object-at "-- | M" #'evil-select-an-object)))
+   (should (equal "Hello. "
+                  (haskell-ts-tests--evil-object-at "Hell" #'evil-select-an-object)))
+   (should (equal " This is a sentence."
+                  (haskell-ts-tests--evil-object-at "is a" #'evil-select-an-object)))
+   (should (equal " Module bla."
+                  (haskell-ts-tests--evil-object-at "-- |" #'evil-select-an-object)))))
 
 (ert-deftest haskell-ts-test-evil-a-sentence-in-code-confined-to-paragraph ()
   "`d a s'/`v a s' in code stays within the paragraph, not down into the
@@ -927,28 +953,29 @@ Regression test for the reported bug: with point in `data Hu_hu = Huhu',
 on into `f = id'; `haskell-ts--forward-sentence' now bounds code
 sentence motion to the paragraph."
   (haskell-ts-tests--with-temp-hs-evil
-      "data Hu_hu = Huhu
+   "data Hu_hu = Huhu
 
 -- Why should we freeze the bread? We have rolls, and things.
 f = id
 g = id
 "
-    (should (equal "data Hu_hu = Huhu"
-                   (haskell-ts-tests--evil-object-at "Hu_" #'evil-select-an-object)))))
+   (should (equal "data Hu_hu = Huhu"
+                  (haskell-ts-tests--evil-object-at "Hu_" #'evil-select-an-object)))))
 
 (ert-deftest haskell-ts-test-evil-inner-sentence ()
   "`evil-inner-sentence' (`d i s') never includes a comment's marker or
 spills into surrounding code -- including with point on the marker
 itself, where the worst case is a single stray space."
-  (haskell-ts-tests--with-temp-hs-evil haskell-ts-tests--evil-sentence-sample
-    (should (equal "Module bla."
-                   (haskell-ts-tests--evil-object-at "-- | M" #'evil-select-inner-object)))
-    (should (equal "Hello."
-                   (haskell-ts-tests--evil-object-at "Hell" #'evil-select-inner-object)))
-    (should (equal "This is a sentence."
-                   (haskell-ts-tests--evil-object-at "is a" #'evil-select-inner-object)))
-    (should (equal " "
-                   (haskell-ts-tests--evil-object-at "-- |" #'evil-select-inner-object)))))
+  (haskell-ts-tests--with-temp-hs-evil
+   haskell-ts-tests--evil-sentence-sample
+   (should (equal "Module bla."
+                  (haskell-ts-tests--evil-object-at "-- | M" #'evil-select-inner-object)))
+   (should (equal "Hello."
+                  (haskell-ts-tests--evil-object-at "Hell" #'evil-select-inner-object)))
+   (should (equal "This is a sentence."
+                  (haskell-ts-tests--evil-object-at "is a" #'evil-select-inner-object)))
+   (should (equal " "
+                  (haskell-ts-tests--evil-object-at "-- |" #'evil-select-inner-object)))))
 
 (ert-deftest haskell-ts-test-evil-a-sentence-paragraph-inside-comment ()
   "`d a s' on a comment's first paragraph never reaches into a later
@@ -958,12 +985,12 @@ each line before running prose motion, a `--'-only line between two
 paragraphs of one `haddock' node is not a paragraph break, and `d a s'
 on \"Hello\" swallows the entire next paragraph too."
   (haskell-ts-tests--with-temp-hs-evil
-      "-- | Hello
+   "-- | Hello
 --
 -- This is the next paragraph.
 "
-    (should (equal "Hello"
-                   (haskell-ts-tests--evil-object-at "Hel" #'evil-select-an-object)))))
+   (should (equal "Hello"
+                  (haskell-ts-tests--evil-object-at "Hel" #'evil-select-an-object)))))
 
 (ert-deftest haskell-ts-test-evil-a-paragraph-inside-comment ()
   "`d a p' on one paragraph of a multi-line comment never reaches into
@@ -976,21 +1003,21 @@ one -- `forward-paragraph'/`backward-paragraph' (unlike sentence
 motion) work directly off those variables, not off
 `haskell-ts--forward-sentence''s dedented copy."
   (haskell-ts-tests--with-temp-hs-evil
-      "-- Paragraph 1
+   "-- Paragraph 1
 --
 -- Paragraph 2
 
 -- Paragraph 3
 "
-    (should (equal "-- Paragraph 1\n--\n"
-                   (haskell-ts-tests--evil-object-at
-                    "Paragraph 1" #'evil-select-an-object 'evil-paragraph t)))
-    (should (equal "-- Paragraph 2\n\n"
-                   (haskell-ts-tests--evil-object-at
-                    "Paragraph 2" #'evil-select-an-object 'evil-paragraph t)))
-    (should (equal "\n-- Paragraph 3\n"
-                   (haskell-ts-tests--evil-object-at
-                    "Paragraph 3" #'evil-select-an-object 'evil-paragraph t)))))
+   (should (equal "-- Paragraph 1\n--\n"
+                  (haskell-ts-tests--evil-object-at
+                   "Paragraph 1" #'evil-select-an-object 'evil-paragraph t)))
+   (should (equal "-- Paragraph 2\n\n"
+                  (haskell-ts-tests--evil-object-at
+                   "Paragraph 2" #'evil-select-an-object 'evil-paragraph t)))
+   (should (equal "\n-- Paragraph 3\n"
+                  (haskell-ts-tests--evil-object-at
+                   "Paragraph 3" #'evil-select-an-object 'evil-paragraph t)))))
 
 (ert-deftest haskell-ts-test-evil-a-paragraph-glued-to-code ()
   "`d a p' on a `--' comment with code directly above and below it (no
@@ -1003,13 +1030,13 @@ line inside one multi-line comment (see
 the comment before `evil' computes the object, `d a p' swallowed the
 function above and below it too."
   (haskell-ts-tests--with-temp-hs-evil
-      "f = x
+   "f = x
 -- Comment
 g = y
 "
-    (should (equal "-- Comment\n"
-                   (haskell-ts-tests--evil-object-at
-                    "Comment" #'evil-select-an-object 'evil-paragraph t)))))
+   (should (equal "-- Comment\n"
+                  (haskell-ts-tests--evil-object-at
+                   "Comment" #'evil-select-an-object 'evil-paragraph t)))))
 
 (ert-deftest haskell-ts-test-evil-a-paragraph-glued-to-code-below-only ()
   "`d a p' on a Haddock comment preceded by a blank line but glued
@@ -1030,14 +1057,14 @@ still coincide with the comment's own (narrowed) bounds; here, only
 the *below* side is glued, so the fallback's un-narrowed above side
 gives the wrong, too-large answer instead."
   (haskell-ts-tests--with-temp-hs-evil
-      "f = x
+   "f = x
 
 -- | This is a sentence and a paragraph.
 g = id
 "
-    (should (equal "\n-- | This is a sentence and a paragraph.\n"
-                   (haskell-ts-tests--evil-object-at
-                    "paragraph." #'evil-select-an-object 'evil-paragraph t)))))
+   (should (equal "\n-- | This is a sentence and a paragraph.\n"
+                  (haskell-ts-tests--evil-object-at
+                   "paragraph." #'evil-select-an-object 'evil-paragraph t)))))
 
 (ert-deftest haskell-ts-test-evil-a-paragraph-from-code-glued-to-comment ()
   "`d a p' from *code* glued to a comment above it (no blank line
@@ -1060,15 +1087,15 @@ per-call clamp for the whole `evil-select-an-object' call, deferring
 entirely to the buffer-narrowing `haskell-ts--confine-evil-paragraph-object'
 already applies once, consistently, for the object's own start."
   (haskell-ts-tests--with-temp-hs-evil
-      "-- | Hello
+   "-- | Hello
 f = id
 
 -- | Test.
 g = id
 "
-    (should (equal "-- | Hello\nf = id\n\n"
-                   (haskell-ts-tests--evil-object-at
-                    "id" #'evil-select-an-object 'evil-paragraph t)))))
+   (should (equal "-- | Hello\nf = id\n\n"
+                  (haskell-ts-tests--evil-object-at
+                   "id" #'evil-select-an-object 'evil-paragraph t)))))
 
 ;;; `evil' `o'/`O' comment continuation
 
@@ -1078,24 +1105,26 @@ Regression test: `evil-insert-newline-below' breaks the line with a
 plain `insert', bypassing `newline' -- and the advice on it -- entirely,
 so it needs the dedicated advice on `evil-insert-newline-below' to pick
 up the same continuation."
-  (haskell-ts-tests--with-temp-hs-evil "-- Comment"
-    (goto-char (point-max))
-    (evil-open-below 1)
-    (should (equal (buffer-substring-no-properties (point-min) (point-max))
-                   "-- Comment\n-- "))
-    (should (= (point) (point-max)))))
+  (haskell-ts-tests--with-temp-hs-evil
+   "-- Comment"
+   (goto-char (point-max))
+   (evil-open-below 1)
+   (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                  "-- Comment\n-- "))
+   (should (= (point) (point-max)))))
 
 (ert-deftest haskell-ts-test-evil-open-above-continues-comment ()
   "Evil's `O' (`evil-open-above') continues a `--' comment above it.
 Same rationale as `haskell-ts-test-evil-open-below-continues-comment',
 but for `evil-insert-newline-above': the new blank line precedes the
 original one and point lands right after the repeated marker."
-  (haskell-ts-tests--with-temp-hs-evil "-- Comment"
-    (goto-char (point-max))
-    (evil-open-above 1)
-    (should (equal (buffer-substring-no-properties (point-min) (point-max))
-                   "-- \n-- Comment"))
-    (should (equal (buffer-substring-no-properties (point-min) (point)) "-- "))))
+  (haskell-ts-tests--with-temp-hs-evil
+   "-- Comment"
+   (goto-char (point-max))
+   (evil-open-above 1)
+   (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                  "-- \n-- Comment"))
+   (should (equal (buffer-substring-no-properties (point-min) (point)) "-- "))))
 
 (provide 'haskell-ts-mode-tests)
 ;;; haskell-ts-mode-tests.el ends here
