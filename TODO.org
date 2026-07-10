@@ -95,32 +95,3 @@
   <component>=.  Open questions: remember the choice for the session, and
   offer a prefix-arg override to pick a component even for an unambiguous
   file.
-
-* Upstream: possible issues in =tree-sitter-haskell= itself (not fixable here)
-
-  These are not =haskell-ts-mode= bugs; they'd need to be reported/fixed in the
-  =@tek/tree-sitter-haskell= grammar repo. Nothing below is actionable in this
-  repo directly.
-
-** Known parser failures on real-world code
-   The grammar's own =test/known-failures/= lists files from real Haskell
-   codebases that its test suite already knows fail to parse:
-   - =compiler.txt=: GHC's =GHC/Builtin/PrimOps.hs=.
-   - =haskell-language-server.txt=: =FuncTestFail.hs=, =Symbol.hs=.
-   - =semantic.txt=: 7 fixtures covering function declarations, algebraic
-     datatype declarations, newtype declarations, type synonyms, and
-     Template Haskell.
-   - =lens.txt=, =polysemy.txt=: one file each.
-   I looked at two of the =semantic= fixture pairs
-   (=function-declarations.{A,B}.hs=,
-   =algebraic-datatype-declarations.{A,B}.hs=); each packs dozens of
-   unrelated constructs (records, punning, wildcards, =TypeApplications=,
-   unboxed types, =DatatypeContexts=, existentials, ...) into one file, so
-   pinpointing *which* construct actually breaks the parse needs the
-   grammar's own test harness (=tree-sitter parse=/=test/parse-lib=)
-   running against a built parser — I did not build/run that in this
-   session.  Follow-up (separate session): build the grammar (nix or
-   =tree-sitter generate= + a C compiler), run
-   =test/parse-lib <name>= for the failing libs, and bisect each
-   known-failure file down to the breaking construct before reporting
-   upstream.
