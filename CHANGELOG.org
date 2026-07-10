@@ -52,6 +52,11 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   Colour is used only when make's own stdout is a terminal (GNU Make
   sets =MAKE_TERMOUT= in that case), so piped/logged runs (CI, =nix
   flake check=) stay plain text.
+- *=make relint=, gating =make check=.*  Lints regexps for
+  correctness/efficiency via =epkgs.relint= (added to the flake's
+  dev-shell Emacs); no complaints found in the existing source, so it
+  runs via =relint-batch= directly with no bespoke wrapper (contrast
+  =tests/package-lint.el=).
 
 ** Changed
 
