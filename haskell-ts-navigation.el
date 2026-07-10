@@ -487,7 +487,8 @@ glued to code, adding no behaviour of its own there.  Returns
 ORIG-FUN's own result unchanged, even when clamping, so callers that
 inspect it (e.g. `evil-motion-loop', via how many paragraphs were
 *not* traversed) see the traversal ORIG-FUN actually performed rather
-than the buffer position `goto-char' would otherwise return."
+than the buffer position `goto-char' would otherwise return.
+ARGS are passed to ORIG-FUN unmodified."
   (let* ((node (and (not haskell-ts--confining-evil-paragraph-object)
                     (derived-mode-p 'haskell-ts-mode)
                     (haskell-ts--text-node-at (point))))
@@ -505,12 +506,12 @@ than the buffer position `goto-char' would otherwise return."
 
 (defun haskell-ts--confine-forward-paragraph (orig-fun &rest args)
   "Around advice for `forward-paragraph'.
-See `haskell-ts--confine-paragraph-motion'."
+ORIG-FUN and ARGS are passed on to `haskell-ts--confine-paragraph-motion'."
   (haskell-ts--confine-paragraph-motion orig-fun args (if (< (or (car args) 1) 0) -1 1)))
 
 (defun haskell-ts--confine-start-of-paragraph-text (orig-fun &rest args)
   "Around advice for `start-of-paragraph-text'.
-See `haskell-ts--confine-paragraph-motion'.
+ORIG-FUN and ARGS are passed on to `haskell-ts--confine-paragraph-motion'.
 Unlike `backward-paragraph' (a thin wrapper that calls
 `forward-paragraph' with a negated count, and so needs no advice of
 its own), `evil''s `}'/`{' (`evil-forward-paragraph'/
@@ -596,7 +597,8 @@ adding no indentation behaviour of its own."
 `evil-insert-newline-above'/`evil-insert-newline-below' insert their
 blank line with a plain `insert', bypassing `newline' -- and the
 advice on it above -- entirely, so they need this advice of their own
-to get the same comment continuation."
+to get the same comment continuation.  ORIG-FUN is called with ARGS
+to insert that blank line before the prefix is added."
   (let ((prefix (haskell-ts--continuation-prefix)))
     (apply orig-fun args)
     (when prefix

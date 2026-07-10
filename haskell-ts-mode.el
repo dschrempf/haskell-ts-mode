@@ -7,7 +7,7 @@
 ;;         Dominik Schrempf <dominik.schrempf@gmail.com>
 ;; Maintainer: Dominik Schrempf <dominik.schrempf@gmail.com>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
-;; Package-Requires: ((emacs "29.3") (inheritenv "0.1"))
+;; Package-Requires: ((emacs "30.1") (inheritenv "0.1"))
 ;; Version: 1.4
 ;; Keywords: languages, Haskell
 
@@ -50,27 +50,28 @@
 ;; warn about a free variable when we set it buffer-locally in the mode.
 (defvar align-mode-rules-list)
 
-(defgroup haskell-ts-mode nil
-  "Group that contains haskell-ts-mode variables"
+(defgroup haskell-ts nil
+  "Customization group for `haskell-ts-mode'."
   :group 'langs)
 
 (defcustom haskell-ts-ghci "ghci"
-  "The name or path program to be called to run the ghci repl.  Any
-arguments to be passed should be added `haskell-ts-ghci-switches`."
+  "The name or path of the program used to run the GHCi REPL.
+Any arguments to be passed should be added to
+`haskell-ts-ghci-switches'."
   :type 'string
-  :group 'haskell-ts-mode)
+  :group 'haskell-ts)
 
 (defcustom haskell-ts-ghci-switches nil
   "Arguments to be passed to `haskell-ts-ghci'."
   :type '(repeat string)
-  :group 'haskell-ts-mode)
+  :group 'haskell-ts)
 
 (defcustom haskell-ts-cabal "cabal"
   "The name or path of the cabal program used to start the REPL.
 Used instead of `haskell-ts-ghci' according to `haskell-ts-use-cabal'.
 Any arguments should be added to `haskell-ts-cabal-switches'."
   :type 'string
-  :group 'haskell-ts-mode)
+  :group 'haskell-ts)
 
 (defcustom haskell-ts-cabal-switches '("repl")
   "Arguments to be passed to `haskell-ts-cabal'.
@@ -80,7 +81,7 @@ component's dependencies, default language extensions and GHC
 options, code loaded into such a session compiles as it would in
 a build, unlike a plain `ghci' session."
   :type '(repeat string)
-  :group 'haskell-ts-mode)
+  :group 'haskell-ts)
 
 (defcustom haskell-ts-use-cabal 'auto
   "Whether to start the REPL with `cabal repl' instead of `ghci'.
@@ -90,18 +91,19 @@ Possible values:
 - `auto' (the default): use cabal when the current buffer is
   inside a cabal project (a `cabal.project' or `*.cabal' file is
   found by walking up the directory tree) and `haskell-ts-cabal'
-  is on `exec-path', otherwise fall back to `haskell-ts-ghci'.
+  is on the variable `exec-path', otherwise fall back to
+  `haskell-ts-ghci'.
 - t: always use `haskell-ts-cabal'.
 - nil: always use `haskell-ts-ghci'."
   :type '(choice (const :tag "Auto-detect cabal project" auto)
                  (const :tag "Always cabal repl" t)
                  (const :tag "Always plain ghci" nil))
-  :group 'haskell-ts-mode)
+  :group 'haskell-ts)
 
 (defcustom haskell-ts-ghci-buffer-name "*Inferior Haskell*"
   "Buffer name for the ghci process."
   :type 'string
-  :group 'haskell-ts-mode)
+  :group 'haskell-ts)
 
 (defcustom haskell-ts-inferior-prompt-regexp
   (rx line-start
@@ -117,14 +119,14 @@ Possible values:
   "Regexp matching the GHCi prompt in the inferior Haskell buffer.
 Used as `comint-prompt-regexp' in `haskell-ts-inferior-mode'."
   :type 'regexp
-  :group 'haskell-ts-mode)
+  :group 'haskell-ts)
 
 (defcustom haskell-ts-inferior-history-file
   (locate-user-emacs-file "haskell-ts-inferior-history")
   "File where the inferior Haskell input history is saved.
 Set to nil to disable history persistence across sessions."
   :type '(choice (file :tag "History file") (const :tag "Disable" nil))
-  :group 'haskell-ts-mode)
+  :group 'haskell-ts)
 
 (defcustom haskell-ts-font-lock-level 4
   "Level of font lock, 1 for minimum highlighting and 4 for maximum."
@@ -132,23 +134,23 @@ Set to nil to disable history persistence across sessions."
                  (const :tag "Low Highlighting" 2)
                  (const :tag "High Highlighting" 3)
                  (const :tag "Maximum Highlighting" 4))
-  :group 'haskell-ts-mode)
+  :group 'haskell-ts)
 
 (defcustom haskell-ts-prettify-symbols nil
   "Prettify some symbol combinations to unicode symbols.
 This will concat `haskell-ts-prettify-symbols-alist' to
 `prettify-symbols-alist' in `haskell-ts-mode'."
   :type 'boolean
-  :group 'haskell-ts-mode)
+  :group 'haskell-ts)
 
 (defcustom haskell-ts-prettify-words nil
   "Prettify some words to unicode symbols.
 This will concat `haskell-ts-prettify-words-alist' to
 `prettify-symbols-alist' in `haskell-ts-mode'."
   :type 'boolean
-  :group 'haskell-ts-mode)
+  :group 'haskell-ts)
 
-(defface haskell-constructor-face
+(defface haskell-ts-constructor-face
   '((t :inherit font-lock-type-face))
   "Face used to highlight Haskell constructors."
   :group 'haskell-appearance)
@@ -242,7 +244,7 @@ when `haskell-ts-prettify-words' is non-nil.")
    :language 'haskell
    :feature 'constructors
    :override t
-   '((constructor) @haskell-constructor-face
+   '((constructor) @haskell-ts-constructor-face
      (data_constructor
       (prefix field: (_) @haskell-ts--fontify-arg))
      (type_params (_) @font-lock-variable-name-face)
@@ -250,9 +252,9 @@ when `haskell-ts-prettify-words' is non-nil.")
      (data_type name: (name) @font-lock-type-face)
      (newtype name: (name) @font-lock-type-face)
      (deriving "deriving" @font-lock-keyword-face
-               classes: (_) @haskell-constructor-face)
+               classes: (_) @haskell-ts-constructor-face)
      (deriving_instance "deriving" @font-lock-keyword-face
-                        name: (_) @haskell-constructor-face))
+                        name: (_) @haskell-ts-constructor-face))
 
    :language 'haskell
    :feature 'match
@@ -418,6 +420,7 @@ operator definition (`a <+> b = ...') to just the operator."
   (setq-local forward-sentence-function #'haskell-ts--forward-sentence))
 
 (defun haskell-ts--fontify-func (node face)
+  "Apply FACE to every `variable' leaf under NODE, recursing otherwise."
   (if (string= "variable" (treesit-node-type node))
       (put-text-property
        (treesit-node-start node)
@@ -427,12 +430,18 @@ operator definition (`a <+> b = ...') to just the operator."
           (treesit-node-children node))))
 
 (defun haskell-ts--fontify-arg (node &optional _ _ _)
+  "Treesit font-lock function fontifying NODE as a bound variable."
   (haskell-ts--fontify-func node 'font-lock-variable-name-face))
 
 (defun haskell-ts--fontify-params (node &optional _ _ _)
+  "Treesit font-lock function fontifying NODE as a bound function name."
   (haskell-ts--fontify-func node 'font-lock-function-name-face))
 
 (defun haskell-ts--fontify-type (node &optional _ _ _)
+  "Treesit font-lock function fontifying the type variable at the end of NODE.
+Recurses into NODE's last child when it is itself a `function' type
+node, so a curried type's outermost return type is what gets
+fontified."
   (let ((last-child (treesit-node-child node -1)))
     (if (string= (treesit-node-type last-child) "function")
         (haskell-ts--fontify-type last-child)
@@ -442,11 +451,13 @@ operator definition (`a <+> b = ...') to just the operator."
        'face 'font-lock-variable-name-face))))
 
 (defun haskell-ts-imenu-node-p (regex node)
+  "Return non-nil if NODE is a top-level declaration matching REGEX.
+Top-level means NODE's parent is a `declarations' node."
   (and (string-match-p regex (treesit-node-type node))
        (string= (treesit-node-type (treesit-node-parent node)) "declarations")))
 
 (defun haskell-ts--imenu-earlier-equation-p (node)
-  "Return non-nil if an earlier top-level sibling defines the same name as NODE.
+  "Return non-nil if an earlier top-level sibling shares NODE's name.
 A multi-equation function produces one `function' node per equation;
 only the first should reach imenu, so later equations are recognised
 here by an earlier `function'/`bind' sibling sharing NODE's name."
@@ -461,17 +472,23 @@ here by an earlier `function'/`bind' sibling sharing NODE's name."
     found))
 
 (defun haskell-ts-imenu-func-node-p (node)
+  "Return non-nil if NODE is a top-level function/binding imenu entry.
+Only the first equation of a multi-equation function qualifies; see
+`haskell-ts--imenu-earlier-equation-p'."
   (and (haskell-ts-imenu-node-p "function\\|bind" node)
        ;; Collapse a function's multiple equations into a single entry.
        (not (haskell-ts--imenu-earlier-equation-p node))))
 
 (defun haskell-ts-imenu-sig-node-p (node)
+  "Return non-nil if NODE is a top-level type signature imenu entry."
   (haskell-ts-imenu-node-p "signature" node))
 
 (defun haskell-ts-imenu-data-type-p (node)
+  "Return non-nil if NODE is a top-level `data'/`newtype' imenu entry."
   (haskell-ts-imenu-node-p "data_type\\|newtype" node))
 
 (defun haskell-ts-imenu-typealias-type-p (node)
+  "Return non-nil if NODE is a top-level type synonym imenu entry."
   (haskell-ts-imenu-node-p "type_synonym" node))
 
 (defun haskell-ts-defun-name (node)
@@ -530,7 +547,7 @@ meant, so abort with cabal's candidate list and the fix."
          (t nil))))))
 
 (defun haskell-ts--repl-command (root file)
-  "Return (PROGRAM . SWITCHES) for starting the REPL.
+  "Return a (program . arguments) cons for starting the REPL.
 ROOT is the cabal project root as returned by
 `haskell-ts--cabal-project-root', or nil.  FILE is the file visited
 by the buffer from which the REPL is started, or nil.  Honour
@@ -642,7 +659,7 @@ and dependencies are not in scope.  Restart the REPL from a buffer
 in the desired component to switch.
 
 The REPL inherits the calling buffer's `process-environment' and
-`exec-path' via `inheritenv', so a toolchain configured
+the variable `exec-path' via `inheritenv', so a toolchain configured
 buffer-locally by envrc/direnv is honoured both when probing the
 `cabal repl' target and when starting the inferior process.
 
@@ -668,6 +685,7 @@ history and the usual `comint-mode' bindings."
      (pop-to-buffer-same-window buffer))))
 
 (defun haskell-ts-haskell-session ()
+  "Return the running REPL process, or nil if none is running."
   (get-buffer-process haskell-ts-ghci-buffer-name))
 
 ;;;###autoload
