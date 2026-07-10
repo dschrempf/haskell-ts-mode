@@ -3,12 +3,16 @@
 #   make compile       byte-compile, treating warnings as errors
 #   make format        format source files
 #   make test          run the ERT test suite
-#   make check         compile + format + checkdoc + package-lint + test (the CI gate)
+#   make check         compile + format + checkdoc + package-lint + relint + test
+#                       (the CI gate)
 #   make checkdoc      run checkdoc, failing on any complaint under `make check';
 #                       standalone (`make checkdoc') stays informational
 #   make package-lint  lint package headers/dependencies/naming (needs
 #                       epkgs.package-lint on `load-path', e.g. via the flake's
 #                       dev shell)
+#   make relint        lint regexps for correctness/efficiency (needs
+#                       epkgs.relint on `load-path', e.g. via the flake's dev
+#                       shell)
 #   make clean         remove byte-compiled files
 #
 # The grammar-dependent integration tests need @tek's tree-sitter-haskell
@@ -49,7 +53,7 @@ step = printf '$(BOLD)$(BLUE)==> %s$(RESET)\n' "$(1)"; \
        $(2) && printf '$(BOLD)$(GREEN)+ %s$(RESET)\n\n' "$(1)" \
              || { printf '$(BOLD)$(RED)x %s$(RESET)\n\n' "$(1)"; exit 1; }
 
-.PHONY: all check compile format checkdoc package-lint test clean
+.PHONY: all check compile format checkdoc package-lint relint test clean
 
 all: check
 
@@ -57,7 +61,7 @@ all: check
 # their own prerequisites), so this only tightens `checkdoc' when it runs
 # as part of `check' -- standalone `make checkdoc' is unaffected.
 check: export HASKELL_TS_CHECKDOC_STRICT = 1
-check: compile format checkdoc package-lint test
+check: compile format checkdoc package-lint relint test
 	@printf '$(BOLD)$(GREEN)All checks passed$(RESET)\n'
 
 compile:
@@ -78,6 +82,9 @@ checkdoc:
 
 package-lint:
 	@$(call step,package-lint,$(BATCH) -l tests/package-lint.el $(EL))
+
+relint:
+	@$(call step,relint,$(BATCH) -l relint -f relint-batch $(EL))
 
 test: clean
 	@$(call step,test,$(BATCH) -l $(TESTS) -f ert-run-tests-batch-and-exit)

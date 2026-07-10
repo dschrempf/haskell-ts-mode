@@ -78,6 +78,9 @@
 
             # Lints package headers/dependencies/naming for `make package-lint'.
             epkgs.package-lint
+
+            # Lints regexps for correctness/efficiency for `make relint'.
+            epkgs.relint
           ]);
         in
         {

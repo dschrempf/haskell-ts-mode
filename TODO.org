@@ -1,10 +1,5 @@
 * TODO [#C] Migrate GitHub Actions CI to Codeberg
 
-* TODO [#C] Consider adding relint to the test suite alongside package-lint :CI:
-  =package-lint= is now wired into =make check= (see CHANGELOG.org,
-  "Unreleased"); =relint= (lints regexps for correctness/efficiency)
-  was deferred as a separate, unscoped addition.
-
 * TODO [#C] Split the REPL support into a separate file (name?)
   =haskell-ts-navigation.el= already split off sexp/prose navigation and
   text objects (see CHANGELOG.org, "Unreleased").  The REPL/GHCi
