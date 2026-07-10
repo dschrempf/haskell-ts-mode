@@ -15,29 +15,6 @@
   mapped-back real boundary — verify against the evil text-object tests
   first.
 
-* TODO [#B] Imenu mislabels/omits =data_type=/=newtype= declarations that have a leading keyword pair
-  The imenu name extractor for =data_type\|newtype= grabs
-  =(treesit-node-child node 1)= (the second child, all children
-  counted), assuming exactly one leading keyword (=data=/=newtype=)
-  before the name.  The @tek grammar aliases two other productions to
-  the same node types, both of which break that assumption:
-  - =type data Foo = MkFoo= (the =TypeData= extension) parses as
-    =data_type= with *two* leading keywords, =type= then =data=; index 1
-    is the =data= keyword, so imenu shows "data" instead of "Foo".
-  - =data instance Foo Int = Bar Int= / =newtype instance ...= (data
-    family instances) parse as a =data_type=/=newtype= node wrapped in
-    an outer =data_instance= node.  Since
-    =haskell-ts-imenu-node-p= requires the node's *parent* to be
-    literally =declarations=, and the parent here is =data_instance=,
-    these declarations are silently missing from imenu instead of
-    mislabeled.
-  Root cause is using a positional child index instead of the =name=
-  field, which every one of these productions actually populates.
-  Fix by extracting the name with
-  =treesit-node-child-by-field-name node "name"= instead, and decide
-  whether =data_instance=/=type_instance= wrappers should also be
-  unwrapped so family instances show up in imenu at all.
-
 * TODO [#C] Coarse =forward-sexp= over a =where=/=let= block's local bindings
   Analogous to the top-level =declarations= rough edge already fixed
   (see CHANGELOG.org, "Unreleased", and =haskell-ts-test-sexp-top-level=),
