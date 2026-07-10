@@ -125,7 +125,9 @@ when `haskell-ts-prettify-words' is non-nil.")
    :language 'haskell
    :feature 'keyword
    `(["module" "import" "data" "let" "where" "case" "type" "family"
-      "if" "then" "else" "of" "do" "in" "instance" "class" "newtype"]
+      "if" "then" "else" "of" "do" "in" "instance" "class" "newtype"
+      "forall" "pattern" "via" "stock" "anyclass"
+      "infix" "infixl" "infixr" "mdo" "rec"]
      @font-lock-keyword-face)
    :language 'haskell
    :feature 'otherwise
@@ -186,7 +188,8 @@ when `haskell-ts-prettify-words' is non-nil.")
    `((match ("|" @font-lock-doc-face) ("=" @font-lock-doc-face))
      (list_comprehension ("|" @font-lock-doc-face
                           (qualifiers (generator "<-" @font-lock-doc-face))))
-     (match ("->" @font-lock-doc-face)))
+     (match ("->" @font-lock-doc-face))
+     (bind arrow: _ @font-lock-doc-face))
 
    :language 'haskell
    :override t

@@ -66,6 +66,16 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   dev-shell Emacs); no complaints found in the existing source, so it
   runs via =relint-batch= directly with no bespoke wrapper (contrast
   =tests/package-lint.el=).
+- *More keywords highlighted.*  =forall=, =pattern= (pattern
+  synonyms), the deriving-strategy keywords =via=/=stock=/=anyclass=,
+  the fixity keywords =infix=/=infixl=/=infixr=, and the
+  arrow-notation keywords =mdo=/=rec= now get
+  =font-lock-keyword-face=, like the rest of the =:feature 'keyword=
+  token list.
+- *Do-notation bind arrow (=<-=) highlighted.*  The =bind= node's
+  =arrow= field is now fontified the same way as the list
+  comprehension generator's =<-= (=:feature 'match=), removing an
+  inconsistency between two syntactically identical tokens.
 
 ** Changed
 
