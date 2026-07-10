@@ -31,7 +31,11 @@ compile:
 checkdoc:
 	$(BATCH) -l tests/checkdoc.el $(EL)
 
-test:
+# Remove stale byte-compiled files first: `require'/`load' prefer an
+# existing .elc over newer source (warning, but still loading the stale
+# object), so an old .elc silently shadows just-edited source and the
+# suite tests code that is no longer there.
+test: clean
 	$(BATCH) -l $(TESTS) -f ert-run-tests-batch-and-exit
 
 clean:
