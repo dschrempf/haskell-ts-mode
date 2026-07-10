@@ -273,6 +273,15 @@ Delegates to `haskell-ts-defun-name', which already reduces an
 operator definition (`a <+> b = ...') to just the operator."
   (haskell-ts-defun-name node))
 
+(defun haskell-ts--imenu-data-type-name (node)
+  "Return the name imenu should display for `data_type'/`newtype' NODE.
+Reads the `name' field rather than assuming a fixed child index,
+since the @tek grammar aliases productions with a different number of
+leading keywords (plain `data'/`newtype' vs. the `TypeData' extension's
+`type data', vs. a `data instance'/`newtype instance' family instance)
+to the same node types."
+  (treesit-node-text (treesit-node-child-by-field-name node "name") t))
+
 (defvar-keymap  haskell-ts-mode-map
   :doc "Keymap for haskell-ts-mode."
   "C-c C-c" #'haskell-ts-compile-region-and-go
@@ -333,8 +342,7 @@ operator definition (`a <+> b = ...') to just the operator."
                 ("Signatures.." "signature" haskell-ts-imenu-sig-node-p
                  haskell-ts--imenu-node-name)
                 (nil "data_type\\|newtype" haskell-ts-imenu-data-type-p
-                     (lambda (node)
-                       (treesit-node-text (treesit-node-child node 1) t)))
+                     haskell-ts--imenu-data-type-name)
                 (nil "type_synonym" haskell-ts-imenu-typealias-type-p
                      (lambda (node)
                        (treesit-node-text (treesit-node-child node 1) t)))))
@@ -379,9 +387,16 @@ fontified."
 
 (defun haskell-ts-imenu-node-p (regex node)
   "Return non-nil if NODE is a top-level declaration matching REGEX.
-Top-level means NODE's parent is a `declarations' node."
+Top-level means NODE's parent is a `declarations' node, or NODE is a
+`data_type'/`newtype' node wrapped in a `data_instance' node (a
+`data instance'/`newtype instance' family instance) whose own parent
+is `declarations'."
   (and (string-match-p regex (treesit-node-type node))
-       (string= (treesit-node-type (treesit-node-parent node)) "declarations")))
+       (let ((parent (treesit-node-parent node)))
+         (or (string= (treesit-node-type parent) "declarations")
+             (and (string= (treesit-node-type parent) "data_instance")
+                  (string= (treesit-node-type (treesit-node-parent parent))
+                           "declarations"))))))
 
 (defun haskell-ts--imenu-earlier-equation-p (node)
   "Return non-nil if an earlier top-level sibling shares NODE's name.

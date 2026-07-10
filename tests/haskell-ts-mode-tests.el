@@ -497,6 +497,32 @@ main = print (fib 10)
       (should (equal 1 (cl-count "fib" names :test #'equal)))
       (should (member "main" names)))))
 
+(ert-deftest haskell-ts-test-imenu-type-data ()
+  "Imenu names a `TypeData'-extension `type data' declaration by its
+type name, not its leading `data' keyword.
+Regression test: the name extractor used to assume exactly one
+leading keyword before the name, so the extra `type' keyword of `type
+data Foo = ...' shifted it onto `data' instead of `Foo'."
+  (haskell-ts-tests--with-temp-hs "type data Foo = MkFoo\n"
+    (let* ((index (funcall imenu-create-index-function))
+           (names (mapcar #'car (cl-remove-if (lambda (e) (consp (cdr e))) index))))
+      (should (member "Foo" names))
+      (should-not (member "data" names)))))
+
+(ert-deftest haskell-ts-test-imenu-data-family-instance ()
+  "Imenu lists `data instance'/`newtype instance' family instances,
+named after the family, rather than omitting them.
+Regression test: these declarations parse as a `data_type'/`newtype'
+node wrapped in an outer `data_instance' node, so the old top-level
+check (which required the node's direct parent to be `declarations')
+silently dropped them from imenu."
+  (haskell-ts-tests--with-temp-hs
+      "data instance Foo Int = Bar Int\nnewtype instance Baz Int = Qux Int\n"
+    (let* ((index (funcall imenu-create-index-function))
+           (names (mapcar #'car (cl-remove-if (lambda (e) (consp (cdr e))) index))))
+      (should (member "Foo" names))
+      (should (member "Baz" names)))))
+
 (ert-deftest haskell-ts-test-defun-navigation ()
   "`treesit-defun-name' reads the name of the function at point."
   (haskell-ts-tests--with-temp-hs

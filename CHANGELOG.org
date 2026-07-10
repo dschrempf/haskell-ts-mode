@@ -236,6 +236,19 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   to just its operator, and =haskell-ts--imenu-node-name= (which already
   did this for imenu) delegates to it, so the two share one
   implementation.
+- *Imenu mislabelled or omitted =data=/=newtype= declarations with a
+  leading keyword pair.*  The name extractor assumed exactly one
+  leading keyword before the name (=treesit-node-child node 1=): the
+  =TypeData= extension's =type data Foo = ...= has two (=type= then
+  =data=), so imenu showed "data" instead of "Foo".  It now reads the
+  =name= field instead of a fixed position
+  (=haskell-ts--imenu-data-type-name=).  Separately, a =data instance=/
+  =newtype instance= family instance parses as a =data_type=/=newtype=
+  node wrapped in an outer =data_instance= node, so the top-level check
+  (which required the node's direct parent to be =declarations=)
+  silently dropped these from imenu entirely; =haskell-ts-imenu-node-p=
+  now also accepts a =data_type=/=newtype= node one level inside such a
+  wrapper.
 
 ** Removed
 
