@@ -342,13 +342,9 @@ whitespace is matched.")
 
 (defun haskell-ts--imenu-node-name (node)
   "Return the name imenu should display for declaration NODE.
-For an operator definition (an `infix' first child, as in
-`a <+> b = ...') this is the operator; otherwise it is the bound
-name as given by `haskell-ts-defun-name'."
-  (let ((nn (treesit-node-child node 0 t)))
-    (if (string= (treesit-node-type nn) "infix")
-        (treesit-node-text (treesit-node-child nn 1))
-      (haskell-ts-defun-name node))))
+Delegates to `haskell-ts-defun-name', which already reduces an
+operator definition (`a <+> b = ...') to just the operator."
+  (haskell-ts-defun-name node))
 
 (defvar-keymap  haskell-ts-mode-map
   :doc "Keymap for haskell-ts-mode."
@@ -479,7 +475,15 @@ here by an earlier `function'/`bind' sibling sharing NODE's name."
   (haskell-ts-imenu-node-p "type_synonym" node))
 
 (defun haskell-ts-defun-name (node)
-  (treesit-node-text (treesit-node-child node 0)))
+  "Return the name of declaration NODE for `treesit-defun-name-function'.
+For an operator definition, whose left-hand side is an `infix' node
+\(as in `a <+> b = ...'), this is just the operator (`<+>'), not the
+whole `a <+> b' pattern; otherwise it is the text of NODE's first
+child."
+  (let ((child (treesit-node-child node 0 t)))
+    (if (equal (treesit-node-type child) "infix")
+        (treesit-node-text (treesit-node-child child 1))
+      (treesit-node-text (treesit-node-child node 0)))))
 
 (defun haskell-ts--cabal-project-root ()
   "Return the cabal project root for the current buffer, or nil.

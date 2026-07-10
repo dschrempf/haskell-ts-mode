@@ -59,14 +59,37 @@
   whether =data_instance=/=type_instance= wrappers should also be
   unwrapped so family instances show up in imenu at all.
 
-* TODO [#C] =haskell-ts-defun-name= shows the whole pattern for infix-headed functions
-  For =a <+> b = ...=, =haskell-ts-defun-name= (used for
-  =treesit-defun-name-function=, e.g. which-function-mode) returns the
-  text of child 0, which is the entire =infix= node ("a <+> b"), not
-  just the operator.  =haskell-ts--imenu-node-name= already special-cases
-  this (see its =infix= check) to show just the operator; teach
-  =haskell-ts-defun-name= the same trick, or share the logic between
-  the two.
+* TODO [#C] Coarse =forward-sexp= over a =where=/=let= block's local bindings
+  Analogous to the top-level =declarations= rough edge already fixed
+  (see CHANGELOG.org, "Unreleased", and =haskell-ts-test-sexp-top-level=),
+  but one level down.  With point at the start of the first local
+  binding of a multi-line =where= block laid out as
+
+  : f = a + b
+  :   where
+  :     a = 1
+  :     b = 2
+
+  =forward-sexp= steps over *both* =a = 1= and =b = 2= at once rather
+  than one binding at a time.  The wrapper node here is =local_binds=
+  (not =declarations=), and unlike the top-level case it is picked as
+  the coarse "next sexp" only in this layout — an inline =where a = 1=
+  steps binding by binding.  Investigate whether =local_binds= should
+  also be excluded from =haskell-ts-sexp=, and why the two =where=
+  layouts differ (likely whether point lands strictly inside the
+  =local_binds= node or exactly at its start).
+
+* TODO [#C] =backward-sexp= stalls at the end of the last top-level binding
+  With point exactly at the end of the file's last top-level binding
+  (its =bind= node's end, before the trailing newline), =backward-sexp=
+  does not move: treesit reports "at top level" there because the node
+  ends *at* point, so =treesit-thing-prev= finds nothing before it and
+  there is no enclosing parent.  Better than the pre-fix behaviour (it
+  used to run back to =point-min=; see =haskell-ts-test-sexp-backward-top-level=),
+  and =backward-sexp= between two top-level bindings steps correctly, so
+  this is only the single boundary position.  A fix would need to step
+  back over a =bind= whose end coincides with point rather than relying
+  on treesit's prev/parent lookup; low priority.
 
 * TODO [#C] Highlight more Haskell keywords
   The =:feature 'keyword= token list is missing several keywords that
