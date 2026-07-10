@@ -24,6 +24,12 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   evil-integration tests in =tests/haskell-ts-mode-tests.el= now run
   (rather than skip) under =nix develop=/=nix flake check=;
   =HASKELL_TS_EVIL_PATH= remains for exercising them outside the flake.
+- *=make format=, gating =make check=.* Runs =indent-region= over source files
+  and the test suite, failing if any file is not already in its formatted state;
+  see =tests/format.el=.
+- *GitHub Actions CI.*  =.github/workflows/ci.yml= runs =nix flake
+  check= (byte-compile, =make format=, and the ERT suite) on
+  push and pull request.
 
 ** Changed
 
