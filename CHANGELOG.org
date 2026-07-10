@@ -138,6 +138,20 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 - *=newline= repeat count dropped inside a comment.*  =C-u N RET= (and
   any =(newline N)=) continued the comment on a single line instead of
   =N=; the advice now honours the count.
+- *Sentence motion in code crossing a paragraph boundary.*
+  =treesit-forward-sentence= treats a function equation (a =match=
+  node) as a sentence and hunts for the next/previous one across any
+  number of blank lines and comments, so =M-e=/=M-a= — and =evil='s
+  =v a s= — from, say, a =data= declaration ran clear past the blank
+  line and comment below it into the following binding.
+  =haskell-ts--forward-sentence= now clamps each code step to the
+  current paragraph — a run of consecutive non-blank code lines,
+  bounded by a blank line or a comment glued to it with no blank line
+  of its own — keeping treesit's equation-level granularity within the
+  paragraph but never crossing out of it.  (The paragraph bound is used
+  rather than =forward-sentence-default-function= so that, with
+  =sentence-end-double-space= nil, a period inside a string literal
+  does not split an equation into two sentences.)
 
 ** Removed
 

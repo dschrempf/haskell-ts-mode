@@ -685,6 +685,77 @@ stop at the boundary (not spill into the code) and not error."
       (forward-sentence)                ; must neither error nor advance
       (should (= (point) at-end)))))
 
+(ert-deftest haskell-ts-test-sentence-in-code-confined-to-paragraph ()
+  "Sentence motion in code stops at the paragraph boundary, not the next
+function equation across it.
+Regression test: `treesit-forward-sentence' treats a function equation
+\(`match' node) as a sentence and hunts for the next one across any
+number of blank lines and comments, so from a `data' declaration `M-e'
+\(and thus `evil''s `a s') ran clear past the blank line and comment
+below into the following binding.  `haskell-ts--forward-sentence'
+bounds the motion by the paragraph instead."
+  (haskell-ts-tests--with-temp-hs
+      "data Hu_hu = Huhu
+
+-- Why should we freeze the bread? We have rolls, and things.
+f = id
+g = id
+"
+    (search-forward "Hu_")
+    ;; The whole declaration line, nothing past the blank line below it.
+    (should (equal "data Hu_hu = Huhu"
+                   (haskell-ts-tests--sentence-at-point)))
+    (let ((decl-end (line-end-position)))
+      (forward-sentence)
+      (should (= (point) decl-end))     ; end of the declaration, not below
+      (backward-sentence)
+      (should (= (point) (line-beginning-position))))))
+
+(ert-deftest haskell-ts-test-sentence-in-code-keeps-equation-granularity ()
+  "Sentence motion in code still steps equation by equation within one
+paragraph.
+Confining the motion to the current paragraph (see
+`haskell-ts-test-sentence-in-code-confined-to-paragraph') must not
+coarsen it: two adjacent bindings with no blank line between them are
+still separate sentences, as `treesit-forward-sentence' has them, not
+one paragraph-sized sentence spanning both."
+  (haskell-ts-tests--with-temp-hs "f = id\ng = id\n"
+    (goto-char (point-min))
+    (forward-sentence)                  ; end of the first equation
+    (should (= (point) (line-end-position 1)))))
+
+(ert-deftest haskell-ts-test-sentence-in-code-confined-by-glued-comment ()
+  "Sentence motion in code stops at a comment glued to it with no blank
+line between, on both sides.
+Regression test: `forward-sentence-default-function' reads a comment
+glued directly to code as part of the same paragraph, so the
+blank-line paragraph bound alone did not stop motion at it;
+`haskell-ts--forward-sentence' also clamps to the nearest comment
+edge."
+  ;; Comment glued below: forward stops before the comment line.
+  (haskell-ts-tests--with-temp-hs "data X = X\n-- c.\nf = id\n"
+    (search-forward "data X")
+    (should (equal "data X = X"
+                   (haskell-ts-tests--sentence-at-point))))
+  ;; Comment glued above: backward stays in the code, not up into the comment.
+  (haskell-ts-tests--with-temp-hs "-- c.\ndata X = X\n"
+    (search-forward "data X")
+    (let ((code-bol (line-beginning-position)))
+      (backward-sentence)
+      (should (>= (point) code-bol)))))
+
+(ert-deftest haskell-ts-test-sentence-in-code-keeps-string-whole ()
+  "A period inside a string literal does not split a code sentence.
+Regression test: the mode sets `sentence-end-double-space' nil (for
+one-space-after-period comments), so `forward-sentence-default-function'
+would treat a `. ' inside a string as a sentence end and stop there;
+code sentence motion is bounded by the paragraph, not that function, so
+the whole equation is one sentence."
+  (haskell-ts-tests--with-temp-hs "foo = \"a. b. c\"\ng = id\n"
+    (goto-char (point-min))
+    (forward-sentence)
+    (should (= (point) (line-end-position 1)))))
+
 ;;; `newline' comment continuation
 
 (ert-deftest haskell-ts-test-newline-continues-line-comment ()
@@ -847,6 +918,23 @@ itself, where the worst case is one adjoining space."
                    (haskell-ts-tests--evil-object-at "is a" #'evil-select-an-object)))
     (should (equal " Module bla."
                    (haskell-ts-tests--evil-object-at "-- |" #'evil-select-an-object)))))
+
+(ert-deftest haskell-ts-test-evil-a-sentence-in-code-confined-to-paragraph ()
+  "`d a s'/`v a s' in code stays within the paragraph, not down into the
+next function equation across a blank line and comment.
+Regression test for the reported bug: with point in `data Hu_hu = Huhu',
+`v a s' selected everything through the blank line and comment below and
+on into `f = id'; `haskell-ts--forward-sentence' now bounds code
+sentence motion to the paragraph."
+  (haskell-ts-tests--with-temp-hs-evil
+      "data Hu_hu = Huhu
+
+-- Why should we freeze the bread? We have rolls, and things.
+f = id
+g = id
+"
+    (should (equal "data Hu_hu = Huhu"
+                   (haskell-ts-tests--evil-object-at "Hu_" #'evil-select-an-object)))))
 
 (ert-deftest haskell-ts-test-evil-inner-sentence ()
   "`evil-inner-sentence' (`d i s') never includes a comment's marker or

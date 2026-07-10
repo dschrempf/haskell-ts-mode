@@ -1,16 +1,3 @@
-* TODO Sentence in code
-#+begin_src haskell
-data Hu_hu = Huhu
-
--- Why should we freeze the bread? We have rolls, and things.
-f = id
-g = id
-#+end_src
-
-Point at _, =v a s= selects from point until =f = id_=.
-
-Even in code, sentences should not cross paragraph boundaries, right?
-
 * TODO [#B] Make checkdoc strict and clear the existing doc-style debt
   =make checkdoc= currently runs informationally only (see =tests/checkdoc.el=);
   document many internal helpers, then gate it by setting

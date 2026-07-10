@@ -226,12 +226,111 @@ so consecutive segments' virtual ranges never touch or overlap."
         (when (<= vstart vpoint vend)
           (throw 'done (+ rstart (- vpoint vstart))))))))
 
+(defconst haskell-ts--comment-node-regexp (regexp-opt '("comment" "haddock"))
+  "Regexp matching the tree-sitter node types of a Haskell comment.")
+
+(defun haskell-ts--adjacent-comment-edge (dir)
+  "Return the code-side edge of the nearest own-line comment in DIR, or nil.
+DIR is +1 (forward: the end of the code line just above the comment)
+or -1 (backward: the start of the code line just below it).  Point is
+assumed to be in code, not already inside a comment.  A comment on its
+own line is a paragraph boundary even when glued directly to code with
+no blank line between, which `forward-sentence-default-function' does
+not see; the edge is line-based (like the blank-line boundary) so the
+clamped sentence excludes the newline adjoining the comment.
+
+Only a comment that begins a line qualifies: an inline trailing
+comment (`f = x -- note') is part of its code line, not a paragraph
+break, and `treesit-forward-sentence' already stops at the equation's
+end before it.  Strings are excluded for the same reason -- inline
+code, not prose."
+  (let* ((node (treesit-node-at (point)))
+         (found (and node (treesit-search-forward
+                           node haskell-ts--comment-node-regexp (< dir 0)))))
+    (when found
+      (save-excursion
+        (goto-char (treesit-node-start found))
+        (when (bolp)                    ; own-line comment only
+          (if (> dir 0)
+              (and (not (bobp)) (1- (point)))
+            (goto-char (treesit-node-end found))
+            (unless (bolp) (forward-line 1))
+            (point)))))))
+
+(defun haskell-ts--code-blank-line-limit (dir)
+  "Return the current code paragraph's blank-line boundary in direction DIR.
+DIR is +1 (forward: the end of the last line before the next blank
+one) or -1 (backward: the start of the first line after the previous
+blank one).  A run of consecutive non-blank lines is one paragraph."
+  (save-excursion
+    (if (> dir 0)
+        (let ((bound (line-end-position)))
+          (while (and (zerop (forward-line 1))
+                      (not (looking-at-p paragraph-separate)))
+            (setq bound (line-end-position)))
+          bound)
+      (beginning-of-line)
+      (let ((bound (point)))
+        (while (and (zerop (forward-line -1))
+                    (not (looking-at-p paragraph-separate)))
+          (setq bound (point)))
+        bound))))
+
+(defun haskell-ts--code-paragraph-limit (dir)
+  "Return the current code paragraph's boundary in direction DIR.
+The nearer of the blank-line boundary (`haskell-ts--code-blank-line-limit')
+and the nearest glued comment edge (`haskell-ts--adjacent-comment-edge'):
+a code sentence must not cross either."
+  (let ((blank (haskell-ts--code-blank-line-limit dir))
+        (comment (haskell-ts--adjacent-comment-edge dir)))
+    (if comment
+        (if (> dir 0) (min blank comment) (max blank comment))
+      blank)))
+
+(defun haskell-ts--forward-sentence-in-code (arg)
+  "Move point by ARG sentences in code, confined to the current paragraph.
+`treesit-forward-sentence' treats a function equation (`match' node)
+as a sentence and hunts for the next/previous one across any number of
+blank lines and comments; on its own it lets a code \"sentence\" -- and
+so `evil''s `a s' text object -- run from one paragraph clear into the
+next (e.g. from a `data' declaration down past a blank line and a
+comment into the following binding).  Each step is therefore clamped
+to the current paragraph (`haskell-ts--code-paragraph-limit'): a run
+of consecutive non-blank code lines, bounded by a blank line or a
+comment glued to it, within which treesit's equation-level granularity
+is kept.  (The paragraph limit is used rather than
+`forward-sentence-default-function' so that, with
+`sentence-end-double-space' nil, a period inside a string literal --
+which that function would treat as a sentence end -- does not split an
+equation.)  When the clamp alone would leave point put -- treesit
+found no equation to move to, or point already sits at the paragraph
+boundary -- `forward-sentence-default-function' is used to progress
+into the next/previous paragraph instead of sticking."
+  (let ((step (if (< arg 0) -1 1)))
+    (dotimes (_ (abs arg))
+      (let* ((start (point))
+             (limit (haskell-ts--code-paragraph-limit step))
+             (ts (save-excursion (treesit-forward-sentence step) (point)))
+             (moved (if (> step 0) (> ts start) (< ts start)))
+             (res (if (> step 0)
+                      (min (if moved ts limit) limit)
+                    (max (if moved ts limit) limit))))
+        (when (= res start)             ; nothing left in this paragraph
+          (setq res (save-excursion
+                      (condition-case nil
+                          (forward-sentence-default-function step)
+                        (error nil))
+                      (point))))
+        (goto-char res)))))
+
 (defun haskell-ts--forward-sentence (&optional arg)
   "`forward-sentence-function' for `haskell-ts-mode'.
 Move point by ARG sentences (`forward-sentence-default-function''s
-convention: negative for backward).  Like `treesit-forward-sentence',
-but when point is at or inside a `text' node (a comment or a string),
-prose motion runs over a dedented copy of that node's text --
+convention: negative for backward).  In code this steps by
+`treesit-forward-sentence' (function equations) but stays within the
+current paragraph, per `haskell-ts--forward-sentence-in-code'.  When
+point is at or inside a `text' node (a comment or a string), prose
+motion instead runs over a dedented copy of that node's text --
 continuation markers stripped, per `haskell-ts--text-node-segments' --
 in a scratch buffer, and the result is mapped back onto the real
 buffer.
@@ -264,7 +363,7 @@ tracked in TODO.org."
   (setq arg (or arg 1))
   (let ((node (haskell-ts--text-node-at (point))))
     (if (not node)
-        (treesit-forward-sentence arg)
+        (haskell-ts--forward-sentence-in-code arg)
       (let* ((segments (haskell-ts--text-node-segments node))
              (text-and-table (haskell-ts--virtual-text-and-table segments))
              (vtext (car text-and-table))
