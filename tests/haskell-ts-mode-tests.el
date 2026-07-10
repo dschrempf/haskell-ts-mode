@@ -110,7 +110,11 @@ tree-sitter grammar is available."
   (should (eq #'haskell-ts-load-file
               (keymap-lookup haskell-ts-mode-map "C-c C-l")))
   (should (eq #'haskell-ts-compile-region-and-go
-              (keymap-lookup haskell-ts-mode-map "C-c C-c"))))
+              (keymap-lookup haskell-ts-mode-map "C-c C-c")))
+  (should (eq #'haskell-ts-send-line
+              (keymap-lookup haskell-ts-mode-map "C-c C-e")))
+  (should (eq #'haskell-ts-send-defun
+              (keymap-lookup haskell-ts-mode-map "C-M-x"))))
 
 ;;; GHCi prompt regexp
 
@@ -170,6 +174,21 @@ The process layer is stubbed so the test never starts GHCi."
         (should-error
          (call-interactively #'haskell-ts-compile-region-and-go)
          :type 'user-error)))))
+
+;;; Sending a line/definition to the REPL
+
+(ert-deftest haskell-ts-test-send-line ()
+  "`haskell-ts-send-line' sends the current line verbatim, unwrapped."
+  (let (sent)
+    (cl-letf (((symbol-function 'haskell-ts-show-repl) (lambda () 'fake-proc))
+              ((symbol-function 'comint-send-string)
+               (lambda (_proc str) (setq sent str))))
+      (with-temp-buffer
+        (insert "foo = 1\nbar = 2\n")
+        (goto-char (point-min))
+        (forward-line 1)
+        (call-interactively #'haskell-ts-send-line)))
+    (should (equal sent "bar = 2\n"))))
 
 ;;; REPL command assembly
 
@@ -501,6 +520,34 @@ Covers both a symbolic operator and a backtick-quoted identifier."
     (should (equal "<+>" (haskell-ts-defun-name (treesit-defun-at-point))))
     (search-forward "`op`")
     (should (equal "`op`" (haskell-ts-defun-name (treesit-defun-at-point))))))
+
+(ert-deftest haskell-ts-test-send-defun ()
+  "`haskell-ts-send-defun' sends the definition at point via `:{'/`:}'.
+The definition found by `treesit-defun-at-point' -- the same node
+`haskell-ts-test-defun-navigation' checks -- is what gets wrapped and
+sent, not the whole buffer or an unrelated definition."
+  (haskell-ts-tests--with-temp-hs
+      haskell-ts-tests--sample
+    (goto-char (point-min))
+    (search-forward "greeting name")
+    (let (sent)
+      (cl-letf (((symbol-function 'haskell-ts-show-repl) (lambda () 'fake-proc))
+                ((symbol-function 'comint-send-string)
+                 (lambda (_proc str) (setq sent (concat sent str)))))
+        (call-interactively #'haskell-ts-send-defun))
+      (should (string-match-p
+               "greeting name = \"Hello, \" \\+\\+ name" sent))
+      (should-not (string-match-p "module Main" sent)))))
+
+(ert-deftest haskell-ts-test-send-defun-no-defun ()
+  "`haskell-ts-send-defun' signals `user-error' outside any definition.
+The module header at the start of `haskell-ts-tests--sample' is not
+itself a `declarations' child, so no defun is found there."
+  (haskell-ts-tests--with-temp-hs
+      haskell-ts-tests--sample
+    (goto-char (point-min))
+    (should-error (call-interactively #'haskell-ts-send-defun)
+                  :type 'user-error)))
 
 (ert-deftest haskell-ts-test-imenu-infix-operator ()
   "Imenu lists an operator definition under just its operator, matching

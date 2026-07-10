@@ -17,6 +17,8 @@ with =prettify-symbols-mode= enabled.
 - =C-c C-r= Open REPL
 - =C-c C-c= Send region to REPL (or reload with =:r= when no region is active)
 - =C-c C-l= Load the current file into the REPL (starts one if needed)
+- =C-c C-e= Send the current line to the REPL
+- =C-M-x= Send the definition at point to the REPL
 
 * Features
 
@@ -48,6 +50,11 @@ The process is started in the project root when one is found, so relative
 - =C-c C-l= saves the buffer and loads its file with =:load=, starting a
   session if none is running. The REPL is displayed without leaving the
   current buffer.
+- =C-c C-e= sends the current line to the REPL, verbatim.
+- =C-M-x= sends the definition at point to the REPL -- the same
+  definition =treesit-defun-name-function= and imenu use, so it is
+  either a top-level binding or, from inside a =where=/=let= block, the
+  enclosing local one.
 
 The inferior buffer runs =haskell-ts-inferior-mode= (derived from
 =comint-mode=): the prompt is read-only and input history is persisted

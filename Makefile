@@ -29,7 +29,7 @@
 EMACS ?= emacs
 BATCH  = $(EMACS) -Q --batch -L .
 
-EL     = haskell-ts-navigation.el haskell-ts-mode.el
+EL     = haskell-ts-navigation.el haskell-ts-repl.el haskell-ts-mode.el
 TESTS  = tests/haskell-ts-mode-tests.el
 
 ifdef MAKE_TERMOUT
