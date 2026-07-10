@@ -152,6 +152,16 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   rather than =forward-sentence-default-function= so that, with
   =sentence-end-double-space= nil, a period inside a string literal
   does not split an equation into two sentences.)
+- *Coarse top-level =forward-sexp=.*  From column 0 of a top-level
+  binding, =forward-sexp= jumped to the end of the buffer (and
+  =backward-sexp= from the last binding's end to the start) instead of
+  stepping over one binding: the whole-buffer root (=haskell=) node and
+  the top-level =declarations= wrapper both matched =haskell-ts-sexp=,
+  so with no enclosing thing to bound it =treesit-forward-sexp= took
+  the entire declarations run as the next sexp.  =haskell-ts-sexp= now
+  excludes both node types; motion inside a =let=/=where= block (also a
+  =declarations= node, but bounded by its enclosing binding) is
+  unchanged.
 
 ** Removed
 
