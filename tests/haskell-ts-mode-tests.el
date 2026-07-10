@@ -516,6 +516,73 @@ motion, exercised via `treesit-thing-settings'."
      (backward-sexp)
      (should (equal "baz" (buffer-substring-no-properties (point) end))))))
 
+(ert-deftest haskell-ts-test-sexp-top-level ()
+  "`forward-sexp' at column 0 of a top-level binding steps over that one
+binding, not the whole buffer.
+Regression test: the root `haskell' node and the top-level
+`declarations' wrapper both matched `haskell-ts-sexp', so from column
+0 `treesit-forward-sexp' took the whole run of declarations as the
+next sexp and jumped to `point-max' (and `backward-sexp' from the last
+binding's end to `point-min')."
+  (haskell-ts-tests--with-temp-hs "x = 1\ny = 2\nz = 3\n"
+    (goto-char (point-min))
+    (forward-sexp)
+    (should (equal "x = 1"
+                   (buffer-substring-no-properties (point-min) (point))))
+    (should (< (point) (point-max)))    ; not the whole buffer
+    ;; Keeps stepping binding by binding rather than to the buffer end.
+    (forward-sexp)
+    (should (equal "\ny = 2"
+                   (buffer-substring-no-properties 6 (point))))))
+
+(ert-deftest haskell-ts-test-sexp-backward-top-level ()
+  "`backward-sexp' between top-level bindings steps over one binding, and
+from the last binding's end never runs back to `point-min'.
+Regression guard for the mirror of `haskell-ts-test-sexp-top-level':
+before the fix, `backward-sexp' from the end of the last binding took
+the whole run of declarations as one sexp and jumped to `point-min'."
+  (haskell-ts-tests--with-temp-hs "x = 1\ny = 2\nz = 3\n"
+    ;; From the end of a non-final binding, step back over just it.
+    (goto-char (point-min))
+    (search-forward "y = 2")
+    (let ((end (point)))
+      (backward-sexp)
+      (should (equal "y = 2"
+                     (buffer-substring-no-properties (point) end))))
+    ;; From the end of the last binding, do not swallow back to `point-min'.
+    ;; (Point at a top-level boundary may not move at all; either way it
+    ;; must stay well past the start of the buffer.)
+    (goto-char (point-min))
+    (search-forward "z = 3")
+    (backward-sexp)
+    (should (> (point) (point-min)))))
+
+(ert-deftest haskell-ts-test-sexp-nested-declarations ()
+  "Excluding the top-level `declarations' wrapper from `haskell-ts-sexp'
+leaves sexp motion inside a `where'/`let' block unchanged.
+A nested `declarations' run is bounded by its enclosing binding, so it
+never gets picked as the coarse \"next sexp\" the way the top-level one
+did; motion there still steps binding by binding."
+  ;; `where' block: step over each local binding in turn.
+  (haskell-ts-tests--with-temp-hs "f = a\n  where a = 1\n        b = 2\n"
+    (goto-char (point-min))
+    (search-forward "where ")
+    (let ((start (point)))
+      (forward-sexp)
+      (should (equal "a = 1"
+                     (buffer-substring-no-properties start (point)))))
+    (forward-sexp)
+    (should (string-suffix-p "b = 2"
+                             (buffer-substring-no-properties (point-min) (point)))))
+  ;; `let' block inside a `do': likewise, one local binding at a time.
+  (haskell-ts-tests--with-temp-hs "main = do\n  let x = 1\n      y = 2\n  print x\n"
+    (goto-char (point-min))
+    (search-forward "let ")
+    (let ((start (point)))
+      (forward-sexp)
+      (should (equal "x = 1"
+                     (buffer-substring-no-properties start (point)))))))
+
 (ert-deftest haskell-ts-test-sentence-motion-confined-to-comment ()
   "Sentence motion inside a `--' comment never crosses into surrounding
 code, with code both directly above and below the comment (no blank

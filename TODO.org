@@ -21,15 +21,6 @@
   =haskell-mode= and =dante= also send a single line or the enclosing
   definition.
 
-* TODO [#C] Investigate coarse top-level =forward-sexp=
-  From point at column 0 of a top-level binding (e.g. =x = 1=),
-  =forward-sexp= jumps to the end of the buffer rather than stepping
-  token by token; motion *inside* an expression (parenthesised groups,
-  list elements) works as expected (see =haskell-ts-test-sexp-navigation=).
-  Investigate whether =haskell-ts-sexp= (via =treesit-thing-settings=)
-  should treat a whole =declarations= run as one sexp at top level, and
-  whether that is intended or a rough edge worth fixing.
-
 * TODO [#C] Let prose motion fall through the comment↔code boundary
   =haskell-ts--forward-sentence= runs prose motion over one =text= node's
   text alone, so reaching a comment's first/last sentence and moving

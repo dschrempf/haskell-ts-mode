@@ -44,9 +44,18 @@
 (declare-function treesit-forward-sentence "treesit.c")
 
 (defun haskell-ts-sexp (node)
-  "Return non-nil when NODE is a sexp for `forward-sexp'/`backward-sexp'."
+  "Return non-nil when NODE is a sexp for `forward-sexp'/`backward-sexp'.
+The whole-buffer root (`haskell') and the top-level `declarations'
+wrapper are excluded: were either a sexp, `forward-sexp' from column
+0 of a top-level binding would take the whole run of declarations as
+one sexp and jump to the end of the buffer (and `backward-sexp' from
+the last binding's end to the start), rather than stepping over one
+binding.  A nested `declarations' run (a `let'/`where' block) is
+bounded by its enclosing binding, so excluding it leaves motion there
+unchanged."
   (let ((node-text (treesit-node-text node 1)))
     (and
+     (not (member (treesit-node-type node) '("haskell" "declarations")))
      (not (member node-text '( "{" "}" "[" "]" "(" ")" ";")))
      (not (and (string= "operator" (treesit-node-field-name node))
                (= 1 (length node-text)))))))
@@ -90,7 +99,7 @@ reject a node that ends at or before POS."
              (< pos (treesit-node-end node))
              (treesit-node-match-p node 'text t) node))
       (let ((node (haskell-ts--text-node-parent
-                    (and (> pos (point-min)) (treesit-node-at (1- pos))))))
+                   (and (> pos (point-min)) (treesit-node-at (1- pos))))))
         (and node (= (treesit-node-end node) pos)
              (treesit-node-match-p node 'text t)
              node))))
@@ -480,8 +489,8 @@ inspect it (e.g. `evil-motion-loop', via how many paragraphs were
 *not* traversed) see the traversal ORIG-FUN actually performed rather
 than the buffer position `goto-char' would otherwise return."
   (let* ((node (and (not haskell-ts--confining-evil-paragraph-object)
-                     (derived-mode-p 'haskell-ts-mode)
-                     (haskell-ts--text-node-at (point))))
+                    (derived-mode-p 'haskell-ts-mode)
+                    (haskell-ts--text-node-at (point))))
          (clamp (and node
                      (if (> dir 0)
                          (haskell-ts--node-forward-clamp node)
