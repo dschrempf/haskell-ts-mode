@@ -488,6 +488,30 @@ main = print (fib 10)
      (should node)
      (should (equal "greeting" (haskell-ts-defun-name node))))))
 
+(ert-deftest haskell-ts-test-defun-name-infix ()
+  "`haskell-ts-defun-name' returns just the operator for an infix-headed
+definition, not the whole left-hand pattern.
+Regression test: the left-hand side of `a <+> b = ...' is an `infix'
+node whose text is the entire `a <+> b'; `haskell-ts-defun-name' (used
+for e.g. which-function-mode) returned that instead of the operator.
+Covers both a symbolic operator and a backtick-quoted identifier."
+  (haskell-ts-tests--with-temp-hs "a <+> b = a\nx `op` y = x\n"
+    (goto-char (point-min))
+    (search-forward "<+>")
+    (should (equal "<+>" (haskell-ts-defun-name (treesit-defun-at-point))))
+    (search-forward "`op`")
+    (should (equal "`op`" (haskell-ts-defun-name (treesit-defun-at-point))))))
+
+(ert-deftest haskell-ts-test-imenu-infix-operator ()
+  "Imenu lists an operator definition under just its operator, matching
+`haskell-ts-defun-name' now that the two share their logic."
+  (haskell-ts-tests--with-temp-hs "a <+> b = a\nmain = a <+> a\n"
+    (let* ((index (funcall imenu-create-index-function))
+           (funcs (cl-remove-if (lambda (e) (consp (cdr e))) index))
+           (names (mapcar #'car funcs)))
+      (should (member "<+>" names))
+      (should-not (member "a <+> b" names)))))
+
 (ert-deftest haskell-ts-test-sexp-navigation ()
   "`forward-sexp'/`backward-sexp' step by `haskell-ts-sexp' nodes.
 A parenthesised group is one sexp, and list elements are stepped over

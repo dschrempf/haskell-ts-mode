@@ -162,6 +162,14 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   excludes both node types; motion inside a =let=/=where= block (also a
   =declarations= node, but bounded by its enclosing binding) is
   unchanged.
+- *=haskell-ts-defun-name= showed the whole pattern for an infix-headed
+  definition.*  For =a <+> b = ...= it returned the entire left-hand
+  =infix= node (="a <+> b"=) rather than the operator, so
+  which-function-mode and other =treesit-defun-name-function= users
+  displayed the pattern instead of =<+>=.  It now reduces an infix head
+  to just its operator, and =haskell-ts--imenu-node-name= (which already
+  did this for imenu) delegates to it, so the two share one
+  implementation.
 
 ** Removed
 
