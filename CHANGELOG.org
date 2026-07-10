@@ -8,6 +8,15 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 
 ** Added
 
+- *Send the current line or definition to the REPL.*  =C-c C-e=
+  (=haskell-ts-send-line=) sends the line at point verbatim, and
+  =C-M-x= (=haskell-ts-send-defun=) sends the definition at point --
+  found the same way =treesit-defun-name-function= and imenu find it,
+  so it follows the same top-level-binding-or-local-=where=/=let=-bind
+  notion of "definition" -- wrapped in GHCi's =:{=/=:}= like
+  =C-c C-c= already does for a region.  Complements =C-c C-c= (region
+  or whole-file reload) and =C-c C-l= (load file), which previously
+  had no equivalent for a single line or definition.
 - *Comment continuation on newline.*  Breaking the line inside a =--=
   comment (plain or Haddock) now repeats the marker on the next line
   instead of leaving the comment, e.g. =-- Comment= + newline gives
@@ -83,6 +92,16 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   change; a package manager or build script that only compiled/loaded
   =haskell-ts-mode.el= directly (bypassing =Makefile=/=require=) now needs
   =haskell-ts-navigation.el= alongside it.
+- *GHCi REPL integration split into =haskell-ts-repl.el=.*  The
+  customisation variables (=haskell-ts-ghci=, =haskell-ts-cabal=,
+  =haskell-ts-use-cabal=, ...), cabal project/target detection, and
+  every REPL command (=haskell-ts-run=, =haskell-ts-show-repl=,
+  =haskell-ts-compile-region-and-go=, =haskell-ts-load-file=,
+  =haskell-ts-inferior-mode=) moved out of =haskell-ts-mode.el= into the
+  new file, =require=d by it, alongside =haskell-ts-navigation.el=. No
+  behaviour change; a package manager or build script that only
+  compiled/loaded =haskell-ts-mode.el= directly now also needs
+  =haskell-ts-repl.el=.
 - *Exact comment-marker bounds for sentence navigation.*  The grammar
   now splits =comment=/=haddock= nodes into a =marker= child (=--=,
   =-- |=, =-- ^=, ={-=, ...) and a =content= child holding the body;

@@ -1,17 +1,5 @@
 * TODO [#C] Migrate GitHub Actions CI to Codeberg
 
-* TODO [#C] Split the REPL support into a separate file (name?)
-  =haskell-ts-navigation.el= already split off sexp/prose navigation and
-  text objects (see CHANGELOG.org, "Unreleased").  The REPL/GHCi
-  integration (=haskell-ts-run=, =haskell-ts-compile-region-and-go=,
-  =haskell-ts-load-file=, =haskell-ts-inferior-mode=) is the next
-  candidate.
-
-* TODO [#C] Send the current line or definition to the REPL
-  =C-c C-c= only sends the active region or the whole file;
-  =haskell-mode= and =dante= also send a single line or the enclosing
-  definition.
-
 * TODO [#C] Let prose motion fall through the comment↔code boundary
   =haskell-ts--forward-sentence= runs prose motion over one =text= node's
   text alone, so reaching a comment's first/last sentence and moving
