@@ -47,23 +47,6 @@
   back over a =bind= whose end coincides with point rather than relying
   on treesit's prev/parent lookup; low priority.
 
-* TODO [#B] Highlight more Haskell keywords
-  The =:feature 'keyword= token list is missing several keywords that
-  are plain anonymous tokens in the @tek grammar and cost nothing to
-  add: =forall=, =pattern= (pattern synonyms), the deriving-strategy
-  keywords =via=/=stock=/=anyclass=, the fixity keywords
-  =infix=/=infixl=/=infixr=, and the arrow-notation keywords
-  =mdo=/=rec=.  (=deriving= itself, =as=/=hiding=/=qualified= are
-  already handled by the =constructors=/=import= features
-  respectively.)
-
-* TODO [#B] Highlight the do-notation bind arrow (=<-=)
-  The list-comprehension generator's =<-= is highlighted (see the
-  =match= feature's =list_comprehension= rule), but the same =<-= in a
-  plain do-block bind (=x <- action=, the =bind= node's =arrow= field)
-  is not highlighted anywhere, which is an inconsistency between two
-  syntactically identical tokens.
-
 * TODO [#B] Interactive component picker for ambiguous =cabal repl= targets
   When a file belongs to several components, =cabal repl= cannot choose
   one and =haskell-ts--cabal-file-target= aborts with a =user-error=

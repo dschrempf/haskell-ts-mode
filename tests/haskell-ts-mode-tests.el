@@ -459,6 +459,49 @@ main = putStrLn (greeting \"world\")
     (should (eq 'font-lock-keyword-face
                 (get-text-property (match-beginning 0) 'face)))))
 
+(ert-deftest haskell-ts-test-font-lock-extra-keywords ()
+  "`forall', `pattern', deriving-strategy and fixity/do keywords
+are fontified as keywords."
+  (haskell-ts-tests--with-temp-hs
+      "f :: forall a. a -> a
+f x = x
+
+pattern Foo <- Bar
+
+newtype N = N Int
+  deriving stock Eq
+  deriving anyclass Show
+  deriving (Ord) via Int
+
+infixl 6 +++
+
+g = mdo
+  rec y <- pure y
+  pure y
+"
+    (treesit-font-lock-fontify-region (point-min) (point-max))
+    (dolist (kw '("forall" "pattern" "stock" "anyclass" "via"
+                  "infixl" "mdo" "rec"))
+      (goto-char (point-min))
+      (search-forward kw)
+      (should (eq 'font-lock-keyword-face
+                  (get-text-property (match-beginning 0) 'face))))))
+
+(ert-deftest haskell-ts-test-font-lock-do-bind-arrow ()
+  "The `<-' of a do-notation bind is fontified like the list
+comprehension generator's, since the two tokens are syntactically
+identical."
+  (haskell-ts-tests--with-temp-hs
+      "main = do
+  x <- action
+  pure x
+"
+    (treesit-font-lock-fontify-region (point-min) (point-max))
+    (goto-char (point-min))
+    (search-forward "<-")
+    (should (eq 'font-lock-doc-face
+                (get-text-property (match-beginning 0) 'face)))))
+
 (ert-deftest haskell-ts-test-imenu-entries ()
   "Imenu finds the top-level functions, the signature, the data type
 and the type synonym from the sample."
