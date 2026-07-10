@@ -72,9 +72,6 @@
             # Hard dependencies of `haskell-ts-mode`.
             epkgs.inheritenv
 
-            # Test dependencies.
-            epkgs.apheleia
-
             # Optional dependencies (only exercised by the evil-integration
             # tests in tests/haskell-ts-mode-tests.el, which otherwise skip).
             epkgs.evil
