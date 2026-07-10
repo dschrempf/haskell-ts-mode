@@ -1,6 +1,6 @@
 * TODO [#C] Migrate GitHub Actions CI to Codeberg
 
-* TODO [#C] Let prose motion fall through the comment↔code boundary
+* TODO [#B] Let prose motion fall through the comment↔code boundary
   =haskell-ts--forward-sentence= runs prose motion over one =text= node's
   text alone, so reaching a comment's first/last sentence and moving
   again stops at the node boundary rather than continuing into the
@@ -15,7 +15,7 @@
   mapped-back real boundary — verify against the evil text-object tests
   first.
 
-* TODO [#C] Coarse =forward-sexp= over a =where=/=let= block's local bindings
+* TODO [#B] Coarse =forward-sexp= over a =where=/=let= block's local bindings
   Analogous to the top-level =declarations= rough edge already fixed
   (see CHANGELOG.org, "Unreleased", and =haskell-ts-test-sexp-top-level=),
   but one level down.  With point at the start of the first local
@@ -35,7 +35,7 @@
   layouts differ (likely whether point lands strictly inside the
   =local_binds= node or exactly at its start).
 
-* TODO [#C] =backward-sexp= stalls at the end of the last top-level binding
+* TODO [#B] =backward-sexp= stalls at the end of the last top-level binding
   With point exactly at the end of the file's last top-level binding
   (its =bind= node's end, before the trailing newline), =backward-sexp=
   does not move: treesit reports "at top level" there because the node
@@ -47,7 +47,7 @@
   back over a =bind= whose end coincides with point rather than relying
   on treesit's prev/parent lookup; low priority.
 
-* TODO [#C] Highlight more Haskell keywords
+* TODO [#B] Highlight more Haskell keywords
   The =:feature 'keyword= token list is missing several keywords that
   are plain anonymous tokens in the @tek grammar and cost nothing to
   add: =forall=, =pattern= (pattern synonyms), the deriving-strategy
@@ -57,14 +57,14 @@
   already handled by the =constructors=/=import= features
   respectively.)
 
-* TODO [#C] Highlight the do-notation bind arrow (=<-=)
+* TODO [#B] Highlight the do-notation bind arrow (=<-=)
   The list-comprehension generator's =<-= is highlighted (see the
   =match= feature's =list_comprehension= rule), but the same =<-= in a
   plain do-block bind (=x <- action=, the =bind= node's =arrow= field)
   is not highlighted anywhere, which is an inconsistency between two
   syntactically identical tokens.
 
-* TODO [#C] Interactive component picker for ambiguous =cabal repl= targets
+* TODO [#B] Interactive component picker for ambiguous =cabal repl= targets
   When a file belongs to several components, =cabal repl= cannot choose
   one and =haskell-ts--cabal-file-target= aborts with a =user-error=
   relaying cabal's [Cabal-7132] candidate list.  Instead, parse those
