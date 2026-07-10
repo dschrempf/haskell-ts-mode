@@ -1,15 +1,9 @@
 * TODO [#C] Migrate GitHub Actions CI to Codeberg
 
-* TODO [#B] Make checkdoc strict and clear the existing doc-style debt :CI:
-  =make checkdoc= currently runs informationally only (see =tests/checkdoc.el=);
-  document many internal helpers, then gate it by setting
-  =HASKELL_TS_CHECKDOC_STRICT=1= in =make check=.
-
-* TODO [#B] Add package-lint (and perhaps relint) to the test suite :CI:
-  Lints headers, dependencies and naming conventions for ELPA/MELPA.
-  =package-lint= is packaged in nixpkgs (=epkgs.package-lint=), so wiring
-  it in should be mechanical; deferred only for lack of time to triage
-  its complaints against the existing header/dependency debt.
+* TODO [#C] Consider adding relint to the test suite alongside package-lint :CI:
+  =package-lint= is now wired into =make check= (see CHANGELOG.org,
+  "Unreleased"); =relint= (lints regexps for correctness/efficiency)
+  was deferred as a separate, unscoped addition.
 
 * TODO [#C] Split the REPL support into a separate file (name?)
   =haskell-ts-navigation.el= already split off sexp/prose navigation and

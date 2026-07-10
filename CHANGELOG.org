@@ -30,9 +30,45 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 - *GitHub Actions CI.*  =.github/workflows/ci.yml= runs =nix flake
   check= (byte-compile, =make format=, and the ERT suite) on
   push and pull request.
+- *=make checkdoc= now gates =make check=.*  Documented the previously
+  undocumented internal helpers that =checkdoc= flagged (font-lock and
+  imenu predicates in =haskell-ts-mode.el=, the paragraph/newline advice
+  in =haskell-ts-navigation.el=), then set
+  =HASKELL_TS_CHECKDOC_STRICT=1= for the =checkdoc= step of =make
+  check= only — a standalone =make checkdoc= stays informational; see
+  =tests/checkdoc.el=.
+- *=make package-lint=, gating =make check=.*  Lints package headers,
+  dependencies and naming conventions via =epkgs.package-lint= (added to
+  the flake's dev-shell Emacs); see =tests/package-lint.el=.  Its
+  =with-eval-after-load= check is disabled for this package: the two
+  call sites it flags in =haskell-ts-navigation.el= defer =evil=
+  text-object/newline advice until =evil= is actually loaded, since
+  those advised symbols do not exist otherwise — the standard, intended
+  use of =with-eval-after-load=, not the user-configuration-only misuse
+  the check exists to catch.
+- *=make check= banners each step.*  =compile=/=format=/=checkdoc=/
+  =package-lint=/=test= now each print a =+= (or =x= on failure)
+  section marker, plus a final "All checks passed" once every step has.
+  Colour is used only when make's own stdout is a terminal (GNU Make
+  sets =MAKE_TERMOUT= in that case), so piped/logged runs (CI, =nix
+  flake check=) stay plain text.
 
 ** Changed
 
+- *Minimum Emacs bumped from 29.3 to 30.1.*  =haskell-ts-navigation.el=
+  (unconditionally =require=d) already called Emacs-30-only functions
+  (=treesit-forward-sentence=, =forward-sentence-default-function=)
+  with no version guard, so the previous =Package-Requires= understated
+  the real floor; =package-lint= caught the mismatch.
+- *Customization group renamed =haskell-ts-mode= to =haskell-ts=.*
+  =package-lint= flags a group ending in =-mode= as bad practice unless
+  the un-suffixed name would conflict with an existing group; it does
+  not here.  Anyone who ran =M-x customize-group RET haskell-ts-mode=
+  needs =haskell-ts= instead.
+- *Face renamed =haskell-constructor-face= to =haskell-ts-constructor-face=*
+  to carry the package's =haskell-ts= prefix, per =package-lint=.
+  Anyone theming =haskell-constructor-face= directly needs to update to
+  the new name.
 - *Sexp/prose navigation and text objects split into =haskell-ts-navigation.el=.*
   =haskell-ts-sexp=, =haskell-ts-thing-settings=, comment-aware sentence
   motion (=haskell-ts--forward-sentence= and its helpers), the paragraph

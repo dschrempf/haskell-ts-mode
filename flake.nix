@@ -75,6 +75,9 @@
             # Optional dependencies (only exercised by the evil-integration
             # tests in tests/haskell-ts-mode-tests.el, which otherwise skip).
             epkgs.evil
+
+            # Lints package headers/dependencies/naming for `make package-lint'.
+            epkgs.package-lint
           ]);
         in
         {
