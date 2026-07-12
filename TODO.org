@@ -15,18 +15,6 @@
   mapped-back real boundary — verify against the evil text-object tests
   first.
 
-* TODO [#B] =backward-sexp= stalls at the end of the last top-level binding
-  With point exactly at the end of the file's last top-level binding
-  (its =bind= node's end, before the trailing newline), =backward-sexp=
-  does not move: treesit reports "at top level" there because the node
-  ends *at* point, so =treesit-thing-prev= finds nothing before it and
-  there is no enclosing parent.  Better than the pre-fix behaviour (it
-  used to run back to =point-min=; see =haskell-ts-test-sexp-backward-top-level=),
-  and =backward-sexp= between two top-level bindings steps correctly, so
-  this is only the single boundary position.  A fix would need to step
-  back over a =bind= whose end coincides with point rather than relying
-  on treesit's prev/parent lookup; low priority.
-
 * TODO [#B] Interactive component picker for ambiguous =cabal repl= targets
   When a file belongs to several components, =cabal repl= cannot choose
   one and =haskell-ts--cabal-file-target= aborts with a =user-error=
