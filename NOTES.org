@@ -1,36 +1,3 @@
-* Deleting a sentence that spans a comment continuation line swallows that line's marker
-  Fixed for paragraph detection and sentence bounds proper (see CHANGELOG.org,
-  "Unreleased" — =haskell-ts--forward-sentence= now dedents each line before
-  running prose motion, so a marker-only line reads as a real paragraph break).
-  Not fixed: a *single* sentence that itself wraps onto a continuation line
-  still has that line's =--=/=-- =-marker included when the region between the
-  sentence's start/end points is deleted (e.g. =d a s=/=kill-sentence=) — motion
-  only returns a point, and the real buffer text between two points is whatever
-  sits there, marker included. Fixing that needs the deletion commands
-  themselves to be marker-aware, not just motion. evil-textobj-tree-sitter
-  (https://github.com/meain/evil-textobj-tree-sitter) would not help here or
-  with the above: tree-sitter treats a comment's/string's whole body as one
-  opaque leaf node, with no notion of sentences/paragraphs inside it — that's an
-  inherently textual problem, which is why this mode reimplements it manually
-  rather than deferring to the grammar.
-
-* =evil='s =}=/={= do not confine to a comment glued to code, unlike =a p=/=i p=
-  =d a p=/=v a p= (=evil-select-an-object=/=evil-select-inner-object=) are fixed
-  (see CHANGELOG.org, "Unreleased") by narrowing the buffer to the comment
-  before =evil= computes the object, when the comment has no blank line
-  separating it from surrounding code.  =evil-forward-paragraph=/
-  =evil-backward-paragraph= (the =}=/={= motions) go through the same
-  =forward-paragraph=/=start-of-paragraph-text= primitives, also advised to clamp
-  to such a comment -- but =evil-forward-end=, which those two motions call,
-  nudges point one character past the comment's end (or before its start)
-  *before* searching, specifically so that starting already at a thing's
-  boundary still counts as progress.  That one-character nudge lands outside
-  the comment node, so the clamp never triggers and =}=/={= still run straight
-  through into the surrounding code.  Not fixed, since the reported bug was
-  about the text object, not the motion; would need advising
-  =evil-forward-paragraph=/=evil-backward-paragraph= (or =evil-forward-end=/
-  =evil-backward-beginning=) themselves.
-
 * Confining =evil='s paragraph object to a glued comment has been fragile
   Three bugs in a row in the same feature (see CHANGELOG.org, "Unreleased",
   the =v a p=/=d a p= entries): each fix for one reported case (both sides
@@ -51,38 +18,3 @@
   computes bounds (verified empirically each time above, not from
   documentation, since `thingatpt'/`evil' source is not distributed as
   plain text on this system) rather than reacting to the new symptom.
-
-* Remembering the chosen cabal component, and a prefix-arg override
-  The interactive component picker for ambiguous =cabal repl= targets
-  (see CHANGELOG.org, "Unreleased") resolves
-  =haskell-ts--choose-cabal-component= fresh every time
-  =haskell-ts-run= starts a session for an ambiguous file — not cached,
-  so restarting the REPL from the same buffer reprompts. Left
-  unimplemented since a fresh =cabal repl= session is normally started
-  rarely enough (once per buffer, not per command) that the reprompt
-  is cheap. Also open: a prefix-arg on =haskell-ts-run= to pick a
-  component even for a file that is *not* ambiguous (e.g. to
-  deliberately open a different component's REPL). Neither is needed
-  for the reported case; revisit if reprompting or picking a
-  non-default component turns out to be a real annoyance.
-
-* =backward-sexp= swallows a =where=/=let= block's enclosing binding
-  Found while fixing the coarse =forward-sexp= over local bindings (see
-  CHANGELOG.org, "Unreleased"); pre-exists that fix (reproduces
-  identically on =main= before it) and is a =backward-sexp= boundary
-  quirk, not a =local_binds= exclusion one, so left untouched here.
-  With point at the exact end of a =where=/=let= block's last binding,
-  when the enclosing top-level binding is *not* the last one in the
-  file (more top-level code follows the =where=/=let= block),
-  =backward-sexp= swallows the *entire* enclosing binding — =where='s
-  keyword, header, and all local bindings — in one step, rather than
-  stepping back over just the last local binding.  (The sibling case —
-  that local binding *also* being the last thing in the file — turned
-  out to be the same stall as the fixed top-level one, see
-  CHANGELOG.org, "Unreleased", and is fixed along with it; this one
-  is not, since here =treesit-forward-sexp= already moves point, just
-  to the wrong place, so the stall-recovery fallback never runs.)
-  Likely the same underlying mechanism (treesit's prev/parent lookup
-  at a position where several node ends coincide) — worth revisiting
-  together if the top-level fix is ever generalised beyond the single
-  =backward-sexp= step it currently targets.
