@@ -120,38 +120,69 @@ file."
        (lambda (dir)
          (ignore-errors (directory-files dir nil "\\.cabal\\'" t))))))
 
+(defun haskell-ts--cabal-ambiguous-candidates (output)
+  "Parse the component names listed in cabal's [Cabal-7132] OUTPUT.
+OUTPUT is `cabal repl --dry-run's output for an \"Ambiguous
+target\" failure, which lists one candidate per line, indented
+and formatted as `component:path (file)'.  Return the component
+names in the order cabal printed them, or nil if none could be
+found there (e.g. because cabal's message format changed), so the
+caller can fall back to relaying OUTPUT verbatim."
+  (let (candidates)
+    (dolist (line (split-string output "\n"))
+      (when (string-match
+             (rx line-start (+ space) (group (+ (not (any space ?:)))) ":")
+             line)
+        (push (match-string 1 line) candidates)))
+    (nreverse candidates)))
+
+(defun haskell-ts--choose-cabal-component (candidates target)
+  "Prompt with `completing-read' for one of CANDIDATES.
+CANDIDATES are the cabal components sharing TARGET, an ambiguous
+file `haskell-ts--cabal-file-target' could not resolve on its own.
+Return the chosen component name, to be used as the `cabal repl'
+target in TARGET's place."
+  (completing-read (format "Component for %s: " target) candidates nil t))
+
 (defun haskell-ts--cabal-file-target (root target)
   "Resolve TARGET against the cabal project, or decide what to do.
 TARGET is a file name relative to ROOT, the cabal project root.
 Run `cabal repl --dry-run TARGET' from ROOT (reusing
 `haskell-ts-cabal-switches' so the probe mirrors the real
 invocation) and return one of:
-  TARGET  cabal resolves it to a single component, so it can be
-          passed as the `cabal repl' target;
-  nil     cabal resolves it to no component (an orphan file not
-          listed in any `.cabal', or any other failure), so the
-          caller should start a plain `cabal repl' instead.
-Signal a `user-error' when TARGET is shared by several components
-and cabal cannot pick one (its [Cabal-7132] \"Ambiguous target\"):
-neither passing nor omitting it would start the REPL the user
-meant, so abort with cabal's candidate list and the fix."
+  TARGET      cabal resolves it to a single component, so it can be
+              passed as the `cabal repl' target;
+  nil         cabal resolves it to no component (an orphan file not
+              listed in any `.cabal', or any other failure), so the
+              caller should start a plain `cabal repl' instead;
+  COMPONENT   TARGET is shared by several components (cabal's
+              [Cabal-7132] \"Ambiguous target\"); the component
+              chosen via `haskell-ts--choose-cabal-component' from
+              cabal's own candidate list, to be used as the target
+              instead of TARGET.
+Signal a `user-error' if TARGET is ambiguous but cabal's candidate
+list could not be parsed, relaying it verbatim."
   (let ((default-directory (expand-file-name root)))
     (with-temp-buffer
       (let ((status (apply #'call-process haskell-ts-cabal nil t nil
                            (append haskell-ts-cabal-switches
                                    (list "--dry-run" target)))))
-        (cond
-         ((eq status 0) target)
-         ((save-excursion
-            (goto-char (point-min))
-            (re-search-forward "Ambiguous target" nil t))
-          (user-error
-           (concat "haskell-ts: %s is shared by several cabal components; "
-                   "`cabal repl' cannot choose one.  Name a component in "
-                   "`haskell-ts-cabal-switches', e.g. (\"repl\" \"my-exe\").  "
-                   "cabal reported:\n%s")
-           target (string-trim (buffer-string))))
-         (t nil))))))
+        (if (eq status 0)
+            target
+          (let* ((output (buffer-string))
+                 (ambiguous-p (string-match-p "Ambiguous target" output))
+                 (candidates (and ambiguous-p
+                                  (haskell-ts--cabal-ambiguous-candidates
+                                   output))))
+            (cond
+             (candidates (haskell-ts--choose-cabal-component candidates target))
+             (ambiguous-p
+              (user-error
+               (concat "haskell-ts: %s is shared by several cabal components, "
+                       "but its candidate list could not be parsed.  "
+                       "cabal reported:\n%s")
+               target (string-trim output)))
+             (t nil))))))))
 
 (defun haskell-ts--repl-command (root file)
   "Return a (program . arguments) cons for starting the REPL.
@@ -167,7 +198,9 @@ this avoids the Cabal-7076 error that `cabal repl' raises when no
 target is given.  `haskell-ts--cabal-file-target' decides per file:
 a FILE in one component is used as the target, a FILE in no
 component is omitted so a plain `cabal repl' starts, and a FILE
-shared by several components aborts with a helpful `user-error'."
+shared by several components prompts (via
+`haskell-ts--choose-cabal-component') for the one to use as the
+target instead."
   (if (and haskell-ts-use-cabal
            (or (eq haskell-ts-use-cabal t) root)
            (executable-find haskell-ts-cabal))

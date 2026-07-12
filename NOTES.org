@@ -52,6 +52,20 @@
   documentation, since `thingatpt'/`evil' source is not distributed as
   plain text on this system) rather than reacting to the new symptom.
 
+* Remembering the chosen cabal component, and a prefix-arg override
+  The interactive component picker for ambiguous =cabal repl= targets
+  (see CHANGELOG.org, "Unreleased") resolves
+  =haskell-ts--choose-cabal-component= fresh every time
+  =haskell-ts-run= starts a session for an ambiguous file — not cached,
+  so restarting the REPL from the same buffer reprompts. Left
+  unimplemented since a fresh =cabal repl= session is normally started
+  rarely enough (once per buffer, not per command) that the reprompt
+  is cheap. Also open: a prefix-arg on =haskell-ts-run= to pick a
+  component even for a file that is *not* ambiguous (e.g. to
+  deliberately open a different component's REPL). Neither is needed
+  for the reported case; revisit if reprompting or picking a
+  non-default component turns out to be a real annoyance.
+
 * =backward-sexp= swallows a =where=/=let= block's enclosing binding
   Found while fixing the coarse =forward-sexp= over local bindings (see
   CHANGELOG.org, "Unreleased"); pre-exists that fix (reproduces

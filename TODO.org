@@ -15,12 +15,3 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   unspent, delegate the remainder to =treesit-forward-sentence= from the
   mapped-back real boundary — verify against the evil text-object tests
   first.
-
-* TODO [#B] Interactive component picker for ambiguous =cabal repl= targets
-  When a file belongs to several components, =cabal repl= cannot choose
-  one and =haskell-ts--cabal-file-target= aborts with a =user-error=
-  relaying cabal's [Cabal-7132] candidate list.  Instead, parse those
-  candidates and =completing-read= over them, then start =cabal repl
-  <component>=.  Open questions: remember the choice for the session, and
-  offer a prefix-arg override to pick a component even for an unambiguous
-  file.
