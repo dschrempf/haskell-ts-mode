@@ -1,4 +1,5 @@
 * TODO [#C] Migrate GitHub Actions CI to Codeberg
+We have a .github CI workflow, but the project is hosted at Codeberg.
 
 * TODO [#B] Let prose motion fall through the comment↔code boundary
   =haskell-ts--forward-sentence= runs prose motion over one =text= node's
