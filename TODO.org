@@ -15,3 +15,72 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   unspent, delegate the remainder to =treesit-forward-sentence= from the
   mapped-back real boundary — verify against the evil text-object tests
   first.
+
+* TODO [#B] Fix backward-sexp swallowing a where/let block's enclosing binding
+  Found while fixing the coarse =forward-sexp= over local bindings (see
+  CHANGELOG.org "Unreleased"); pre-exists that fix (reproduces identically on
+  =main= before it) and is a =backward-sexp= boundary quirk, not a
+  =local_binds= exclusion one, so left untouched there.  With point at the
+  exact end of a =where=/=let= block's last binding, when the enclosing
+  top-level binding is *not* the last one in the file (more top-level code
+  follows the =where=/=let= block), =backward-sexp= swallows the *entire*
+  enclosing binding — =where='s keyword, header, and all local bindings — in
+  one step, rather than stepping back over just the last local binding.  (The
+  sibling case — that local binding *also* being the last thing in the file —
+  turned out to be the same stall as the fixed top-level one, see
+  CHANGELOG.org "Unreleased", and is fixed along with it; this one is not,
+  since here =treesit-forward-sexp= already moves point, just to the wrong
+  place, so the stall-recovery fallback never runs.)  Likely the same
+  underlying mechanism (treesit's prev/parent lookup at a position where
+  several node ends coincide) — worth revisiting together if the top-level
+  fix is ever generalised beyond the single =backward-sexp= step it
+  currently targets.
+
+* TODO [#C] Make sentence deletion marker-aware across a comment continuation line
+  =haskell-ts--forward-sentence= gets paragraph detection and sentence
+  *bounds* right inside a =--=/Haddock comment (see CHANGELOG.org
+  "Unreleased" — it dedents each line before running prose motion, so a
+  marker-only line reads as a real paragraph break).  Deletion is not
+  marker-aware, though: a *single* sentence that wraps onto a continuation
+  line still has that line's =--=/=-- =-marker included when the region
+  between the sentence's start/end points is deleted (e.g.
+  =d a s=/=kill-sentence=) — motion only returns a point, and the real
+  buffer text between two points is whatever sits there, marker included.
+  Fixing that needs the deletion commands themselves to be marker-aware, not
+  just motion.  =evil-textobj-tree-sitter=
+  (https://github.com/meain/evil-textobj-tree-sitter) would not help here or
+  with the above: tree-sitter treats a comment's/string's whole body as one
+  opaque leaf node, with no notion of sentences/paragraphs inside it — that's
+  an inherently textual problem, which is why this mode reimplements it
+  manually rather than deferring to the grammar.  Open question: whether
+  this edge case is worth the complexity at all.
+
+* TODO [#C] Confine evil's }/{ paragraph motions to a glued comment
+  =d a p=/=v a p= (=evil-select-an-object=/=evil-select-inner-object=) are
+  fixed (see CHANGELOG.org "Unreleased") by narrowing the buffer to the
+  comment before =evil= computes the object, when the comment has no blank
+  line separating it from surrounding code.  =evil-forward-paragraph=/
+  =evil-backward-paragraph= (the =}=/={= motions) go through the same
+  =forward-paragraph=/=start-of-paragraph-text= primitives, also advised to
+  clamp to such a comment — but =evil-forward-end=, which those two motions
+  call, nudges point one character past the comment's end (or before its
+  start) *before* searching, specifically so that starting already at a
+  thing's boundary still counts as progress.  That one-character nudge lands
+  outside the comment node, so the clamp never triggers and =}=/={= still run
+  straight through into the surrounding code.  Needs advising
+  =evil-forward-paragraph=/=evil-backward-paragraph= (or =evil-forward-end=/
+  =evil-backward-beginning=) themselves — see =NOTES.org= for why the =evil=
+  bounds machinery here has been fragile across three prior fixes; re-derive
+  empirically rather than guessing.
+
+* TODO [#C] Remember the chosen cabal component; prefix-arg component override
+  The interactive component picker for ambiguous =cabal repl= targets (see
+  CHANGELOG.org "Unreleased") resolves =haskell-ts--choose-cabal-component=
+  fresh every time =haskell-ts-run= starts a session for an ambiguous file —
+  not cached, so restarting the REPL from the same buffer reprompts.  Also
+  open: a prefix-arg on =haskell-ts-run= to pick a component even for a file
+  that is *not* ambiguous (e.g. to deliberately open a different component's
+  REPL).  Neither is needed yet — a fresh =cabal repl= session is normally
+  started rarely enough (once per buffer, not per command) that the
+  reprompt is cheap — revisit if reprompting or picking a non-default
+  component turns out to be a real annoyance.
