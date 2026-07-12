@@ -288,6 +288,99 @@ The process layer is stubbed so the test never starts GHCi."
           (should-not (haskell-ts--cabal-project-root)))
       (delete-directory root t))))
 
+;;; Ambiguous `cabal repl' target resolution
+;;
+;; The fixtures below are real `cabal repl --dry-run' output, captured
+;; from cabal-install 3.16.1.0 against synthetic two- and
+;; three-component packages sharing one file.
+
+(defconst haskell-ts-test--cabal-ambiguous-output-2
+  "Error: [Cabal-7132]
+Ambiguous target 'app/Main.hs'. It could be:
+    exe1:app/Main.hs (file)
+   exe2:app/Main.hs (file)
+
+"
+  "Real cabal output: `app/Main.hs' shared by two executables.")
+
+(defconst haskell-ts-test--cabal-ambiguous-output-3
+  "Error: [Cabal-7132]
+Ambiguous target 'app/Main.hs'. It could be:
+    spec:app/Main.hs (file)
+   exe1:app/Main.hs (file)
+   exe2:app/Main.hs (file)
+
+"
+  "Real cabal output: `app/Main.hs' shared by a test-suite and two executables.")
+
+(ert-deftest haskell-ts-test-cabal-ambiguous-candidates-two ()
+  "Parses both components, in cabal's printed order."
+  (should (equal (haskell-ts--cabal-ambiguous-candidates
+                  haskell-ts-test--cabal-ambiguous-output-2)
+                 '("exe1" "exe2"))))
+
+(ert-deftest haskell-ts-test-cabal-ambiguous-candidates-three ()
+  "Parses all three components, in cabal's printed order."
+  (should (equal (haskell-ts--cabal-ambiguous-candidates
+                  haskell-ts-test--cabal-ambiguous-output-3)
+                 '("spec" "exe1" "exe2"))))
+
+(ert-deftest haskell-ts-test-cabal-ambiguous-candidates-unparseable ()
+  "Output with no indented `component:path' lines yields no candidates."
+  (should-not (haskell-ts--cabal-ambiguous-candidates
+               "Error: [Cabal-7132]\nAmbiguous target 'app/Main.hs'.\n")))
+
+(ert-deftest haskell-ts-test-choose-cabal-component-prompts ()
+  "Prompts with `completing-read', requiring a match from CANDIDATES."
+  (let (prompt collection require-match)
+    (cl-letf (((symbol-function 'completing-read)
+               (lambda (p c &optional _pred rm &rest _)
+                 (setq prompt p collection c require-match rm)
+                 "exe2")))
+      (should (equal (haskell-ts--choose-cabal-component
+                      '("exe1" "exe2") "app/Main.hs")
+                     "exe2")))
+    (should (string-match-p "app/Main.hs" prompt))
+    (should (equal collection '("exe1" "exe2")))
+    (should require-match)))
+
+(ert-deftest haskell-ts-test-cabal-file-target-single-component ()
+  "A successful dry-run (exit 0) returns TARGET unchanged."
+  (cl-letf (((symbol-function 'call-process)
+             (lambda (&rest _) 0)))
+    (should (equal (haskell-ts--cabal-file-target "/proj/" "app/Main.hs")
+                   "app/Main.hs"))))
+
+(ert-deftest haskell-ts-test-cabal-file-target-orphan ()
+  "A failing dry-run unrelated to ambiguity returns nil."
+  (cl-letf (((symbol-function 'call-process)
+             (lambda (&rest _) (insert "cabal: no such file\n") 1)))
+    (should-not (haskell-ts--cabal-file-target "/proj/" "app/Orphan.hs"))))
+
+(ert-deftest haskell-ts-test-cabal-file-target-ambiguous-prompts-choice ()
+  "An ambiguous target is resolved by prompting over cabal's candidates."
+  (let (seen-candidates)
+    (cl-letf (((symbol-function 'call-process)
+               (lambda (&rest _)
+                 (insert haskell-ts-test--cabal-ambiguous-output-3)
+                 1))
+              ((symbol-function 'haskell-ts--choose-cabal-component)
+               (lambda (candidates _target)
+                 (setq seen-candidates candidates)
+                 "exe2")))
+      (should (equal (haskell-ts--cabal-file-target "/proj/" "app/Main.hs")
+                     "exe2")))
+    (should (equal seen-candidates '("spec" "exe1" "exe2")))))
+
+(ert-deftest haskell-ts-test-cabal-file-target-ambiguous-unparseable-errors ()
+  "An ambiguous target cabal's candidate list can't be parsed signals an error."
+  (cl-letf (((symbol-function 'call-process)
+             (lambda (&rest _)
+               (insert "Error: [Cabal-7132]\nAmbiguous target 'app/Main.hs'.\n")
+               1)))
+    (should-error (haskell-ts--cabal-file-target "/proj/" "app/Main.hs")
+                  :type 'user-error)))
+
 ;;; Prettify tables and customisation
 
 (ert-deftest haskell-ts-test-prettify-tables-well-formed ()
