@@ -1655,6 +1655,109 @@ g = id
                    (haskell-ts-tests--evil-object-at
                     "id" #'evil-select-an-object 'evil-paragraph t)))))
 
+;;; `evil-forward-paragraph'/`evil-backward-paragraph' (`}'/`{') confined
+;;; to a glued comment, the same way `a p'/`i p' already are above.
+
+(ert-deftest haskell-ts-test-evil-forward-paragraph-glued-to-code ()
+  "`}' from inside a `--' comment glued to code on both sides stops
+right after the comment, without swallowing \"g = y\" below it -- even
+with point starting exactly at the comment's own end (right after
+\"Comment\", before its trailing newline).
+Regression test for TODO.org's `}'/`{' confinement item:
+`evil-forward-end' nudges point one character past the comment's end
+before delegating to `forward-paragraph'; starting already at that
+end, the nudge lands one character past `treesit-node-end', outside
+the comment node, before `haskell-ts--confine-paragraph-motion''s
+per-call clamp -- which only fires while point is still inside the
+node -- ever gets a chance to trigger."
+  (haskell-ts-tests--with-temp-hs-evil
+      "f = x\n-- Comment\ng = y\n"
+    (search-forward "Comment")              ; point at the comment's own end
+    (evil-forward-paragraph 1)
+    (should (looking-at "g = y"))))
+
+(ert-deftest haskell-ts-test-evil-backward-paragraph-glued-to-code ()
+  "`{' from inside a `--' comment glued to code on both sides stops at
+the comment's own start, without spilling back into \"f = x\" above it.
+Regression test: `evil-backward-paragraph' nudges point forward a
+whole line -- via its own leading `(forward-line)', before ever
+calling `evil-backward-beginning' -- which reliably escapes the node
+from any position inside it, so `{' used to fly all the way to
+`point-min' regardless of where inside the comment it started."
+  (haskell-ts-tests--with-temp-hs-evil
+      "f = x\n-- Comment\ng = y\n"
+    (search-forward "Comm")
+    (evil-backward-paragraph 1)
+    (should (looking-at "-- Comment"))
+    (should (> (point) (point-min)))))
+
+(ert-deftest haskell-ts-test-evil-forward-paragraph-glued-to-code-below-only ()
+  "`}' from inside a Haddock comment preceded by a blank line but glued
+directly to code below stops right after the comment, on that glued
+side only."
+  (haskell-ts-tests--with-temp-hs-evil
+      "f = x\n\n-- | Sentence here.\ng = id\n"
+    (search-forward "Sentence")
+    (evil-forward-paragraph 1)
+    (should (looking-at "g = id"))))
+
+(ert-deftest haskell-ts-test-evil-backward-paragraph-glued-to-code-above-only ()
+  "`{' from inside a Haddock comment glued directly to code above it,
+but followed by a blank line, stops at the comment's own start rather
+than spilling back into \"f = x\"."
+  (haskell-ts-tests--with-temp-hs-evil
+      "f = x\n-- | Sentence here.\n\ng = id\n"
+    (search-forward "Sentence")
+    (evil-backward-paragraph 1)
+    (should (looking-at "-- | Sentence"))
+    (should (> (point) (point-min)))))
+
+(ert-deftest haskell-ts-test-evil-paragraph-motion-not-glued-unaffected ()
+  "`}'/`{' on a comment separated from surrounding code by real blank
+lines on both sides is unaffected by glued-comment confinement: it
+behaves like plain paragraph motion, free to continue past the
+comment onto the following blank line instead of stopping short at
+the comment's own end."
+  (haskell-ts-tests--with-temp-hs-evil
+      "f = x\n\n-- Comment\n\ng = y\n"
+    (search-forward "Comm")
+    (evil-forward-paragraph 1)
+    (should (= (char-after) ?\n))
+    (should (looking-at "\ng = y"))))
+
+(ert-deftest haskell-ts-test-evil-backward-paragraph-from-code-unaffected ()
+  "`{' run from code, not from inside a comment, is unaffected by the
+glued-comment confinement: `haskell-ts--confine-evil-paragraph-motion'
+only narrows when point already sits inside a `text' node, so plain
+code motion still reaches the nearest real paragraph break (the blank
+line before the next comment) even with a comment glued to the code
+below that break."
+  (haskell-ts-tests--with-temp-hs-evil
+      "-- | Hello\nf = id\n\n-- | Test.\ng = id\n"
+    (search-forward "g = ")
+    (evil-backward-paragraph 1)
+    (should (= (char-after) ?\n))
+    (should (save-excursion (forward-line 1) (looking-at "-- | Test.")))))
+
+(ert-deftest haskell-ts-test-evil-paragraph-motion-glued-edge-no-error ()
+  "`{' from the very first character of a comment glued to code above
+it -- already at the node's own edge, with nothing left to confine to
+within it -- falls back to plain, unconfined motion instead of
+mistaking the node's edge for the real buffer boundary and signalling
+`beginning-of-buffer'.
+Regression test: narrowing the whole call to the node's bounds (the
+same fix `haskell-ts--confine-evil-paragraph-object' applies to
+`a p'/`i p') makes `evil-signal-at-bob-or-eob' -- run before any
+motion -- see the narrowed edge as `bobp'/`eobp' when point already
+sits there, raising a real error even though the actual buffer
+continues further; falling back to an unnarrowed retry avoids it."
+  (haskell-ts-tests--with-temp-hs-evil
+      "f = x\n-- Comment\ng = y\n"
+    (search-forward "-- ")
+    (goto-char (match-beginning 0))         ; the comment's own first character
+    (evil-backward-paragraph 1)
+    (should (= (point) (point-min)))))
+
 ;;; `evil' `o'/`O' comment continuation
 
 (ert-deftest haskell-ts-test-evil-open-below-continues-comment ()

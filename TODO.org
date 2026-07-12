@@ -16,24 +16,6 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   mapped-back real boundary — verify against the evil text-object tests
   first.
 
-* TODO [#C] Confine evil's }/{ paragraph motions to a glued comment  :navigation:evil:
-  =d a p=/=v a p= (=evil-select-an-object=/=evil-select-inner-object=) are
-  fixed (see CHANGELOG.org "Unreleased") by narrowing the buffer to the
-  comment before =evil= computes the object, when the comment has no blank
-  line separating it from surrounding code.  =evil-forward-paragraph=/
-  =evil-backward-paragraph= (the =}=/={= motions) go through the same
-  =forward-paragraph=/=start-of-paragraph-text= primitives, also advised to
-  clamp to such a comment — but =evil-forward-end=, which those two motions
-  call, nudges point one character past the comment's end (or before its
-  start) *before* searching, specifically so that starting already at a
-  thing's boundary still counts as progress.  That one-character nudge lands
-  outside the comment node, so the clamp never triggers and =}=/={= still run
-  straight through into the surrounding code.  Needs advising
-  =evil-forward-paragraph=/=evil-backward-paragraph= (or =evil-forward-end=/
-  =evil-backward-beginning=) themselves — see =NOTES.org= for why the =evil=
-  bounds machinery here has been fragile across three prior fixes; re-derive
-  empirically rather than guessing.
-
 * TODO [#C] Remember the chosen cabal component; prefix-arg component override  :repl:cabal:
   The interactive component picker for ambiguous =cabal repl= targets (see
   CHANGELOG.org "Unreleased") resolves =haskell-ts--choose-cabal-component=
@@ -45,3 +27,22 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   started rarely enough (once per buffer, not per command) that the
   reprompt is cheap — revisit if reprompting or picking a non-default
   component turns out to be a real annoyance.
+
+* TODO [#B] Review tests
+Review all tests in detail! Use [[file:.ai/review.md]].
+
+Try some mutations and check if the tests then fail. Can you improve the test
+coverage with meaningful tests? Are some tests redundant? Can we
+simplify/shorten tests? Should we add property tests? Are the test goals sound?
+Are the features we provide good/useful? Do you think some tests are awkward or
+test un-features? Do we miss features? Please analyze and report, I am
+interested in what you find, even if you think it may not be important at all.
+
+* TODO [#B] Review navigation module
+Review the navigation module in detail. Use [[file:.ai/review.md]]!
+
+* TODO [#B] Review REPL module
+Review the REPL module in detail. Use [[file:.ai/review.md]]!
+
+* TODO [#B] Review main module
+Review the main module in detail. Use [[file:.ai/review.md]]!

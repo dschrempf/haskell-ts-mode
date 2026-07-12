@@ -592,6 +592,42 @@ a paragraph via `start-of-paragraph-text' directly."
 (advice-add 'forward-paragraph :around #'haskell-ts--confine-forward-paragraph)
 (advice-add 'start-of-paragraph-text :around #'haskell-ts--confine-start-of-paragraph-text)
 
+(defun haskell-ts--confine-evil-paragraph-in-node (orig-fun args)
+  "Run ORIG-FUN with ARGS narrowed to the glued sides of the node at point.
+Shared by `haskell-ts--confine-evil-paragraph-object' (`a p'/`i p') and
+`haskell-ts--confine-evil-paragraph-motion' (`}'/`{'): both need the
+*whole* call narrowed to a `text' node glued to code, not merely each
+individual `forward-paragraph'/`start-of-paragraph-text' call clamped
+-- see `haskell-ts--confine-evil-paragraph-object''s docstring for why
+clamping call by call is not enough.
+
+Binds `haskell-ts--confining-evil-paragraph-object' for the whole
+call, node found or not: bounds may end up computed via an
+intermediate position far from where this call started (e.g. some
+other, unrelated comment elsewhere in the buffer), and any node found
+there must not trigger `haskell-ts--confine-paragraph-motion''s own
+clamp -- see that variable's docstring for why."
+  (let ((haskell-ts--confining-evil-paragraph-object t)
+        (node (haskell-ts--text-node-at (point))))
+    (if (not node)
+        (apply orig-fun args)
+      (let ((lo (or (haskell-ts--node-backward-clamp node) (point-min)))
+            (hi (or (haskell-ts--node-forward-clamp node) (point-max))))
+        (condition-case nil
+            (save-restriction
+              (narrow-to-region lo hi)
+              (apply orig-fun args))
+          ;; Point already sat at the narrowed edge (LO or HI), so
+          ;; `evil-signal-at-bob-or-eob' -- run by `evil-forward-paragraph'/
+          ;; `evil-backward-paragraph' before any motion, so nothing to
+          ;; undo here -- mistook the node's edge for the real buffer's.
+          ;; That is not "spilling past the comment" (point was never
+          ;; going to move *within* it); fall back to ORIG-FUN unnarrowed,
+          ;; which signals for real only if LO/HI also happen to be the
+          ;; real buffer edges.
+          ((beginning-of-buffer end-of-buffer)
+           (apply orig-fun args)))))))
+
 (defun haskell-ts--confine-evil-paragraph-object (orig-fun thing &rest args)
   "Around advice for `evil-select-an-object'/`evil-select-inner-object'.
 Only `a p'/`i p' (THING `evil-paragraph') are handled; every other
@@ -610,28 +646,42 @@ real buffer's, not the node's.  Narrowing to the glued side(s) of the
 enclosing node for the whole call, rather than clamping call by call,
 fixes this at the source: within the narrowing, `point-max'/`point-min'
 *are* the node's boundary, so the fallback is correct either way.
-
-Binds `haskell-ts--confining-evil-paragraph-object' for the whole
-call, node found or not: the object's bounds may end up computed via
-an intermediate position far from where this call started (e.g. some
-other, unrelated comment elsewhere in the buffer), and any node found
-there must not trigger `haskell-ts--confine-paragraph-motion''s own
-clamp -- see that variable's docstring for why."
+`haskell-ts--confine-evil-paragraph-in-node' does the narrowing."
   (if (not (and (derived-mode-p 'haskell-ts-mode) (eq thing 'evil-paragraph)))
       (apply orig-fun thing args)
-    (let ((haskell-ts--confining-evil-paragraph-object t)
-          (node (haskell-ts--text-node-at (point))))
-      (if (not node)
-          (apply orig-fun thing args)
-        (let ((lo (or (haskell-ts--node-backward-clamp node) (point-min)))
-              (hi (or (haskell-ts--node-forward-clamp node) (point-max))))
-          (save-restriction
-            (narrow-to-region lo hi)
-            (apply orig-fun thing args)))))))
+    (haskell-ts--confine-evil-paragraph-in-node orig-fun (cons thing args))))
+
+(defun haskell-ts--confine-evil-paragraph-motion (orig-fun &rest args)
+  "Around advice for `evil-forward-paragraph'/`evil-backward-paragraph'.
+These are the `}'/`{' motions.  ORIG-FUN and ARGS are the advised
+function and its arguments.
+
+Unlike `a p'/`i p', which reach `forward-paragraph'/
+`start-of-paragraph-text' straight from point, these two commands
+first nudge point onto the neighbouring line -- `evil-forward-paragraph'
+via `evil-forward-end' stepping one character past the thing's end
+before searching (so that starting already at the boundary still
+counts as progress), `evil-backward-paragraph' via its own leading
+`(forward-line)' before calling `evil-backward-beginning' -- and only
+then hands off to `forward-paragraph'/`start-of-paragraph-text'.  When
+point started inside a comment glued to code, that nudge alone can
+land outside the node (on the glued code line itself), so
+`haskell-ts--confine-paragraph-motion''s per-call clamp -- which only
+intervenes when point is currently inside a `text' node -- never
+triggers, and the motion then runs unconfined from code.  Narrowing
+the buffer to the node at the *original* point for the whole call,
+the same fix `haskell-ts--confine-evil-paragraph-object' applies to
+the text objects, closes this: the nudge can no longer leave the
+narrowed buffer."
+  (if (not (derived-mode-p 'haskell-ts-mode))
+      (apply orig-fun args)
+    (haskell-ts--confine-evil-paragraph-in-node orig-fun args)))
 
 (with-eval-after-load 'evil
   (advice-add 'evil-select-an-object :around #'haskell-ts--confine-evil-paragraph-object)
-  (advice-add 'evil-select-inner-object :around #'haskell-ts--confine-evil-paragraph-object))
+  (advice-add 'evil-select-inner-object :around #'haskell-ts--confine-evil-paragraph-object)
+  (advice-add 'evil-forward-paragraph :around #'haskell-ts--confine-evil-paragraph-motion)
+  (advice-add 'evil-backward-paragraph :around #'haskell-ts--confine-evil-paragraph-motion))
 
 (defun haskell-ts--continuation-prefix ()
   "Return the `--' comment continuation prefix for point, or nil.
