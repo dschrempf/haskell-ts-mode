@@ -71,6 +71,58 @@ way."
      (not (and (string= "operator" (treesit-node-field-name node))
                (= 1 (length node-text)))))))
 
+(defun haskell-ts--sexp-at-end (pos)
+  "Return the start of the `sexp' thing whose end is exactly POS, or nil.
+Recovery helper for `haskell-ts--forward-sexp': with POS at the exact
+end of the buffer's last top-level binding, `treesit-node-at' POS
+resolves to the enclosing `declarations' node rather than to that
+binding -- the same half-open-range situation `haskell-ts--text-node-at'
+already works around for `text' nodes, one level up the tree -- and
+from `declarations', `treesit-thing-prev' cannot step backward at all:
+its search has nothing before `declarations' in a depth-first
+traversal, even though the binding is right there as its last child.
+Recover by looking at the node just *before* POS instead and walking
+up through its ancestors for as long as they both match `sexp' and
+still end exactly at POS, stopping at (and returning) the last one
+before that no longer holds.
+
+`treesit-parent-while', not `treesit-node-top-level', is what this
+needs: for a `where'/`let' block's last local binding, its
+`local_binds' wrapper is excluded from `sexp' (see `haskell-ts-sexp')
+but nonetheless ends at the same POS, and so -- one level further up
+still -- does the enclosing top-level binding, since the block is its
+last content too.  `treesit-node-top-level' does not stop at the
+first non-matching ancestor; it keeps climbing in case a higher one
+matches again, which here wrongly latches onto that enclosing binding
+instead of the local one.  `treesit-parent-while' stops at the first
+ancestor that fails, i.e., at `local_binds' -- returning the local
+binding itself, the last node examined before that."
+  (when (> pos (point-min))
+    (let* ((leaf (treesit-node-at (1- pos)))
+           (node (and leaf
+                      (treesit-parent-while
+                       leaf
+                       (lambda (n) (and (treesit-node-match-p n 'sexp t)
+                                        (<= (treesit-node-end n) pos)))))))
+      (and node (= (treesit-node-end node) pos) (treesit-node-start node)))))
+
+(defun haskell-ts--forward-sexp (arg)
+  "`forward-sexp-function' for `haskell-ts-mode'.
+Delegates to `treesit-forward-sexp', except when ARG is -1 (a plain
+`backward-sexp') and that call fails to move point at all -- the
+stall `haskell-ts--sexp-at-end' works around, which is otherwise
+indistinguishable from genuinely being at top level with nothing
+before point.  Left unfixed for other ARG values, e.g. a
+`where'/`let' block's last local binding hitting the same stall, or a
+repeat count that reaches this stall partway through (see TODO.org)."
+  (setq arg (or arg 1))
+  (let ((before (point)))
+    (treesit-forward-sexp arg)
+    (when (= arg -1)
+      (when-let* (((= (point) before))
+                  (dest (haskell-ts--sexp-at-end before)))
+        (goto-char dest)))))
+
 (defun haskell-ts--text-node-parent (node)
   "Resolve NODE to its enclosing `comment'/`haddock' node, or return NODE.
 A `comment'/`haddock' node is compound, with a `marker' and (unless

@@ -355,6 +355,7 @@ to the same node types."
   (setq-local treesit-font-lock-feature-list
               haskell-ts-font-lock-feature-list)
   (treesit-major-mode-setup)
+  (setq-local forward-sexp-function #'haskell-ts--forward-sexp)
   (setq-local forward-sentence-function #'haskell-ts--forward-sentence))
 
 (defun haskell-ts--fontify-func (node face)

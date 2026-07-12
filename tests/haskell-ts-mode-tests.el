@@ -689,13 +689,57 @@ the whole run of declarations as one sexp and jumped to `point-min'."
       (backward-sexp)
       (should (equal "y = 2"
                      (buffer-substring-no-properties (point) end))))
-    ;; From the end of the last binding, do not swallow back to `point-min'.
-    ;; (Point at a top-level boundary may not move at all; either way it
-    ;; must stay well past the start of the buffer.)
+    ;; From the end of the last binding, step back over just it too, not
+    ;; all the way to `point-min' (see `haskell-ts-test-sexp-backward-stall'
+    ;; for the exact-boundary regression this used to stall on instead).
     (goto-char (point-min))
     (search-forward "z = 3")
-    (backward-sexp)
-    (should (> (point) (point-min)))))
+    (let ((end (point)))
+      (backward-sexp)
+      (should (equal "z = 3"
+                     (buffer-substring-no-properties (point) end))))))
+
+(ert-deftest haskell-ts-test-sexp-backward-stall ()
+  "`backward-sexp' from the exact end of the last top-level binding steps
+back to its start instead of not moving at all.
+Regression test: at that exact position, `treesit-node-at' resolves to
+the enclosing `declarations' node rather than to the binding (the
+binding's own end coincides with point, and nothing follows it for
+`treesit-node-at' to fall forward to instead -- see
+`haskell-ts--sexp-at-end'), and `treesit-thing-prev' cannot step
+backward from `declarations' at all, so `backward-sexp' silently did
+not move (better than the pre-`haskell-ts-test-sexp-backward-top-level'
+behaviour of jumping all the way to `point-min', but still wrong)."
+  (haskell-ts-tests--with-temp-hs "x = 1\ny = 2\nz = 3\n"
+    (goto-char (point-min))
+    (search-forward "z = 3")
+    (let ((end (point)))
+      (backward-sexp)
+      (should (equal "z = 3" (buffer-substring-no-properties (point) end))))))
+
+(ert-deftest haskell-ts-test-sexp-backward-stall-single-binding ()
+  "The exact-end stall fix also covers a buffer with only one binding,
+where the enclosing `declarations' node has no earlier sibling at all."
+  (haskell-ts-tests--with-temp-hs "x = 1\n"
+    (goto-char (point-min))
+    (search-forward "x = 1")
+    (let ((end (point)))
+      (backward-sexp)
+      (should (equal "x = 1" (buffer-substring-no-properties (point) end))))))
+
+(ert-deftest haskell-ts-test-sexp-backward-stall-local-binds ()
+  "The same exact-end stall, one level down in a `where' block's last
+local binding, also steps back to that binding's start rather than
+stalling -- or, before this fix, swallowing the whole enclosing
+top-level binding (see NOTES.org: local `local_binds' wrapper and the
+enclosing binding both happen to end at the same position here, since
+the block is the last thing in each)."
+  (haskell-ts-tests--with-temp-hs "f = a\n  where a = 1\n        b = 2\n"
+    (goto-char (point-min))
+    (search-forward "b = 2")
+    (let ((end (point)))
+      (backward-sexp)
+      (should (equal "b = 2" (buffer-substring-no-properties (point) end))))))
 
 (ert-deftest haskell-ts-test-sexp-nested-declarations ()
   "Excluding the top-level `declarations' wrapper from `haskell-ts-sexp'
