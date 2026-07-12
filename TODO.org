@@ -1,7 +1,7 @@
-* TODO [#C] Migrate GitHub Actions CI to Codeberg
+* TODO [#C] Migrate GitHub Actions CI to Codeberg                  :ci:
 We have a .github CI workflow, but the project is hosted at Codeberg.
 
-* TODO [#B] Let prose motion fall through the comment↔code boundary
+* TODO [#B] Let prose motion fall through the comment↔code boundary  :navigation:prose:evil:risky:
   =haskell-ts--forward-sentence= runs prose motion over one =text= node's
   text alone, so reaching a comment's first/last sentence and moving
   again stops at the node boundary rather than continuing into the
@@ -16,7 +16,7 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   mapped-back real boundary — verify against the evil text-object tests
   first.
 
-* TODO [#C] Make sentence deletion marker-aware across a comment continuation line
+* TODO [#C] Make sentence deletion marker-aware across a comment continuation line  :navigation:prose:
   =haskell-ts--forward-sentence= gets paragraph detection and sentence
   *bounds* right inside a =--=/Haddock comment (see CHANGELOG.org
   "Unreleased" — it dedents each line before running prose motion, so a
@@ -35,7 +35,7 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   manually rather than deferring to the grammar.  Open question: whether
   this edge case is worth the complexity at all.
 
-* TODO [#C] Confine evil's }/{ paragraph motions to a glued comment
+* TODO [#C] Confine evil's }/{ paragraph motions to a glued comment  :navigation:evil:
   =d a p=/=v a p= (=evil-select-an-object=/=evil-select-inner-object=) are
   fixed (see CHANGELOG.org "Unreleased") by narrowing the buffer to the
   comment before =evil= computes the object, when the comment has no blank
@@ -53,7 +53,7 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   bounds machinery here has been fragile across three prior fixes; re-derive
   empirically rather than guessing.
 
-* TODO [#C] Remember the chosen cabal component; prefix-arg component override
+* TODO [#C] Remember the chosen cabal component; prefix-arg component override  :repl:cabal:
   The interactive component picker for ambiguous =cabal repl= targets (see
   CHANGELOG.org "Unreleased") resolves =haskell-ts--choose-cabal-component=
   fresh every time =haskell-ts-run= starts a session for an ambiguous file —
