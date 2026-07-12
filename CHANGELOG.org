@@ -235,9 +235,21 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   the top-level =declarations= wrapper both matched =haskell-ts-sexp=,
   so with no enclosing thing to bound it =treesit-forward-sexp= took
   the entire declarations run as the next sexp.  =haskell-ts-sexp= now
-  excludes both node types; motion inside a =let=/=where= block (also a
-  =declarations= node, but bounded by its enclosing binding) is
-  unchanged.
+  excludes both node types; motion inside a =let=/=where= block (a
+  =local_binds= node, bounded by its enclosing binding) was unchanged.
+- *Coarse =forward-sexp= over a =let=/=where= block's local bindings,
+  in one layout.*  The fix above left one case: when the block's own
+  bindings start on a new line (=where= with nothing after it on its
+  line, then each binding indented below), the leading newline and
+  indentation belong to the =where=/=let= keyword rather than to
+  =local_binds=, so =local_binds= starts exactly where its first
+  binding does — the same column-0 alignment that made =declarations=
+  get picked as the coarse sexp at the top level.  (An inline layout,
+  =where a = 1= on one line, does not hit this, since the space
+  between the keyword and the first binding is part of =local_binds=
+  there.)  =haskell-ts-sexp= now excludes =local_binds= unconditionally;
+  the inline layout's motion is unchanged since a nested run is already
+  bounded by its enclosing binding either way.
 - *=haskell-ts-defun-name= showed the whole pattern for an infix-headed
   definition.*  For =a <+> b = ...= it returned the entire left-hand
   =infix= node (="a <+> b"=) rather than the operator, so

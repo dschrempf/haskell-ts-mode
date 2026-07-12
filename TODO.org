@@ -15,26 +15,6 @@
   mapped-back real boundary — verify against the evil text-object tests
   first.
 
-* TODO [#B] Coarse =forward-sexp= over a =where=/=let= block's local bindings
-  Analogous to the top-level =declarations= rough edge already fixed
-  (see CHANGELOG.org, "Unreleased", and =haskell-ts-test-sexp-top-level=),
-  but one level down.  With point at the start of the first local
-  binding of a multi-line =where= block laid out as
-
-  : f = a + b
-  :   where
-  :     a = 1
-  :     b = 2
-
-  =forward-sexp= steps over *both* =a = 1= and =b = 2= at once rather
-  than one binding at a time.  The wrapper node here is =local_binds=
-  (not =declarations=), and unlike the top-level case it is picked as
-  the coarse "next sexp" only in this layout — an inline =where a = 1=
-  steps binding by binding.  Investigate whether =local_binds= should
-  also be excluded from =haskell-ts-sexp=, and why the two =where=
-  layouts differ (likely whether point lands strictly inside the
-  =local_binds= node or exactly at its start).
-
 * TODO [#B] =backward-sexp= stalls at the end of the last top-level binding
   With point exactly at the end of the file's last top-level binding
   (its =bind= node's end, before the trailing newline), =backward-sexp=
