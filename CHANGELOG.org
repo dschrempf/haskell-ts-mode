@@ -215,7 +215,25 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   =evil-select-an-object=/=evil-select-inner-object= call
   (`haskell-ts--confining-evil-paragraph-object'), deferring entirely
   to that call's own, single, consistent narrowing.
-  See =NOTES.org= for a related case (=evil='s =}=/={=) left unfixed.
+- *Paragraph motion (=evil='s =}=/={=) spilling into code around a
+  glued comment.*  Unlike =a p=/=i p=, =evil-forward-paragraph=/
+  =evil-backward-paragraph= first nudge point onto the neighbouring
+  line before ever calling =forward-paragraph=/=start-of-paragraph-text=
+  -- forward via =evil-forward-end= stepping one character past the
+  thing's end, backward via =evil-backward-paragraph='s own leading
+  =(forward-line)= -- so that nudge alone could already land outside a
+  glued comment's node before the existing per-call clamp (which only
+  fires while point is still *inside* the node) ever got a chance to
+  trigger; backward was broken from any position inside such a
+  comment, not just at its edge.  =evil-forward-paragraph=/
+  =evil-backward-paragraph= are now narrowed the same way =a p=/=i p=
+  already are, via a helper
+  (`haskell-ts--confine-evil-paragraph-in-node') shared with that
+  fix.  Narrowing the whole call can make =evil-signal-at-bob-or-eob=
+  -- run before any motion -- mistake the node's own edge for the real
+  buffer's when point already sits there; that case now falls back to
+  an unnarrowed retry instead of raising a spurious =beginning-of-buffer=/
+  =end-of-buffer= error.
 - *Spurious comment continuation on a blank line below a buffer-final
   comment.*  =treesit-node-at= returns the *previous* node, not =nil=,
   when a position sits in whitespace covered by no node and nothing

@@ -18,3 +18,23 @@
   computes bounds (verified empirically each time above, not from
   documentation, since `thingatpt'/`evil' source is not distributed as
   plain text on this system) rather than reacting to the new symptom.
+
+  A fourth case did surface: extending the same whole-call narrowing to
+  =evil='s =}=/={= (=evil-forward-paragraph=/=evil-backward-paragraph=,
+  see CHANGELOG.org, "Unreleased") made `evil-signal-at-bob-or-eob' --
+  which those two run *before* any motion, unlike =a p=/=i p= -- treat
+  the narrowed node's own edge as the real buffer's `bobp'/`eobp' when
+  point already started there, raising a spurious error where none of
+  the three prior cases had one to raise.  Re-deriving empirically again
+  (sweeping every starting position inside several glued comments, with
+  and without the fix, and diffing the resulting point) is what caught
+  it, not reasoning about the advice in the abstract; a `condition-case'
+  around the narrowed call, retrying unnarrowed on that specific
+  false-positive, fixed it without touching the three already-working
+  cases.  The same sweep also surfaced, but did not fix, a shared
+  limitation: narrowing the whole call means a count greater than 1
+  (=2}=, =3ap=) cannot progress past the one glued node it confines to,
+  identically for =}=/={= and for =a p=/=i p= -- confirmed by checking
+  that =3ap= on a single glued comment already stopped at its bounds
+  before this fix, so this is an existing, shared trade-off of the
+  narrowing approach itself, not a regression from extending it.
