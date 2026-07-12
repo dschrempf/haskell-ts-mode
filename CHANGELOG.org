@@ -278,27 +278,39 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   silently dropped these from imenu entirely; =haskell-ts-imenu-node-p=
   now also accepts a =data_type=/=newtype= node one level inside such a
   wrapper.
-- *=backward-sexp= stalled at the end of the last top-level binding.*
-  With point exactly at the end of the file's last top-level binding,
-  =treesit-node-at= there resolves to the enclosing =declarations= node
-  rather than to the binding (its own end coincides with point, and
-  nothing follows for =treesit-node-at= to fall forward to instead —
-  the same half-open-range situation =haskell-ts--text-node-at= already
-  works around for =text= nodes, one level up the tree), and
+- *=backward-sexp= stalled, or swallowed the wrong binding, at a
+  =where=/=let= block's last local binding.*  With point exactly at the
+  end of the file's last top-level binding, =treesit-node-at= there
+  resolves to the enclosing =declarations= node rather than to the
+  binding (its own end coincides with point, and nothing follows for
+  =treesit-node-at= to fall forward to instead — the same
+  half-open-range situation =haskell-ts--text-node-at= already works
+  around for =text= nodes, one level up the tree), and
   =treesit-thing-prev= cannot step backward from =declarations= at all,
-  so =backward-sexp= silently did not move.  =haskell-ts--forward-sexp=
-  (now =forward-sexp-function=) recovers by finding that binding
-  directly, via =haskell-ts--sexp-at-end=, whenever a plain
-  =backward-sexp= call made no progress.  The same stall one level down
-  — a =where=/=let= block's last local binding, when it is also the
-  last thing in the file — is fixed the same way, since
-  =haskell-ts--sexp-at-end= walks up through ancestors with
+  so =backward-sexp= silently did not move.  The same stall happens one
+  level down, at a =where=/=let= block's last local binding, when the
+  block is also the last thing in the file: its =local_binds= wrapper
+  and the enclosing top-level binding both end at the same position as
+  the local binding, and =local_binds= is excluded from =haskell-ts-sexp=
+  (see above), so the same coincidence-of-ends applies one level
+  further out.  =haskell-ts--forward-sexp= (now =forward-sexp-function=)
+  recovers by finding the binding directly via
+  =haskell-ts--sexp-at-end=, which walks up through ancestors with
   =treesit-parent-while= rather than =treesit-node-top-level=, stopping
   at the first ancestor that is not itself a =sexp= (=local_binds=)
   instead of climbing past it to the enclosing top-level binding.  A
-  different quirk in the same area — that same local binding, when the
-  enclosing top-level binding is *not* the last one in the file —
-  remains; see =NOTES.org=.
+  second, related bug surfaced in the same area: when that local
+  binding is *not* also the last thing in the file, =treesit-node-at=
+  resolves fine and =treesit-forward-sexp= does move — just to the
+  start of the *enclosing* top-level binding, swallowing its =where=/
+  =let= keyword, header, and every local binding in one step, because
+  =treesit-thing-prev= uses =treesit-node-top-level= internally, which
+  has the same climb-past-=local_binds= behaviour regardless of
+  whether point sits at the buffer's end.  =haskell-ts--forward-sexp=
+  now always prefers =haskell-ts--sexp-at-end='s answer over
+  =treesit-forward-sexp='s own for a plain =backward-sexp=, rather than
+  only when the latter made no progress at all, fixing both cases the
+  same way.
 
 ** Removed
 

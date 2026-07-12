@@ -834,6 +834,55 @@ the block is the last thing in each)."
       (backward-sexp)
       (should (equal "b = 2" (buffer-substring-no-properties (point) end))))))
 
+(ert-deftest haskell-ts-test-sexp-backward-local-binds-not-last-binding ()
+  "`backward-sexp' from a `where' block's last local binding steps back
+to just that binding, even when the enclosing top-level binding is
+*not* the file's last one.
+Regression test: unlike `haskell-ts-test-sexp-backward-stall-local-binds'
+(where the enclosing binding and the `where' block coincide at
+`point-max', so `treesit-forward-sexp' stalled), more code following
+means `treesit-node-at' resolves fine and `treesit-forward-sexp' does
+move -- just to the wrong place, swallowing the whole enclosing
+binding's `where' keyword, header and every local binding, since
+`treesit-thing-prev' climbs past the excluded `local_binds' wrapper to
+the enclosing binding, which also ends at the same position (see
+`haskell-ts--sexp-at-end')."
+  (haskell-ts-tests--with-temp-hs
+      "f = a\n  where a = 1\n        b = 2\ng = 3\n"
+    (goto-char (point-min))
+    (search-forward "b = 2")
+    (let ((end (point)))
+      (backward-sexp)
+      (should (equal "b = 2" (buffer-substring-no-properties (point) end))))
+    ;; Stepping back again reaches the sibling local binding, not
+    ;; `point-min'.
+    (backward-sexp)
+    (should (equal "a = 1"
+                   (buffer-substring-no-properties (point) (+ (point) 5))))))
+
+(ert-deftest haskell-ts-test-sexp-backward-let-binds-not-last-binding ()
+  "The same fix applies to a `let' block inside a `do' block, not just
+`where'."
+  (haskell-ts-tests--with-temp-hs
+      "main = do\n  let x = 1\n      y = 2\n  print x\nz = 3\n"
+    (goto-char (point-min))
+    (search-forward "y = 2")
+    (let ((end (point)))
+      (backward-sexp)
+      (should (equal "y = 2" (buffer-substring-no-properties (point) end))))))
+
+(ert-deftest haskell-ts-test-sexp-backward-nested-where-not-last-binding ()
+  "The fix also applies one level further down, in a `where' block
+nested inside another `where' block's binding, with more top-level
+code following the whole thing."
+  (haskell-ts-tests--with-temp-hs
+      "f = a\n  where\n    a = b\n      where\n        b = 1\n        c = 2\ng = 3\n"
+    (goto-char (point-min))
+    (search-forward "c = 2")
+    (let ((end (point)))
+      (backward-sexp)
+      (should (equal "c = 2" (buffer-substring-no-properties (point) end))))))
+
 (ert-deftest haskell-ts-test-sexp-nested-declarations ()
   "Excluding the top-level `declarations' wrapper from `haskell-ts-sexp'
 leaves sexp motion inside a `where'/`let' block unchanged.

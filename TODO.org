@@ -16,26 +16,6 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   mapped-back real boundary — verify against the evil text-object tests
   first.
 
-* TODO [#B] Fix backward-sexp swallowing a where/let block's enclosing binding
-  Found while fixing the coarse =forward-sexp= over local bindings (see
-  CHANGELOG.org "Unreleased"); pre-exists that fix (reproduces identically on
-  =main= before it) and is a =backward-sexp= boundary quirk, not a
-  =local_binds= exclusion one, so left untouched there.  With point at the
-  exact end of a =where=/=let= block's last binding, when the enclosing
-  top-level binding is *not* the last one in the file (more top-level code
-  follows the =where=/=let= block), =backward-sexp= swallows the *entire*
-  enclosing binding — =where='s keyword, header, and all local bindings — in
-  one step, rather than stepping back over just the last local binding.  (The
-  sibling case — that local binding *also* being the last thing in the file —
-  turned out to be the same stall as the fixed top-level one, see
-  CHANGELOG.org "Unreleased", and is fixed along with it; this one is not,
-  since here =treesit-forward-sexp= already moves point, just to the wrong
-  place, so the stall-recovery fallback never runs.)  Likely the same
-  underlying mechanism (treesit's prev/parent lookup at a position where
-  several node ends coincide) — worth revisiting together if the top-level
-  fix is ever generalised beyond the single =backward-sexp= step it
-  currently targets.
-
 * TODO [#C] Make sentence deletion marker-aware across a comment continuation line
   =haskell-ts--forward-sentence= gets paragraph detection and sentence
   *bounds* right inside a =--=/Haddock comment (see CHANGELOG.org
