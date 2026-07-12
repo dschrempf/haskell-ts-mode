@@ -50,12 +50,23 @@ wrapper are excluded: were either a sexp, `forward-sexp' from column
 0 of a top-level binding would take the whole run of declarations as
 one sexp and jump to the end of the buffer (and `backward-sexp' from
 the last binding's end to the start), rather than stepping over one
-binding.  A nested `declarations' run (a `let'/`where' block) is
-bounded by its enclosing binding, so excluding it leaves motion there
-unchanged."
+binding.  A `let'/`where' block's `local_binds' wrapper is excluded
+for the same reason: when the block's own bindings start on a new
+line (`where' with nothing after it on its line, then each binding
+indented below), the leading newline and indentation belong to the
+`where'/`let' keyword rather than to `local_binds', so `local_binds'
+starts exactly where its first binding does -- the same alignment
+that makes `declarations' get picked as the coarse sexp from column 0.
+An inline layout (`where a = 1' on one line) does not hit this: the
+space between the keyword and the first binding is part of
+`local_binds', so its start precedes the first binding's.  Excluding
+`local_binds' unconditionally leaves that layout's motion unchanged,
+since a nested run is already bounded by its enclosing binding either
+way."
   (let ((node-text (treesit-node-text node 1)))
     (and
-     (not (member (treesit-node-type node) '("haskell" "declarations")))
+     (not (member (treesit-node-type node)
+                  '("haskell" "declarations" "local_binds")))
      (not (member node-text '( "{" "}" "[" "]" "(" ")" ";")))
      (not (and (string= "operator" (treesit-node-field-name node))
                (= 1 (length node-text)))))))

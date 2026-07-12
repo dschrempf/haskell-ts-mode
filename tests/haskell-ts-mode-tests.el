@@ -723,6 +723,55 @@ did; motion there still steps binding by binding."
       (should (equal "x = 1"
                      (buffer-substring-no-properties start (point)))))))
 
+(ert-deftest haskell-ts-test-sexp-local-binds-block-layout ()
+  "Excluding `local_binds' from `haskell-ts-sexp' fixes the coarse jump
+that the inline-layout exclusion of `declarations' alone did not.
+Regression test: when a `where'/`let' block's own bindings start on a
+new line (nothing after the keyword on its line, then each binding
+indented below), `local_binds' starts exactly where its first binding
+does -- the same column-0 alignment that made `declarations' get
+picked as the coarse sexp at the top level.  Before excluding
+`local_binds' too, `forward-sexp' from the first binding took the
+whole block in one step instead of one binding at a time."
+  ;; `where' block, keyword alone on its line.
+  (haskell-ts-tests--with-temp-hs "f = a + b\n  where\n    a = 1\n    b = 2\n"
+    (goto-char (point-min))
+    (search-forward "where")
+    (skip-chars-forward "\n ")
+    (let ((start (point)))
+      (forward-sexp)
+      (should (equal "a = 1"
+                     (buffer-substring-no-properties start (point)))))
+    (forward-sexp)
+    (should (string-suffix-p "b = 2"
+                             (buffer-substring-no-properties (point-min) (point)))))
+  ;; `let' block inside a `do', keyword alone on its line.
+  (haskell-ts-tests--with-temp-hs
+      "main = do\n  let\n    x = 1\n    y = 2\n  print x\n"
+    (goto-char (point-min))
+    (search-forward "let")
+    (skip-chars-forward "\n ")
+    (let ((start (point)))
+      (forward-sexp)
+      (should (equal "x = 1"
+                     (buffer-substring-no-properties start (point)))))
+    (forward-sexp)
+    (should (string-suffix-p "y = 2"
+                             (buffer-substring-no-properties (point-min) (point)))))
+  ;; A `where' block nested inside another `where' block's binding.
+  (haskell-ts-tests--with-temp-hs
+      "f = a\n  where\n    a = b\n      where\n        b = 1\n        c = 2\n"
+    (goto-char (point-min))
+    (search-forward "where" nil nil 2)
+    (skip-chars-forward "\n ")
+    (let ((start (point)))
+      (forward-sexp)
+      (should (equal "b = 1"
+                     (buffer-substring-no-properties start (point)))))
+    (forward-sexp)
+    (should (string-suffix-p "c = 2"
+                             (buffer-substring-no-properties (point-min) (point))))))
+
 (ert-deftest haskell-ts-test-sentence-motion-confined-to-comment ()
   "Sentence motion inside a `--' comment never crosses into surrounding
 code, with code both directly above and below the comment (no blank

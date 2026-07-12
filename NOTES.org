@@ -51,3 +51,22 @@
   computes bounds (verified empirically each time above, not from
   documentation, since `thingatpt'/`evil' source is not distributed as
   plain text on this system) rather than reacting to the new symptom.
+
+* =backward-sexp= at the end of a =where=/=let= block's last local binding
+  Found while fixing the coarse =forward-sexp= over local bindings (see
+  CHANGELOG.org, "Unreleased"); pre-exists that fix (reproduces
+  identically on =main= before it) and is a =backward-sexp= boundary
+  quirk, not a =local_binds= exclusion one, so left untouched here.
+  With point at the exact end of a =where=/=let= block's last binding:
+  if that binding is also the last thing in the file, =backward-sexp=
+  does not move at all — the same "at top level" stall as the
+  already-tracked top-level case (=TODO.org=, "=backward-sexp= stalls at
+  the end of the last top-level binding"), just one level down.  But if
+  the enclosing top-level binding is *not* the last one in the file
+  (more top-level code follows the =where=/=let= block), =backward-sexp=
+  instead swallows the *entire* enclosing binding — =where='s keyword,
+  header, and all local bindings — in one step, rather than stepping
+  back over just the last local binding.  Likely the same underlying
+  mechanism as the tracked stall (treesit's prev/parent lookup at a
+  position where several node ends coincide), worth triaging together
+  with that TODO rather than as a separate fix.
