@@ -1213,6 +1213,74 @@ the whole equation is one sentence."
     (forward-sentence)
     (should (= (point) (line-end-position 1)))))
 
+;;; `kill-sentence'/`backward-kill-sentence' marker awareness
+
+(ert-deftest haskell-ts-test-kill-sentence-preserves-continuation-marker ()
+  "`kill-sentence' on a sentence that wraps onto a comment continuation
+line never removes that line's own marker along with it.
+Regression test for TODO.org's marker-aware sentence deletion: the
+sentence's end, mapped back from the dedented copy
+`haskell-ts--forward-sentence' runs prose motion on, lands past the
+continuation line's own repeated marker, so the raw buffer text
+between the sentence's start and that point includes it; deleting
+that raw text used to take the marker along with it, silently merging
+the two comment lines into one."
+  (haskell-ts-tests--with-temp-hs
+      "-- Hello world\n-- again. Next sentence.\n"
+    (search-forward "Hello")
+    (goto-char (match-beginning 0))
+    (kill-sentence)
+    (should (equal (buffer-string) "-- \n--  Next sentence.\n"))
+    (should (equal (substring-no-properties (current-kill 0))
+                   "Hello world\nagain."))))
+
+(ert-deftest haskell-ts-test-kill-sentence-preserves-every-continuation-marker ()
+  "`kill-sentence' preserves every continuation marker a sentence spans,
+not just the first one, when the sentence runs across more than one."
+  (haskell-ts-tests--with-temp-hs
+      "-- Foo\n-- bar\n-- baz. Qux.\n"
+    (search-forward "Foo")
+    (goto-char (match-beginning 0))
+    (kill-sentence)
+    (should (equal (buffer-string) "-- \n-- \n--  Qux.\n"))
+    (should (equal (substring-no-properties (current-kill 0))
+                   "Foo\nbar\nbaz."))))
+
+(ert-deftest haskell-ts-test-backward-kill-sentence-preserves-continuation-marker ()
+  "`backward-kill-sentence' is marker-aware the same way `kill-sentence' is."
+  (haskell-ts-tests--with-temp-hs
+      "-- Hello world\n-- again. Next sentence.\n"
+    (search-forward "again.")
+    (backward-kill-sentence)
+    (should (equal (buffer-string) "-- \n--  Next sentence.\n"))))
+
+(ert-deftest haskell-ts-test-kill-sentence-same-line-unaffected ()
+  "A sentence that stays on one line kills exactly as before -- the
+marker-aware path only ever engages when a continuation marker
+actually sits between the sentence's start and end."
+  (haskell-ts-tests--with-temp-hs
+      "-- Hello. World.\n"
+    (search-forward "Hello")
+    (goto-char (match-beginning 0))
+    (kill-sentence)
+    (should (equal (buffer-string) "--  World.\n"))))
+
+(ert-deftest haskell-ts-test-kill-region-manual-not-marker-aware ()
+  "A manual `kill-region' spanning a continuation marker is unaffected.
+Only `kill-sentence'/`backward-kill-sentence' (and, for `evil',
+`d a s'/`d i s'/`c a s'/`c i s') bind
+`haskell-ts--sentence-deletion-active'; marker-awareness is deliberately
+scoped to sentence deletion, not every possible `kill-region' call, so
+e.g. a manual mark-and-`C-w' spanning the same text still removes the
+marker along with it exactly as it always did."
+  (haskell-ts-tests--with-temp-hs
+      "-- Hello world\n-- again. Next sentence.\n"
+    (search-forward "Hello")
+    (let ((start (match-beginning 0)))
+      (search-forward "again.")
+      (kill-region start (point)))
+    (should (equal (buffer-string) "--  Next sentence.\n"))))
+
 ;;; `newline' comment continuation
 
 (ert-deftest haskell-ts-test-newline-continues-line-comment ()
@@ -1418,6 +1486,54 @@ itself, where the worst case is a single stray space."
                    (haskell-ts-tests--evil-object-at "is a" #'evil-select-inner-object)))
     (should (equal " "
                    (haskell-ts-tests--evil-object-at "-- |" #'evil-select-inner-object)))))
+
+(defun haskell-ts-tests--evil-delete-at (needle selector &optional thing)
+  "Move to just after NEEDLE, delete what SELECTOR selects, return the buffer.
+Like `haskell-ts-tests--evil-object-at', but actually performs the
+deletion via `evil-delete' -- what `d a s'/`d i s' (or `c a s'/`c i s',
+via `evil-change' calling `evil-delete') do with the range -- rather
+than just returning the selected text, so it also exercises
+`haskell-ts--evil-delete-marker-aware'."
+  (goto-char (point-min))
+  (search-forward needle)
+  (let ((range (funcall selector (or thing 'evil-sentence) nil nil 'inclusive 1)))
+    (evil-delete (evil-range-beginning range) (evil-range-end range) (evil-type range)))
+  (buffer-string))
+
+(ert-deftest haskell-ts-test-evil-delete-a-sentence-preserves-continuation-marker ()
+  "`d a s' on a sentence that wraps onto a comment continuation line
+never deletes that line's own marker along with it.
+Regression test for TODO.org's marker-aware sentence deletion, the
+`evil' counterpart of
+`haskell-ts-test-kill-sentence-preserves-continuation-marker': the
+sentence's end, once mapped back from the dedented copy prose motion
+runs on, lands past the continuation line's own repeated marker, so
+plain `evil-delete' -- which just removes the raw text between the
+range's endpoints -- used to take the marker along with it, silently
+merging the two comment lines into one."
+  (haskell-ts-tests--with-temp-hs-evil
+      "-- Hello world\n-- again. Next sentence.\n"
+    (should (equal "-- \n-- Next sentence.\n"
+                   (haskell-ts-tests--evil-delete-at "Hello" #'evil-select-an-object)))))
+
+(ert-deftest haskell-ts-test-evil-delete-inner-sentence-preserves-continuation-marker ()
+  "`d i s' is marker-aware the same way `d a s' is."
+  (haskell-ts-tests--with-temp-hs-evil
+      "-- Hello world\n-- again. Next sentence.\n"
+    (should (equal "-- \n--  Next sentence.\n"
+                   (haskell-ts-tests--evil-delete-at "Hello" #'evil-select-inner-object)))))
+
+(ert-deftest haskell-ts-test-evil-delete-line-not-marker-aware ()
+  "A linewise `evil-delete' (`dd'-style) still removes a straddled
+marker along with the rest of the line -- `haskell-ts--evil-delete-marker-aware'
+only binds `haskell-ts--sentence-deletion-active' for a charwise
+\(`inclusive'/`exclusive') TYPE, since deleting whole lines is meant to
+take their markers with them."
+  (haskell-ts-tests--with-temp-hs-evil
+      "-- Hello world\n-- again. Next sentence.\n"
+    (goto-char (point-min))
+    (evil-delete (point-min) (point-max) 'line)
+    (should (equal (buffer-string) ""))))
 
 (ert-deftest haskell-ts-test-evil-a-sentence-paragraph-inside-comment ()
   "`d a s' on a comment's first paragraph never reaches into a later

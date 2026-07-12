@@ -16,25 +16,6 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   mapped-back real boundary — verify against the evil text-object tests
   first.
 
-* TODO [#C] Make sentence deletion marker-aware across a comment continuation line  :navigation:prose:
-  =haskell-ts--forward-sentence= gets paragraph detection and sentence
-  *bounds* right inside a =--=/Haddock comment (see CHANGELOG.org
-  "Unreleased" — it dedents each line before running prose motion, so a
-  marker-only line reads as a real paragraph break).  Deletion is not
-  marker-aware, though: a *single* sentence that wraps onto a continuation
-  line still has that line's =--=/=-- =-marker included when the region
-  between the sentence's start/end points is deleted (e.g.
-  =d a s=/=kill-sentence=) — motion only returns a point, and the real
-  buffer text between two points is whatever sits there, marker included.
-  Fixing that needs the deletion commands themselves to be marker-aware, not
-  just motion.  =evil-textobj-tree-sitter=
-  (https://github.com/meain/evil-textobj-tree-sitter) would not help here or
-  with the above: tree-sitter treats a comment's/string's whole body as one
-  opaque leaf node, with no notion of sentences/paragraphs inside it — that's
-  an inherently textual problem, which is why this mode reimplements it
-  manually rather than deferring to the grammar.  Open question: whether
-  this edge case is worth the complexity at all.
-
 * TODO [#C] Confine evil's }/{ paragraph motions to a glued comment  :navigation:evil:
   =d a p=/=v a p= (=evil-select-an-object=/=evil-select-inner-object=) are
   fixed (see CHANGELOG.org "Unreleased") by narrowing the buffer to the

@@ -136,6 +136,21 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 
 ** Fixed
 
+- *Sentence deletion (=kill-sentence=/=backward-kill-sentence=, =evil='s
+  =d a s=/=d i s=/=c a s=/=c i s=) across a comment continuation line.*
+  A sentence spanning onto a continuation line has its end, once mapped
+  back from the dedented copy =haskell-ts--forward-sentence= runs prose
+  motion on, land past that line's own repeated marker; deleting the
+  raw buffer text between the sentence's start and that point used to
+  take the marker along with it, silently merging the two comment lines
+  into one.  =kill-region=/=delete-region= are now advised to remove
+  only the sentence's actual prose and leave any marker (and its
+  leading whitespace) it straddles in place, but only while a
+  =kill-sentence=-style command is in flight — dynamically scoped via
+  =haskell-ts--sentence-deletion-active= — so an ordinary =kill-line=,
+  manual =C-w=, or linewise =evil= delete (=dd=, ...) is unaffected and
+  still removes a straddled marker along with the rest of the line, as
+  before.
 - *Paragraph breaks inside a multi-line =--=/Haddock comment.*  The
   grammar folds a run of adjacent =--= lines with no intervening blank
   code line into a single =comment=/=haddock= node, so a =--=-only line

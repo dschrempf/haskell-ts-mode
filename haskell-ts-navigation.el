@@ -678,6 +678,109 @@ to insert that blank line before the prefix is added."
   (advice-add 'evil-insert-newline-above :around #'haskell-ts--evil-continue-comment)
   (advice-add 'evil-insert-newline-below :around #'haskell-ts--evil-continue-comment))
 
+(defvar haskell-ts--sentence-deletion-active nil
+  "Non-nil while the current command's own region removal should be marker-aware.
+Bound around `kill-sentence'/`backward-kill-sentence'
+\(`haskell-ts--kill-sentence') and, for `evil', around a charwise
+`evil-delete' call (`haskell-ts--evil-delete-marker-aware' -- this
+also covers `evil-change', which calls `evil-delete' internally).
+Left nil everywhere else, so ordinary `kill-region'/`delete-region'
+callers -- `kill-line', a manual `C-w', `dd' -- take their usual,
+unexamined path; `haskell-ts--marker-aware-delete' additionally
+requires the region to actually straddle a stripped continuation
+marker before it does anything, so even a same-line sentence kill
+inside this dynamic extent still falls through to the normal
+deletion.")
+
+(defun haskell-ts--marker-aware-delete (start end kill)
+  "Delete the region between START and END, preserving markers it spans.
+Return non-nil if handled; nil if [START,END) is not entirely within
+one `text' node (a `--'/Haddock comment) or does not straddle one of
+its continuation markers, in which case the caller must fall back to
+its own ordinary deletion.  Only the buffer ranges making up
+`haskell-ts--text-node-segments' -- prose, never a stripped
+continuation marker or its leading whitespace -- are actually removed,
+so the newline and marker on any line the deleted text continues onto
+survive, leaving that line a validly marked comment line rather than
+merged into the one above.  When KILL is non-nil, the removed pieces
+are joined with a newline (mirroring how `haskell-ts--virtual-text-and-table'
+represents them) and pushed onto the kill ring -- a plain `kill-new',
+not `kill-region''s consecutive-kill append behaviour, since this path
+only runs for the rare case of a kill straddling a marker."
+  (when (> start end)
+    (let ((tmp start)) (setq start end end tmp)))
+  (let* ((node (haskell-ts--text-node-at start))
+         (pieces nil))
+    (when (and node
+               (<= (treesit-node-start node) start)
+               (<= end (treesit-node-end node)))
+      (dolist (seg (haskell-ts--text-node-segments node))
+        (let ((s (max start (car seg))) (e (min end (cdr seg))))
+          (when (< s e) (push (cons s e) pieces))))
+      (setq pieces (nreverse pieces)))
+    (when (> (length pieces) 1)
+      (when kill
+        (kill-new (mapconcat (lambda (p) (buffer-substring-no-properties (car p) (cdr p)))
+                             pieces "\n")))
+      (dolist (p (reverse pieces))
+        (delete-region (car p) (cdr p)))
+      t)))
+
+(defun haskell-ts--kill-region-marker-aware (orig-fun beg end &rest args)
+  "Around advice for `kill-region', used by `kill-sentence' and friends.
+Delegates BEG and END to `haskell-ts--marker-aware-delete' while
+`haskell-ts--sentence-deletion-active'; otherwise, or when that
+function declines because the region does not straddle a marker,
+ORIG-FUN runs on BEG, END and ARGS unchanged."
+  (or (and haskell-ts--sentence-deletion-active
+           (haskell-ts--marker-aware-delete beg end t))
+      (apply orig-fun beg end args)))
+
+(advice-add 'kill-region :around #'haskell-ts--kill-region-marker-aware)
+
+(defun haskell-ts--kill-sentence (orig-fun &rest args)
+  "Around advice for `kill-sentence'/`backward-kill-sentence'.
+Both compute their endpoint via `forward-sentence' --
+`haskell-ts--forward-sentence' in this mode -- then call `kill-region'
+on point and that endpoint; binding `haskell-ts--sentence-deletion-active'
+around the call to ORIG-FUN with ARGS lets the `kill-region' advice
+above make that particular kill marker-aware."
+  (if (derived-mode-p 'haskell-ts-mode)
+      (let ((haskell-ts--sentence-deletion-active t))
+        (apply orig-fun args))
+    (apply orig-fun args)))
+
+(advice-add 'kill-sentence :around #'haskell-ts--kill-sentence)
+(advice-add 'backward-kill-sentence :around #'haskell-ts--kill-sentence)
+
+(defun haskell-ts--delete-region-marker-aware (orig-fun beg end)
+  "Around advice for `delete-region', which is used by `evil-delete'.
+See `haskell-ts--kill-region-marker-aware', its `kill-region'
+counterpart: delegates BEG and END the same way, falling back to
+ORIG-FUN on BEG and END otherwise."
+  (or (and haskell-ts--sentence-deletion-active
+           (haskell-ts--marker-aware-delete beg end nil))
+      (funcall orig-fun beg end)))
+
+(advice-add 'delete-region :around #'haskell-ts--delete-region-marker-aware)
+
+(defun haskell-ts--evil-delete-marker-aware (orig-fun beg end type &rest args)
+  "Around advice for `evil-delete', called with BEG, END, TYPE and ARGS.
+`d a s'/`d i s' (and `c a s'/`c i s', via `evil-change' calling
+`evil-delete' internally) reach here with a charwise TYPE
+\(`inclusive'/`exclusive'); binding `haskell-ts--sentence-deletion-active'
+around the call to ORIG-FUN lets the `delete-region' advice above make
+its own deletion marker-aware.  Left unbound for a linewise/block TYPE
+\(`dd', a visual block delete, ...), where deleting a straddled marker
+along with the rest of the line is exactly what is wanted."
+  (if (and (derived-mode-p 'haskell-ts-mode) (memq type '(inclusive exclusive)))
+      (let ((haskell-ts--sentence-deletion-active t))
+        (apply orig-fun beg end type args))
+    (apply orig-fun beg end type args)))
+
+(with-eval-after-load 'evil
+  (advice-add 'evil-delete :around #'haskell-ts--evil-delete-marker-aware))
+
 (provide 'haskell-ts-navigation)
 
 ;;; haskell-ts-navigation.el ends here
