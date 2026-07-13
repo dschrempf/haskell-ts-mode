@@ -58,7 +58,11 @@ fontifiers. Correct that imbalance first.
    (`forward-sentence 2` runs through the inline `-- note` into the next
    equation — confirmed to fail once the actual landing point was measured;
    the todo's suggested assertion point was wrong).
-4. [`04-mode-wiring-coverage.md`](04-mode-wiring-coverage.md) — prettify, haskell-mode parent, defun motion.
+4. [`04-mode-wiring-coverage.md`](../done/04-mode-wiring-coverage.md) — prettify, haskell-mode parent, defun motion.
+   **Done** (2026-07-13, moved to `.ai/done/`): 5 tests added — prettify
+   alist installed per-toggle, `haskell-mode` derivation on 30+,
+   `beginning-of-defun`/`end-of-defun` landing on a binding's bounds,
+   buffer-local `electric-pair-pairs`, and `comment-start`/`-skip`.
 5. [`05-test-quality.md`](05-test-quality.md) — mirror constant, dead λ branch, redundancy.
 6. [`06-property-tests.md`](06-property-tests.md) — virtual-text mapping.
 7. [`07-un-features-notes.md`](07-un-features-notes.md) — design observations, no action required.
