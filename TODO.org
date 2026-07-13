@@ -28,15 +28,6 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   reprompt is cheap — revisit if reprompting or picking a non-default
   component turns out to be a real annoyance.
 
-* TODO [#B] Review navigation module
-Review the navigation module in detail. Use [[file:.ai/review.md]]!
-
-* TODO [#B] Review REPL module
-Review the REPL module in detail. Use [[file:.ai/review.md]]!
-
-* TODO [#B] Review main module
-Review the main module in detail. Use [[file:.ai/review.md]]!
-
 * TODO [#C] User-facing documentation
 - Condense Changelog (especially fixes)
 - Improve Readme

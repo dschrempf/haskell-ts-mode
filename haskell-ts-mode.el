@@ -84,7 +84,12 @@ This will concat `haskell-ts-prettify-words-alist' to
   `((comment str pragma parens)
     (type definition function args module import operator)
     (match keyword constructors)
-    (otherwise signature type-sig)))
+    (otherwise signature type-sig))
+  "`treesit-font-lock-feature-list' for `haskell-ts-mode'.
+The four sublists correspond to the four values of
+`haskell-ts-font-lock-level' (1-4): the features in sublist N and all
+lower-numbered sublists are fontified at level N, so level 1 shows only
+the first sublist and level 4 shows all of them.")
 
 (defvar haskell-ts-prettify-symbols-alist
   '(("\\" . "λ")
@@ -134,7 +139,7 @@ when `haskell-ts-prettify-words' is non-nil.")
    :override t
    `(((match (guards guard: (boolean (variable) @font-lock-keyword-face)))
       (:match "otherwise" @font-lock-keyword-face)))
-   
+
    :language 'haskell
    :feature 'type
    :override t
@@ -330,7 +335,7 @@ to the same node types."
               ;; entity is defintion
               (cons ".+"
                     (lambda (node)
-                      (and (not (string-match haskell-ts--ignore-types (treesit-node-type node)))
+                      (and (not (string-match-p haskell-ts--ignore-types (treesit-node-type node)))
                            (string= "declarations" (treesit-node-type (treesit-node-parent node)))))))
   (setq-local prettify-symbols-alist
               (append (and haskell-ts-prettify-symbols

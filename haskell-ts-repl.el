@@ -245,21 +245,20 @@ which GHCi's multiline block has no way to escape."
     (comint-send-string hs str)
     (comint-send-string hs "\n:}\n")))
 
-(defun haskell-ts-compile-region-and-go (start end)
-  "Compile the text from START to END in the haskell proc.
-If region is not active, reload the whole file."
-  (interactive (if (region-active-p)
-                   (list (region-beginning) (region-end))
-                 (list (point-min) (point-max))))
+(defun haskell-ts-compile-region-and-go ()
+  "Send the active region to the REPL, or reload the file if none is active."
+  (interactive)
   (if (region-active-p)
-      (haskell-ts--send-region start end)
+      (haskell-ts--send-region (region-beginning) (region-end))
     (comint-send-string (haskell-ts-show-repl) ":r\n")))
 
 (defun haskell-ts-send-line ()
   "Send the current line to the REPL, starting a session if necessary.
 Unlike `haskell-ts-compile-region-and-go', the line is sent verbatim
 without GHCi's `:{'/`:}' multiline wrapping, since a single line
-needs none."
+needs none -- and so, unlike `haskell-ts--send-region', without the
+guard against a bare `:}' line (a single such line is simply an error
+at the GHCi prompt, not an inescapable multiline block)."
   (interactive)
   (let ((hs (haskell-ts-show-repl))
         (str (buffer-substring-no-properties
