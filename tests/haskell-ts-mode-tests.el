@@ -1486,6 +1486,54 @@ real `haskell-ts-mode' buffer; it needs the grammar to activate the mode."
                            "foo = 2\n"
                            "ab  = 3\n")))))
 
+;;; Mode-wiring: activation/derivation/motion facts nothing else exercises
+
+(ert-deftest haskell-ts-test-prettify-installed-when-enabled ()
+  "The mode appends only the enabled prettify alist, buffer-locally."
+  (let ((haskell-ts-prettify-symbols t)
+        (haskell-ts-prettify-words nil))
+    (haskell-ts-tests--with-temp-hs "x = 1\n"
+      (should (local-variable-p 'prettify-symbols-alist))
+      (should (assoc "->" prettify-symbols-alist))
+      (should-not (assoc "forall" prettify-symbols-alist))))
+  (let ((haskell-ts-prettify-symbols nil)
+        (haskell-ts-prettify-words t))
+    (haskell-ts-tests--with-temp-hs "x = 1\n"
+      (should-not (assoc "->" prettify-symbols-alist))
+      (should (assoc "forall" prettify-symbols-alist)))))
+
+(ert-deftest haskell-ts-test-derived-from-haskell-mode ()
+  "On Emacs 30+, `haskell-ts-mode' is recognised as a `haskell-mode' derivative.
+Matters for third-party config keyed on `haskell-mode'."
+  (skip-unless (fboundp 'provided-mode-derived-p))
+  (haskell-ts-tests--with-temp-hs "x = 1\n"
+    (should (provided-mode-derived-p 'haskell-ts-mode 'haskell-mode))))
+
+(ert-deftest haskell-ts-test-beginning-end-of-defun-motion ()
+  "`C-M-a'/`C-M-e' land on the enclosing binding's bounds, not just
+`treesit-defun-at-point''s idea of them."
+  (haskell-ts-tests--with-temp-hs
+      haskell-ts-tests--sample
+    (search-forward "\"Hello, \"")
+    (beginning-of-defun)
+    (should (looking-at-p "greeting name = "))
+    (end-of-defun)
+    (should (looking-at-p "\ndata Color"))))
+
+(ert-deftest haskell-ts-test-electric-pair-pairs-installed ()
+  "The mode sets its own buffer-local `electric-pair-pairs'."
+  (haskell-ts-tests--with-temp-hs "x = 1\n"
+    (should (local-variable-p 'electric-pair-pairs))
+    (should (equal electric-pair-pairs
+                   '((?` . ?`) (?\( . ?\)) (?{ . ?}) (?\" . ?\") (?\[ . ?\]))))))
+
+(ert-deftest haskell-ts-test-comment-syntax-variables ()
+  "`comment-start'/`comment-start-skip' match a `--' line comment."
+  (haskell-ts-tests--with-temp-hs "x = 1\n"
+    (should (equal comment-start "-- "))
+    (should (string-match-p comment-start-skip "-- foo"))
+    (should (string-match-p comment-start-skip "--- foo"))))
+
 ;;; --------------------------------------------------------------------
 ;;; Evil integration tests (skipped unless `evil' is available)
 ;;; --------------------------------------------------------------------
