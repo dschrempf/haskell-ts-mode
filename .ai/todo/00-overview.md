@@ -47,7 +47,10 @@ fontifiers. Correct that imbalance first.
    bound-vs-free variable fontification, constructor face, string face,
    function-name face, and the curried-return-type recursion; each was
    confirmed to fail under its corresponding mutation.
-2. [`02-repl-coverage.md`](02-repl-coverage.md) — `:{`/`:}` wrapper, `load-file`.
+2. [`02-repl-coverage.md`](../done/02-repl-coverage.md) — `:{`/`:}` wrapper, `load-file`.
+   **Done** (2026-07-13, moved to `.ai/done/`): asserted `:{`/`:}` in
+   `haskell-ts-test-send-defun` (confirmed to fail when either delimiter
+   is dropped) and added `haskell-ts-test-load-file-sends-load`.
 3. [`03-prose-motion-gaps.md`](03-prose-motion-gaps.md) — string last sentence, inline comment.
 4. [`04-mode-wiring-coverage.md`](04-mode-wiring-coverage.md) — prettify, haskell-mode parent, defun motion.
 5. [`05-test-quality.md`](05-test-quality.md) — mirror constant, dead λ branch, redundancy.

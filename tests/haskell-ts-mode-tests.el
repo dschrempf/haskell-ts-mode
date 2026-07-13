@@ -190,6 +190,20 @@ The process layer is stubbed so the test never starts GHCi."
         (call-interactively #'haskell-ts-send-line)))
     (should (equal sent "bar = 2\n"))))
 
+(ert-deftest haskell-ts-test-load-file-sends-load ()
+  "`haskell-ts-load-file' saves the buffer and sends `:load \"<abspath>\"'."
+  (let (sent (file (make-temp-file "haskell-ts-load-" nil ".hs")))
+    (unwind-protect
+        (cl-letf (((symbol-function 'haskell-ts-show-repl) (lambda () 'fake-proc))
+                  ((symbol-function 'comint-send-string)
+                   (lambda (_proc str) (setq sent (concat sent str)))))
+          (with-temp-buffer
+            (set-visited-file-name file t t)
+            (insert "main = pure ()\n")
+            (haskell-ts-load-file)))
+      (delete-file file))
+    (should (string-match-p (format ":load \"%s\"" (regexp-quote file)) sent))))
+
 ;;; REPL command assembly
 
 (ert-deftest haskell-ts-test-repl-command-ghci ()
@@ -763,7 +777,9 @@ sent, not the whole buffer or an unrelated definition."
         (call-interactively #'haskell-ts-send-defun))
       (should (string-match-p
                "greeting name = \"Hello, \" \\+\\+ name" sent))
-      (should-not (string-match-p "module Main" sent)))))
+      (should-not (string-match-p "module Main" sent))
+      (should (string-match-p ":{" sent))
+      (should (string-match-p ":}" sent)))))
 
 (ert-deftest haskell-ts-test-send-defun-no-defun ()
   "`haskell-ts-send-defun' signals `user-error' outside any definition.
