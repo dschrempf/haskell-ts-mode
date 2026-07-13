@@ -595,6 +595,70 @@ identical."
     (should (eq 'font-lock-doc-face
                 (get-text-property (match-beginning 0) 'face)))))
 
+(ert-deftest haskell-ts-test-font-lock-binds-only-bound-vars ()
+  "A bound parameter gets `variable-name-face'; a free variable does not."
+  (haskell-ts-tests--with-temp-hs "f x = x + y\n"
+    (treesit-font-lock-fontify-region (point-min) (point-max))
+    (goto-char (point-min))
+    (search-forward "x")                 ; the bound parameter in `f x'
+    (should (eq 'font-lock-variable-name-face
+                (get-text-property (match-beginning 0) 'face)))
+    (search-forward "y")                 ; free variable -- not a bound var
+    (should-not (eq 'font-lock-variable-name-face
+                    (get-text-property (match-beginning 0) 'face)))))
+
+(ert-deftest haskell-ts-test-font-lock-constructor-face ()
+  "A data constructor gets `haskell-ts-constructor-face'."
+  (haskell-ts-tests--with-temp-hs "data Color = Red | Green | Blue\n"
+    (treesit-font-lock-fontify-region (point-min) (point-max))
+    (goto-char (point-min))
+    (search-forward "Red")
+    (should (eq 'haskell-ts-constructor-face
+                (get-text-property (match-beginning 0) 'face)))))
+
+(ert-deftest haskell-ts-test-font-lock-string-face ()
+  "A string literal gets `font-lock-string-face'."
+  (haskell-ts-tests--with-temp-hs
+      "greeting :: String -> String
+greeting name = \"Hello, \" ++ name
+"
+    (treesit-font-lock-fontify-region (point-min) (point-max))
+    (goto-char (point-min))
+    (search-forward "\"Hello, \"")
+    (should (eq 'font-lock-string-face
+                (get-text-property (match-beginning 0) 'face)))))
+
+(ert-deftest haskell-ts-test-font-lock-function-name-face ()
+  "A function's defining occurrence gets `font-lock-function-name-face'."
+  (haskell-ts-tests--with-temp-hs
+      "greeting :: String -> String
+greeting name = \"Hello, \" ++ name
+"
+    (treesit-font-lock-fontify-region (point-min) (point-max))
+    (goto-char (point-min))
+    (search-forward "greeting")          ; the signature's name
+    (search-forward "greeting")          ; the defining occurrence
+    (should (eq 'font-lock-function-name-face
+                (get-text-property (match-beginning 0) 'face)))))
+
+(ert-deftest haskell-ts-test-font-lock-type-curried-return ()
+  "In a curried signature, only the final return type is a bound
+type variable (`font-lock-variable-name-face'); parameter types keep
+plain `font-lock-type-face'.  Guards `haskell-ts--fontify-type''s
+recursion into the curried return type."
+  (haskell-ts-tests--with-temp-hs "f :: Int -> Int -> Bool\n"
+    (treesit-font-lock-fontify-region (point-min) (point-max))
+    (goto-char (point-min))
+    (search-forward "Int")
+    (should (eq 'font-lock-type-face
+                (get-text-property (match-beginning 0) 'face)))
+    (search-forward "Int")
+    (should (eq 'font-lock-type-face
+                (get-text-property (match-beginning 0) 'face)))
+    (search-forward "Bool")
+    (should (eq 'font-lock-variable-name-face
+                (get-text-property (match-beginning 0) 'face)))))
+
 (ert-deftest haskell-ts-test-imenu-entries ()
   "Imenu finds the top-level functions, the signature, the data type
 and the type synonym from the sample."

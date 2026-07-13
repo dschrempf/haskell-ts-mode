@@ -42,7 +42,11 @@ fontifiers. Correct that imbalance first.
 
 ## Work items (priority order)
 
-1. [`01-font-lock-coverage.md`](01-font-lock-coverage.md) — biggest gap; ~5 tests.
+1. [`01-font-lock-coverage.md`](../done/01-font-lock-coverage.md) — biggest gap; ~5 tests.
+   **Done** (2026-07-13, moved to `.ai/done/`): 5 tests added covering
+   bound-vs-free variable fontification, constructor face, string face,
+   function-name face, and the curried-return-type recursion; each was
+   confirmed to fail under its corresponding mutation.
 2. [`02-repl-coverage.md`](02-repl-coverage.md) — `:{`/`:}` wrapper, `load-file`.
 3. [`03-prose-motion-gaps.md`](03-prose-motion-gaps.md) — string last sentence, inline comment.
 4. [`04-mode-wiring-coverage.md`](04-mode-wiring-coverage.md) — prettify, haskell-mode parent, defun motion.
