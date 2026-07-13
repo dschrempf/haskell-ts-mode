@@ -14,7 +14,16 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   [Cabal-7132] "Ambiguous target" message and prompts for one with
   =completing-read=, then starts =cabal repl= against the chosen
   component, instead of aborting with a =user-error= relaying the raw
-  message.
+  message.  The choice is remembered per buffer, so restarting the
+  REPL from the same buffer no longer reprompts.
+- *Prefix-argument cabal component override.*  =C-u C-c C-r=
+  (=C-u M-x haskell-ts-run=) prompts for the =cabal repl= component to
+  open even when the current file is unambiguous — e.g. to deliberately
+  open a different component's REPL — offering the project's components
+  (parsed from its =*.cabal= files) as completion candidates while still
+  accepting any target cabal understands.  The pick is remembered like
+  an ambiguous-file choice; entering an empty component drops the
+  override and returns to automatic resolution.
 - *Send the current line or definition to the REPL.*  =C-c C-e=
   (=haskell-ts-send-line=) sends the line at point verbatim, and
   =C-M-x= (=haskell-ts-send-defun=) sends the definition at point --

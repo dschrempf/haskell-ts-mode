@@ -16,18 +16,6 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   mapped-back real boundary — verify against the evil text-object tests
   first.
 
-* TODO [#C] Remember the chosen cabal component; prefix-arg component override  :repl:cabal:
-  The interactive component picker for ambiguous =cabal repl= targets (see
-  CHANGELOG.org "Unreleased") resolves =haskell-ts--choose-cabal-component=
-  fresh every time =haskell-ts-run= starts a session for an ambiguous file —
-  not cached, so restarting the REPL from the same buffer reprompts.  Also
-  open: a prefix-arg on =haskell-ts-run= to pick a component even for a file
-  that is *not* ambiguous (e.g. to deliberately open a different component's
-  REPL).  Neither is needed yet — a fresh =cabal repl= session is normally
-  started rarely enough (once per buffer, not per command) that the
-  reprompt is cheap — revisit if reprompting or picking a non-default
-  component turns out to be a real annoyance.
-
 * TODO [#C] User-facing documentation
 - Condense Changelog (especially fixes)
 - Improve Readme
