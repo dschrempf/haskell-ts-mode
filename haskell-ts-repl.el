@@ -149,6 +149,73 @@ Return the chosen component name, to be used as the `cabal repl'
 target in TARGET's place."
   (completing-read (format "Component for %s: " target) candidates nil t))
 
+(defun haskell-ts--cabal-component-targets (pkg text)
+  "Parse `cabal repl' component targets out of a `.cabal' file's TEXT.
+PKG is the package name (the `.cabal' file's base name), used as the
+main library's component name.  Return one qualified target string
+per top-level stanza header, in file order:
+  `lib:PKG'    for a bare `library' stanza (the main library),
+  `lib:NAME'   for a named sub-library `library NAME',
+  `exe:NAME'   for `executable NAME',
+  `test:NAME'  for `test-suite NAME',
+  `bench:NAME' for `benchmark NAME'.
+Only column-zero stanza headers match, so indented fields (and
+`common' stanzas, which are not valid repl targets) are ignored.  A
+pure helper over TEXT, so it needs no filesystem access."
+  (let ((case-fold-search t)
+        targets)
+    (dolist (line (split-string text "\n"))
+      (when (string-match
+             (rx line-start
+                 (group (or "library" "executable" "test-suite" "benchmark"))
+                 (? (+ (any " \t")) (group (+ (any alnum ?- ?_ ?.))))
+                 (* (any " \t")) line-end)
+             line)
+        (let* ((kind (downcase (match-string 1 line)))
+               (name (match-string 2 line))
+               (target (cond
+                        ((string= kind "library") (concat "lib:" (or name pkg)))
+                        ;; A named stanza with no name is malformed; skip it.
+                        ((null name) nil)
+                        ((string= kind "executable") (concat "exe:" name))
+                        ((string= kind "test-suite") (concat "test:" name))
+                        ((string= kind "benchmark") (concat "bench:" name)))))
+          (when target (push target targets)))))
+    (nreverse targets)))
+
+(defun haskell-ts--cabal-components (root)
+  "Return the `cabal repl' component targets declared under ROOT.
+Scans each `*.cabal' file directly in ROOT (not in subdirectories,
+so a `cabal.project' aggregating packages in sibling directories is
+not covered) with `haskell-ts--cabal-component-targets', in directory
+order.  Return nil when no `.cabal' file or component is found, so the
+caller can fall back to free-form input."
+  (let ((dir (expand-file-name root))
+        targets)
+    (dolist (file (ignore-errors (directory-files dir t "\\.cabal\\'")))
+      (setq targets
+            (append targets
+                    (haskell-ts--cabal-component-targets
+                     (file-name-base file)
+                     (with-temp-buffer
+                       (insert-file-contents file)
+                       (buffer-string))))))
+    targets))
+
+(defun haskell-ts--read-cabal-component (root file)
+  "Read a `cabal repl' component target, offering ROOT's components.
+FILE, when non-nil, only labels the prompt.  Candidates come from
+`haskell-ts--cabal-components'; `require-match' is nil so any target
+cabal accepts can be typed even when it is not listed (e.g. a
+component of a package under a `cabal.project').  Return the entered
+string, which may be empty to mean \"no override\"."
+  (completing-read
+   (if file
+       (format "cabal repl component (for %s): "
+               (file-relative-name file (expand-file-name root)))
+     "cabal repl component: ")
+   (haskell-ts--cabal-components root) nil nil))
+
 (defun haskell-ts--cabal-file-target (root target)
   "Resolve TARGET against the cabal project, or decide what to do.
 TARGET is a file name relative to ROOT, the cabal project root.
@@ -189,30 +256,60 @@ list could not be parsed, relaying it verbatim."
                target (string-trim output)))
              (t nil))))))))
 
-(defun haskell-ts--repl-command (root file)
+(defvar-local haskell-ts--cabal-component nil
+  "Cabal component remembered as this buffer's `cabal repl' target, or nil.
+Set when an ambiguous file was resolved by prompting, or by the
+prefix-argument override on `haskell-ts-run', so a later restart of
+the REPL from this buffer reuses the choice instead of reprompting.")
+
+(defun haskell-ts--cabal-target (root file choose)
+  "Return the `cabal repl' target string for FILE in project ROOT, or nil.
+When CHOOSE is non-nil, prompt for a component (the prefix-argument
+override on `haskell-ts-run') and remember it in
+`haskell-ts--cabal-component'; an empty entry clears the override and
+falls through to automatic resolution.  Otherwise reuse a remembered
+component if one is set, else resolve FILE with
+`haskell-ts--cabal-file-target', remembering a component it had to
+prompt the user for (the ambiguous case) so a later restart does not
+reprompt."
+  (when choose
+    (let ((comp (haskell-ts--read-cabal-component root file)))
+      (setq haskell-ts--cabal-component
+            (unless (string-empty-p comp) comp))))
+  (cond
+   (haskell-ts--cabal-component)
+   ((null file) nil)
+   (t
+    (let* ((rel (file-relative-name file (expand-file-name root)))
+           (target (haskell-ts--cabal-file-target root rel)))
+      ;; A resolved target that is not FILE itself is a component name
+      ;; the user picked for an ambiguous file; remember it.
+      (when (and target (not (equal target rel)))
+        (setq haskell-ts--cabal-component target))
+      target))))
+
+(defun haskell-ts--repl-command (root file &optional choose)
   "Return a (program . arguments) cons for starting the REPL.
 ROOT is the cabal project root as returned by
 `haskell-ts--cabal-project-root', or nil.  FILE is the file visited
 by the buffer from which the REPL is started, or nil.  Honour
 `haskell-ts-use-cabal'.
 
-When cabal is used and both ROOT and FILE are non-nil, FILE is
-appended (relative to ROOT) as a `cabal repl' target so that cabal
-selects the component that owns it.  In a multi-component project
-this avoids the Cabal-7076 error that `cabal repl' raises when no
-target is given.  `haskell-ts--cabal-file-target' decides per file:
-a FILE in one component is used as the target, a FILE in no
-component is omitted so a plain `cabal repl' starts, and a FILE
-shared by several components prompts (via
-`haskell-ts--choose-cabal-component') for the one to use as the
-target instead."
+When cabal is used and ROOT is non-nil, a `cabal repl' target is
+appended so cabal opens the owning component (avoiding the Cabal-7076
+error `cabal repl' raises with no target in a multi-component
+project).  `haskell-ts--cabal-target' resolves it: a remembered
+component (from a previous prompt, see `haskell-ts--cabal-component')
+takes precedence; otherwise a FILE in one component is used as the
+target, a FILE in no component is omitted so a plain `cabal repl'
+starts, and a FILE shared by several components prompts (via
+`haskell-ts--choose-cabal-component') for the one to use.  A non-nil
+CHOOSE (the prefix argument to `haskell-ts-run') forces an interactive
+component pick even for an unambiguous FILE."
   (if (and haskell-ts-use-cabal
            (or (eq haskell-ts-use-cabal t) root)
            (executable-find haskell-ts-cabal))
-      (let ((target (and root file
-                         (haskell-ts--cabal-file-target
-                          root (file-relative-name
-                                file (expand-file-name root))))))
+      (let ((target (and root (haskell-ts--cabal-target root file choose))))
         (append (cons haskell-ts-cabal haskell-ts-cabal-switches)
                 (when target (list target))))
     (cons haskell-ts-ghci haskell-ts-ghci-switches)))
@@ -319,7 +416,7 @@ and made read-only.  Input history persists across sessions in
     (add-hook 'kill-buffer-hook #'comint-write-input-ring nil t)))
 
 ;;;###autoload
-(defun haskell-ts-run ()
+(defun haskell-ts-run (&optional choose-component)
   "Run an inferior Haskell process.
 The process is started in the current buffer's cabal project root
 when one is found (so relative imports and the module search path
@@ -336,6 +433,15 @@ different component into the same session (e.g. with
 and dependencies are not in scope.  Restart the REPL from a buffer
 in the desired component to switch.
 
+With a prefix argument (CHOOSE-COMPONENT), prompt for the cabal
+component to open even when the current file is not shared by several
+components -- e.g. to deliberately open a different component's REPL.
+The choice is remembered for later restarts from this buffer; so is a
+component picked when resolving an ambiguous file, so neither
+reprompts (see `haskell-ts--cabal-component').  Enter an empty
+component to drop a remembered choice and return to automatic
+resolution.
+
 The REPL inherits the calling buffer's `process-environment' and
 the variable `exec-path' via `inheritenv', so a toolchain configured
 buffer-locally by envrc/direnv is honoured both when probing the
@@ -344,14 +450,14 @@ buffer-locally by envrc/direnv is honoured both when probing the
 The inferior buffer uses `haskell-ts-inferior-mode', which gives it
 a recognised GHCi prompt, a read-only prompt, persistent input
 history and the usual `comint-mode' bindings."
-  (interactive)
+  (interactive "P")
   (inheritenv
    (let* ((buffer (get-buffer-create haskell-ts-ghci-buffer-name))
           ;; Capture the file before `make-comint-in-buffer' below makes
           ;; the inferior buffer current.
           (file buffer-file-name)
           (root (haskell-ts--cabal-project-root))
-          (command (haskell-ts--repl-command root file))
+          (command (haskell-ts--repl-command root file choose-component))
           (program (car command))
           (switches (cdr command)))
      (unless (comint-check-proc buffer)

@@ -23,7 +23,8 @@
 ;; * Grammar-independent unit tests exercise the pure logic that does
 ;;   not need a running tree-sitter parser (the GHCi prompt regexp, the
 ;;   `:}' guard, REPL command assembly, cabal project-root detection,
-;;   prettify tables, customisation).  These run everywhere.
+;;   cabal component enumeration and the remembered-component/prefix
+;;   override, prettify tables, customisation).  These run everywhere.
 ;;
 ;; * Grammar-dependent integration tests open a real Haskell buffer and
 ;;   check font lock, imenu and navigation.  They are guarded with
@@ -391,6 +392,166 @@ Ambiguous target 'app/Main.hs'. It could be:
                1)))
     (should-error (haskell-ts--cabal-file-target "/proj/" "app/Main.hs")
                   :type 'user-error)))
+
+;;; Cabal component enumeration (for the prefix-argument override)
+
+(defconst haskell-ts-test--cabal-file
+  "cabal-version:      3.0
+name:               mypkg
+version:            0.1.0.0
+
+common warnings
+    ghc-options: -Wall
+
+library
+    import:           warnings
+    exposed-modules:  MyLib
+    build-depends:    base
+    hs-source-dirs:   src
+
+library internal
+    exposed-modules:  Internal
+    hs-source-dirs:   internal
+
+executable myapp
+    main-is:          Main.hs
+    hs-source-dirs:   app
+
+test-suite mypkg-test
+    type:             exitcode-stdio-1.0
+    main-is:          Spec.hs
+
+benchmark bench1
+    type:             exitcode-stdio-1.0
+    main-is:          Bench.hs
+"
+  "A synthetic multi-component `.cabal' file for target parsing.")
+
+(ert-deftest haskell-ts-test-cabal-component-targets ()
+  "Every stanza kind parses to a qualified target, in file order.
+The main library takes the package name; `common' stanzas and
+indented fields are ignored."
+  (should (equal (haskell-ts--cabal-component-targets
+                  "mypkg" haskell-ts-test--cabal-file)
+                 '("lib:mypkg" "lib:internal" "exe:myapp"
+                   "test:mypkg-test" "bench:bench1"))))
+
+(ert-deftest haskell-ts-test-cabal-component-targets-ignores-indented ()
+  "Indented lines that look like stanza headers (e.g. fields) are ignored."
+  (should-not (haskell-ts--cabal-component-targets
+               "p" "  executable indented\n    library nope\n")))
+
+(ert-deftest haskell-ts-test-cabal-component-targets-skips-nameless ()
+  "A named stanza kind without a name is skipped, not turned into a bare `exe:'."
+  (should (equal (haskell-ts--cabal-component-targets "p" "executable\nlibrary\n")
+                 '("lib:p"))))
+
+(ert-deftest haskell-ts-test-cabal-components-reads-files ()
+  "Components are gathered from the `.cabal' files directly in ROOT."
+  (let ((root (make-temp-file "haskell-ts-test-comp" t)))
+    (unwind-protect
+        (progn
+          (write-region "executable myapp\n  main-is: Main.hs\n" nil
+                        (expand-file-name "mypkg.cabal" root))
+          (should (equal (haskell-ts--cabal-components root)
+                         '("exe:myapp"))))
+      (delete-directory root t))))
+
+(ert-deftest haskell-ts-test-cabal-components-none ()
+  "A directory with no `.cabal' file yields no components."
+  (let ((root (make-temp-file "haskell-ts-test-nocomp" t)))
+    (unwind-protect
+        (should-not (haskell-ts--cabal-components root))
+      (delete-directory root t))))
+
+(ert-deftest haskell-ts-test-read-cabal-component-offers-candidates ()
+  "The override reader offers the project's components without requiring a match."
+  (let (collection require-match)
+    (cl-letf (((symbol-function 'haskell-ts--cabal-components)
+               (lambda (_root) '("lib:p" "exe:myapp")))
+              ((symbol-function 'completing-read)
+               (lambda (_p c &optional _pred rm &rest _)
+                 (setq collection c require-match rm)
+                 "exe:myapp")))
+      (should (equal (haskell-ts--read-cabal-component "/proj/" "/proj/app/Main.hs")
+                     "exe:myapp")))
+    (should (equal collection '("lib:p" "exe:myapp")))
+    (should-not require-match)))
+
+;;; Remembered component and prefix-argument override
+
+(ert-deftest haskell-ts-test-cabal-target-caches-ambiguous-choice ()
+  "A chosen component is remembered, so a restart does not reprobe cabal."
+  (with-temp-buffer
+    (let ((probes 0))
+      (cl-letf (((symbol-function 'haskell-ts--cabal-file-target)
+                 (lambda (_root _rel) (cl-incf probes) "exe2")))
+        ;; First resolution probes cabal and remembers the chosen component.
+        (should (equal (haskell-ts--cabal-target "/proj/" "/proj/app/Main.hs" nil)
+                       "exe2"))
+        (should (equal haskell-ts--cabal-component "exe2"))
+        (should (= probes 1))
+        ;; A restart reuses the remembered component without probing again.
+        (should (equal (haskell-ts--cabal-target "/proj/" "/proj/app/Main.hs" nil)
+                       "exe2"))
+        (should (= probes 1))))))
+
+(ert-deftest haskell-ts-test-cabal-target-single-component-not-cached ()
+  "An unambiguous file (target = the file itself) is not remembered."
+  (with-temp-buffer
+    (cl-letf (((symbol-function 'haskell-ts--cabal-file-target)
+               (lambda (_root rel) rel)))
+      (should (equal (haskell-ts--cabal-target "/proj/" "/proj/app/Main.hs" nil)
+                     "app/Main.hs"))
+      (should-not haskell-ts--cabal-component))))
+
+(ert-deftest haskell-ts-test-cabal-target-prefix-override ()
+  "A prefix override prompts, uses the chosen component, and remembers it.
+It also short-circuits the dry-run probe entirely."
+  (with-temp-buffer
+    (let ((probes 0) prompted)
+      (cl-letf (((symbol-function 'haskell-ts--read-cabal-component)
+                 (lambda (_root _file) (setq prompted t) "test:spec"))
+                ((symbol-function 'haskell-ts--cabal-file-target)
+                 (lambda (&rest _) (cl-incf probes) "app/Main.hs")))
+        (should (equal (haskell-ts--cabal-target "/proj/" "/proj/app/Main.hs" t)
+                       "test:spec"))
+        (should prompted)
+        (should (equal haskell-ts--cabal-component "test:spec"))
+        (should (= probes 0))
+        ;; It persists to the next, non-prefix restart.
+        (should (equal (haskell-ts--cabal-target "/proj/" "/proj/app/Main.hs" nil)
+                       "test:spec"))
+        (should (= probes 0))))))
+
+(ert-deftest haskell-ts-test-cabal-target-prefix-empty-clears ()
+  "An empty override entry drops any remembered choice and re-resolves."
+  (with-temp-buffer
+    (setq haskell-ts--cabal-component "exe1")
+    (cl-letf (((symbol-function 'haskell-ts--read-cabal-component)
+               (lambda (&rest _) ""))
+              ((symbol-function 'haskell-ts--cabal-file-target)
+               (lambda (_root rel) rel)))
+      (should (equal (haskell-ts--cabal-target "/proj/" "/proj/app/Main.hs" t)
+                     "app/Main.hs"))
+      (should-not haskell-ts--cabal-component))))
+
+(ert-deftest haskell-ts-test-repl-command-prefix-picks-component ()
+  "A prefix argument makes cabal open the chosen component as its target."
+  (with-temp-buffer
+    (cl-letf (((symbol-function 'executable-find)
+               (lambda (&rest _) "/usr/bin/cabal"))
+              ((symbol-function 'haskell-ts--read-cabal-component)
+               (lambda (&rest _) "bench:bench1")))
+      (let ((haskell-ts-use-cabal 'auto)
+            (haskell-ts-cabal "cabal")
+            (haskell-ts-cabal-switches '("repl")))
+        (should (equal (haskell-ts--repl-command "/proj/" "/proj/app/Main.hs" t)
+                       '("cabal" "repl" "bench:bench1")))))))
+
+(ert-deftest haskell-ts-test-run-accepts-prefix-arg ()
+  "`haskell-ts-run' reads a prefix argument for the component override."
+  (should (equal (interactive-form 'haskell-ts-run) '(interactive "P"))))
 
 ;;; Prettify tables and customisation
 
