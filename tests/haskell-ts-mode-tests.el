@@ -143,21 +143,18 @@ tree-sitter grammar is available."
 
 ;;; The `:}' guard used by `haskell-ts-compile-region-and-go'
 
-(defconst haskell-ts-tests--close-block-re "^[ \t]*:}[ \t]*$"
-  "Mirror of the guard regexp in `haskell-ts-compile-region-and-go'.")
-
 (ert-deftest haskell-ts-test-close-block-guard ()
   "A line that is exactly `:}' (modulo whitespace) is detected."
   (dolist (region '(":}"
                     "  :}"
                     ":}  "
                     "f x = x\n:}\ng y = y"))
-    (should (string-match-p haskell-ts-tests--close-block-re region)))
+    (should (string-match-p haskell-ts--close-block-re region)))
   (dolist (region '("foo :} bar"
                     "x = 1"
                     ":}}"
                     "a :}"))
-    (should-not (string-match-p haskell-ts-tests--close-block-re region))))
+    (should-not (string-match-p haskell-ts--close-block-re region))))
 
 (ert-deftest haskell-ts-test-compile-region-rejects-close-block ()
   "Sending a region containing a bare `:}' line signals a `user-error'.
@@ -525,6 +522,50 @@ marker) maps forward to the next segment, flagged as on-a-marker."
       (let ((loc (haskell-ts--real-to-virtual 6 table)))
         (should (cdr loc))
         (should (= 9 (haskell-ts--virtual-to-real (car loc) table)))))))
+
+(defun haskell-ts-tests--gen-segment-lists ()
+  "Return a handful of non-touching ascending segment lists.
+Fixed rather than randomly generated, to stay deterministic; sized 2,
+3 and 5 segments to exercise the >2-segment case the single hand-built
+fixture above never reaches."
+  '(((2 . 5) (10 . 14))
+    ((1 . 3) (7 . 10) (15 . 19))
+    ((2 . 4) (8 . 11) (15 . 17) (22 . 26) (33 . 38))))
+
+(ert-deftest haskell-ts-test-virtual-mapping-roundtrip-property ()
+  "Multi-segment lists round-trip, stay ordered, and clamp gaps forward.
+For every real point inside a segment, `haskell-ts--real-to-virtual'
+followed by `haskell-ts--virtual-to-real' returns the original point
+unflagged, and virtual points strictly increase with their real
+counterparts.  For every real point strictly between two segments (a
+stripped marker), `haskell-ts--real-to-virtual' flags it and clamps it
+to the next segment's virtual start, which maps back to that
+segment's real start."
+  (dolist (segments (haskell-ts-tests--gen-segment-lists))
+    (with-temp-buffer
+      (insert (make-string 200 ?x))
+      (let* ((table (cdr (haskell-ts--virtual-text-and-table segments)))
+             (pairs (cl-mapcar #'list segments table))
+             prev-vpoint)
+        (dolist (seg segments)
+          (cl-loop for p from (car seg) to (cdr seg) do
+                   (let ((loc (haskell-ts--real-to-virtual p table)))
+                     (should-not (cdr loc))
+                     (should (= p (haskell-ts--virtual-to-real (car loc) table)))
+                     (when prev-vpoint
+                       (should (> (car loc) prev-vpoint)))
+                     (setq prev-vpoint (car loc)))))
+        (cl-loop for (pair next-pair) on pairs
+                 while next-pair do
+                 (let* ((seg (car pair))
+                        (next-seg (car next-pair))
+                        (next-vstart (nth 2 (cadr next-pair))))
+                   (cl-loop for p from (1+ (cdr seg)) to (1- (car next-seg)) do
+                            (let ((loc (haskell-ts--real-to-virtual p table)))
+                              (should (cdr loc))
+                              (should (= next-vstart (car loc)))
+                              (should (= (car next-seg)
+                                         (haskell-ts--virtual-to-real (car loc) table)))))))))))
 
 ;;; --------------------------------------------------------------------
 ;;; Grammar-dependent integration tests (skipped without the grammar)

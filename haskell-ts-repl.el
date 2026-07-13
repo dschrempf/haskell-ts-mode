@@ -89,7 +89,12 @@ Possible values:
 (defcustom haskell-ts-inferior-prompt-regexp
   (rx line-start
       (or "ghci"                        ; modern GHCi default prompt
-          "λ"                           ; a popular custom prompt
+          ;; A popular custom prompt.  Redundant whenever
+          ;; `case-fold-search' is non-nil (the default), since it then
+          ;; already folds into the module-qualified `upper' branch
+          ;; below; kept so the prompt still matches with case folding
+          ;; off.
+          "λ"
           ;; Module-qualified prompts such as `*Main> ' or
           ;; `Prelude Data.List> ', as produced by older GHCi and by
           ;; `cabal repl' loading named modules.
@@ -220,6 +225,11 @@ Focus stays in the current buffer.  Return the process."
   (display-buffer haskell-ts-ghci-buffer-name)
   (haskell-ts-haskell-session))
 
+(defconst haskell-ts--close-block-re "^[ \t]*:}[ \t]*$"
+  "Regexp matching a line that is (modulo whitespace) a bare `:}'.
+Such a line cannot appear inside GHCi's `:{'/`:}' multiline block,
+since GHCi has no way to escape it; see `haskell-ts--send-region'.")
+
 (defun haskell-ts--send-region (start end)
   "Send the buffer text from START to END to the REPL.
 Starts a session first with `haskell-ts-show-repl' if none is
@@ -229,7 +239,7 @@ Signal a `user-error' if it contains a line that is exactly `:}',
 which GHCi's multiline block has no way to escape."
   (let ((hs (haskell-ts-show-repl))
         (str (buffer-substring-no-properties start end)))
-    (when (string-match-p "^[ \t]*:}[ \t]*$" str)
+    (when (string-match-p haskell-ts--close-block-re str)
       (user-error "Region contains a line that is just `:}'; cannot send to GHCi"))
     (comint-send-string hs ":{\n")
     (comint-send-string hs str)
