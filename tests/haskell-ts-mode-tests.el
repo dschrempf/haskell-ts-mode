@@ -1189,7 +1189,9 @@ a sentence never includes them."
     (search-forward "First")
     (should (equal "First." (haskell-ts-tests--sentence-at-point)))
     (search-forward "Second")
-    (should (equal "Second." (haskell-ts-tests--sentence-at-point)))))
+    (should (equal "Second." (haskell-ts-tests--sentence-at-point)))
+    (search-forward "Third")
+    (should (equal "Third." (haskell-ts-tests--sentence-at-point)))))
 
 (ert-deftest haskell-ts-test-sentence-motion-in-block-comment ()
   "Prose motion inside a `{- -}' block comment works.
@@ -1292,6 +1294,21 @@ the whole equation is one sentence."
     (goto-char (point-min))
     (forward-sentence)
     (should (= (point) (line-end-position 1)))))
+
+(ert-deftest haskell-ts-test-sentence-code-ignores-inline-comment ()
+  "An inline trailing `-- note' is part of its code line, not a paragraph
+edge, so sentence motion runs through it into the next equation instead
+of stopping at the comment.
+Regression test: `haskell-ts--adjacent-comment-edge' restricts its
+own-line check to `(bolp)' so an inline comment does not count as a
+glued comment boundary; dropping that guard clamps motion to just
+before the `--' instead of the next equation's end."
+  (haskell-ts-tests--with-temp-hs
+      "f = x  -- note\ng = y\n"
+    (goto-char (point-min))
+    (let ((second-line-end (save-excursion (forward-line 1) (line-end-position))))
+      (forward-sentence 2)
+      (should (= (point) second-line-end)))))
 
 ;;; `kill-sentence'/`backward-kill-sentence' marker awareness
 
