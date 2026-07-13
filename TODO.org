@@ -15,3 +15,29 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   unspent, delegate the remainder to =treesit-forward-sentence= from the
   mapped-back real boundary — verify against the evil text-object tests
   first.
+
+* TODO [#B] Paragraph detection fails sometimes
+
+#+begin_src haskell
+-- | Block
+--
+-- > newtype VarCounter = VarCounter (Block (CInt -> IO CInt))
+newtype Blo_ck t = Block (Ptr ())
+#+end_src
+
+Cursor at _, `v a p` also marks the last comment line. It shouldn't the
+paragraph breaks at the comment/code boundary. The behavior is correct when the
+cursor is in the last comment line.
+
+* TODO [#B] Move forward sentence jumps to end of file
+#+begin_src haskell
+{-------------------------------------------------------------------------------
+  Section
+-------------------------------------------------------------------------------}
+_
+-- | Haddock
+data Data
+#+end_src
+
+Cursor at _, pressing `(` moves cursor down to the `data Data` line; BAD. The
+cursor should move up into the comment block `Section`.
