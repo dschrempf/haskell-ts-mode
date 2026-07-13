@@ -42,30 +42,42 @@ fontifiers. Correct that imbalance first.
 
 ## Work items (priority order)
 
-1. [`01-font-lock-coverage.md`](../done/01-font-lock-coverage.md) — biggest gap; ~5 tests.
+1. [`01-font-lock-coverage.md`](./01-font-lock-coverage.md) — biggest gap; ~5 tests.
    **Done** (2026-07-13, moved to `.ai/done/`): 5 tests added covering
    bound-vs-free variable fontification, constructor face, string face,
    function-name face, and the curried-return-type recursion; each was
    confirmed to fail under its corresponding mutation.
-2. [`02-repl-coverage.md`](../done/02-repl-coverage.md) — `:{`/`:}` wrapper, `load-file`.
+2. [`02-repl-coverage.md`](./02-repl-coverage.md) — `:{`/`:}` wrapper, `load-file`.
    **Done** (2026-07-13, moved to `.ai/done/`): asserted `:{`/`:}` in
    `haskell-ts-test-send-defun` (confirmed to fail when either delimiter
    is dropped) and added `haskell-ts-test-load-file-sends-load`.
-3. [`03-prose-motion-gaps.md`](../done/03-prose-motion-gaps.md) — string last sentence, inline comment.
+3. [`03-prose-motion-gaps.md`](./03-prose-motion-gaps.md) — string last sentence, inline comment.
    **Done** (2026-07-13, moved to `.ai/done/`): asserted the string's last
    sentence (`"Third."`) in `haskell-ts-test-sentence-motion-in-string`, and
    added `haskell-ts-test-sentence-code-ignores-inline-comment`
    (`forward-sentence 2` runs through the inline `-- note` into the next
    equation — confirmed to fail once the actual landing point was measured;
    the todo's suggested assertion point was wrong).
-4. [`04-mode-wiring-coverage.md`](../done/04-mode-wiring-coverage.md) — prettify, haskell-mode parent, defun motion.
+4. [`04-mode-wiring-coverage.md`](./04-mode-wiring-coverage.md) — prettify, haskell-mode parent, defun motion.
    **Done** (2026-07-13, moved to `.ai/done/`): 5 tests added — prettify
    alist installed per-toggle, `haskell-mode` derivation on 30+,
    `beginning-of-defun`/`end-of-defun` landing on a binding's bounds,
    buffer-local `electric-pair-pairs`, and `comment-start`/`-skip`.
-5. [`05-test-quality.md`](05-test-quality.md) — mirror constant, dead λ branch, redundancy.
-6. [`06-property-tests.md`](06-property-tests.md) — virtual-text mapping.
-7. [`07-un-features-notes.md`](07-un-features-notes.md) — design observations, no action required.
+5. [`05-test-quality.md`](./05-test-quality.md) — mirror constant, dead λ branch, redundancy.
+   **Done** (2026-07-13, moved to `.ai/done/`): (A) the guard regexp is now a
+   single `haskell-ts--close-block-re' defconst in `haskell-ts-repl.el', used
+   by both `haskell-ts--send-region' and the test, so the mirrored copy can no
+   longer drift; (B) a source comment on the `"λ"` prompt alternative notes
+   it's redundant under the default `case-fold-search' and kept only for that
+   off; (C) the sexp-backward cluster's redundancy was reviewed and kept as-is
+   per the item's own recommendation (defensible regression anchors).
+6. [`06-property-tests.md`](./06-property-tests.md) — virtual-text mapping.
+   **Done** (2026-07-13, moved to `.ai/done/`):
+   `haskell-ts-test-virtual-mapping-roundtrip-property` exercises 2/3/5-segment
+   lists, asserting round-trip identity and virtual-point monotonicity for
+   every in-segment point and the on-marker flag/forward-clamp for every gap
+   point between segments.
+7. [`07-un-features-notes.md`](./07-un-features-notes.md) — design observations, no action required.
 
 ## What's already excellent (don't regress)
 
