@@ -15,7 +15,3 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   unspent, delegate the remainder to =treesit-forward-sentence= from the
   mapped-back real boundary — verify against the evil text-object tests
   first.
-
-* TODO [#C] User-facing documentation
-- Condense Changelog (especially fixes)
-- Improve Readme

@@ -8,7 +8,7 @@
 ;; Maintainer: Dominik Schrempf <dominik.schrempf@gmail.com>
 ;; URL: https://codeberg.org/pranshu/haskell-ts-mode
 ;; Package-Requires: ((emacs "30.1") (inheritenv "0.1"))
-;; Version: 1.4
+;; Version: 1.5
 ;; Keywords: languages, Haskell
 
 ;; This program is free software; you can redistribute it and/or modify

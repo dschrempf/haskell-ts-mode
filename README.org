@@ -2,15 +2,15 @@
 *NOTICE:* This is a fork and an experiment based on [[https://codeberg.org/pranshu/haskell-ts-mode][Pranshu's =haskell-ts-mode=]]
 and under active development. The API may change without notice.
 
-* Haskell mode based on treesitter
+* Haskell mode based on Tree-sitter
 
 A [[https://www.haskell.org/][Haskell]] mode that uses [[https://tree-sitter.github.io/tree-sitter/][Tree-sitter]].
 
 #+caption: Image
 [[./ss.png]]
 
-The above screenshot is indented and coloured using =haskell-ts-mode=,
-with =prettify-symbols-mode= enabled.
+The above screenshot is colored using =haskell-ts-mode=, with
+=prettify-symbols-mode= enabled.
 
 * Usage
 
@@ -26,6 +26,8 @@ Overview of features:
 
 - Syntax highlighting
 - Structural navigation
+- Comment-aware editing: prose motion, paragraph text objects, and =RET=
+  continuation inside =--=/Haddock comments
 - Imenu support
 - REPL (=C-c C-r= in the mode to run)
 - Prettify Symbols mode support
@@ -43,7 +45,10 @@ project it falls back to plain =ghci=. This is controlled by
 =ghci=, or =t= to always use =cabal=).
 
 The process is started in the project root when one is found, so relative
-=import='s and the module search path resolve from there.
+=import='s and the module search path resolve from there.  When the current
+file belongs to several cabal components, =haskell-ts-run= prompts for one and
+remembers the choice per buffer; a prefix argument (=C-u C-c C-r=) forces the
+pick even for an unambiguous file.
 
 - =C-c C-c= sends the active region to the REPL (or =:r= reloads when no
   region is active).
@@ -77,10 +82,10 @@ The more interesting features are:
   - Highlighting the === operator in guarded matches correctly, this
     would be stupidly hard in regexp based syntax.
 - More performant, this is especially seen in longer files.
-- Much, much less code, =haskell-mode= has accumulated 30,000 lines of
-  code and features to do with all things Haskell related.
-  =haskell-ts-mode= just keeps the scope to basic major mode stuff, and
-  leaves other stuff to external packages.
+- Much, much less code, =haskell-mode= has accumulated 30,000 lines of code and
+  features to do with all things Haskell related. =haskell-ts-mode= just keeps
+  the scope to basic major mode functionality, and leaves other tasks to
+  external packages.
 
 * Motivation
 :PROPERTIES:
@@ -90,13 +95,12 @@ The more interesting features are:
 old. A lot of features implemented by =haskell-mode= are now also
 available in standard Emacs, and have thus become obsolete.
 
-In 2018, a mode called
-[[https://elpa.nongnu.org/nongnu/haskell-tng-mode.html][=haskell-tng-mode=]]
-was made to solve some of these problems. However, because of Haskell's
-syntax, it too became very complex and required a web of dependencies.
+In 2018, a mode called [[https://elpa.nongnu.org/nongnu/haskell-tng-mode.html][=haskell-tng-mode=]] was made to solve some of these
+problems. However, because of Haskell's syntax, it too became very complex and
+required a web of dependencies.
 
-Both these modes ended up practically parsing Haskell's syntax to
-implement indentation, so I thought why not use Tree-sitter?
+Both these modes ended up practically parsing Haskell's syntax to implement
+indentation, so I thought why not use Tree-sitter?
 
 * Structural navigation
 :PROPERTIES:
@@ -127,51 +131,45 @@ Add this into your init.el:
   (haskell-ts-ghci "ghci"))
 #+end_src
 
-You also need the tree-sitter Haskell grammar; see [[#grammar][Installing the
-grammar]] below.
+You also need the Tree-sitter Haskell grammar; see [[#grammar][Installing the grammar]] below.
 
 ** Installing the grammar
 :PROPERTIES:
 :CUSTOM_ID: grammar
 :END:
 
-=haskell-ts-mode= targets the tree-sitter Haskell grammar maintained by
-[[https://github.com/tek/tree-sitter-haskell][@tek]], not the official
-[[https://github.com/tree-sitter/tree-sitter-haskell][tree-sitter/tree-sitter-haskell]]
-grammar.  @tek's grammar is the more actively maintained one and fixes
-node-type names that the official grammar gets wrong (for example
-=type_synomym= → =type_synonym=).  The font-lock queries rely on the
-corrected names, so the official grammar does *not* work with this mode:
-it fails silently — usually as missing or wrong highlighting rather than
-an error.
+=haskell-ts-mode= targets a custom Tree-sitter Haskell grammar. The Haskell
+Tree-sitter grammar landscape is fragmented. There are three major versions:
+- The official [[https://github.com/tree-sitter/tree-sitter-haskell][tree-sitter/tree-sitter-haskell]] grammar (unmaintained);
+- A community fork (somewhat maintained);
+- A [[https://github.com/tek/tree-sitter-haskell][fork by @tek]] (well-maintained);
+- [[https://github.com/dschrempf/tree-sitter-haskell][My fork of @tek's grammar]] (well-maintained; contains some features not in the
+  fork by @tek).
 
-The grammar has to be installed manually.  =M-x
-treesit-install-language-grammar= cannot do it, for two reasons: it
-defaults to the official repository, and @tek's repository ships no
-generated parser (=src/parser.c=) and no release branch, so the parser
-must first be produced with =tree-sitter generate= before it is compiled.
-Build the shared library yourself (clone the repository, run
-=tree-sitter generate=, compile =src/parser.c= into a
-=libtree-sitter-haskell= shared object and put it on
-=treesit-extra-load-path=), or let a package manager build it — the
-=flake.nix= in this repository builds the correct grammar for development
-and for the test suite.
+@tek's grammar is actively maintained and fixes node-type names that the
+official grammar gets wrong (for example =type_synomym= → =type_synonym=). The
+font-lock queries in this repository rely on the corrected names, so the
+official grammar does *not* work with this mode.
 
-See [[https://codeberg.org/pranshu/haskell-ts-mode/pulls/62][haskell-ts-mode PR #62]]
-for the move to @tek's grammar and the plan to detect a mismatched
-grammar, and [[https://github.com/tek/tree-sitter-haskell/issues/31][tek/tree-sitter-haskell issue #31]]
-for the request to distribute a pre-compiled parser.
+The grammar has to be installed manually. =M-x treesit-install-language-grammar=
+cannot do it, for two reasons: it defaults to the official repository, and
+@tek's and my repository do no ship generated parser (=src/parser.c=) nor a
+release branch. That is, the parser must first be produced with =tree-sitter
+generate= before it is compiled.
+
+To do so, build the shared library yourself (clone the repository, run
+=tree-sitter generate=, compile =src/parser.c= into a =libtree-sitter-haskell=
+shared object and put it on =treesit-extra-load-path=), or let a package manager
+build it — the =flake.nix= in this repository builds the correct grammar for
+development and for the test suite.
 
 ** Other recommended packages
 
-Unlike =haskell-mode=, this mode has a limited scope to just worrying
-about haskell. There are other packages that I find help a lot with
-development:
-- [[https://codeberg.org/rahguzar/consult-hoogle][consult-hoogle]] great interface for =hoogle=.
-- [[https://github.com/jyp/dante][dante]]
-- [[https://github.com/radian-software/apheleia][apheleia]] I suggest using this with [[https://github.com/vyorkin/ormolu.el][ormolu]] to provide formatting for haskell.
-- [[https://github.com/emacsmirror/hcel][hcel]] Codebase navigator, if you want a lighter alternative to a full blown LSP.
-  
+Unlike =haskell-mode=, this mode has limited scope. There are other packages
+that I find help a lot with development:
+- Consult Hoogle with [[https://codeberg.org/rahguzar/consult-hoogle][consult-hoogle]]
+- Format code with [[https://github.com/radian-software/apheleia][Apheleia]]
+
 * Customization
 
 ** Prettify Symbols mode
