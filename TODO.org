@@ -28,16 +28,6 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   reprompt is cheap — revisit if reprompting or picking a non-default
   component turns out to be a real annoyance.
 
-* TODO [#B] Review tests
-Review all tests in detail! Use [[file:.ai/review.md]].
-
-Try some mutations and check if the tests then fail. Can you improve the test
-coverage with meaningful tests? Are some tests redundant? Can we
-simplify/shorten tests? Should we add property tests? Are the test goals sound?
-Are the features we provide good/useful? Do you think some tests are awkward or
-test un-features? Do we miss features? Please analyze and report, I am
-interested in what you find, even if you think it may not be important at all.
-
 * TODO [#B] Review navigation module
 Review the navigation module in detail. Use [[file:.ai/review.md]]!
 
