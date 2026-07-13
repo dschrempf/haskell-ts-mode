@@ -6,374 +6,84 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 
 * Unreleased
 
+* 1.5 — 2026-07-13
+
 ** Added
 
-- *Interactive component picker for ambiguous =cabal repl= targets.*
-  When the current file is shared by several cabal components,
-  starting the REPL now parses the component names out of cabal's
-  [Cabal-7132] "Ambiguous target" message and prompts for one with
-  =completing-read=, then starts =cabal repl= against the chosen
-  component, instead of aborting with a =user-error= relaying the raw
-  message.  The choice is remembered per buffer, so restarting the
-  REPL from the same buffer no longer reprompts.
-- *Prefix-argument cabal component override.*  =C-u C-c C-r=
-  (=C-u M-x haskell-ts-run=) prompts for the =cabal repl= component to
-  open even when the current file is unambiguous — e.g. to deliberately
-  open a different component's REPL — offering the project's components
-  (parsed from its =*.cabal= files) as completion candidates while still
-  accepting any target cabal understands.  The pick is remembered like
-  an ambiguous-file choice; entering an empty component drops the
-  override and returns to automatic resolution.
+- *Comment-aware prose navigation.*  Sentence motion (=M-e=/=M-a=,
+  =kill-sentence=, =evil='s =d a s=/=a s=) inside a =--=/Haddock comment
+  or a string literal now treats the interior as prose: a marker-only
+  line reads as a paragraph break, sentence bounds ignore the repeated
+  =--= marker, and sentence deletion leaves a straddled marker in place
+  rather than merging two comment lines into one.
+- *Paragraph text objects confined to a comment.*  =evil='s =a p=/=i p=
+  and =M-}=/=M-{= stay within a =--=/Haddock comment even when it is
+  glued directly to the surrounding code, instead of spilling into the
+  neighbouring binding.
+- *Comment continuation on =RET=.*  Breaking a line inside a =--=
+  comment (plain or Haddock) repeats the marker and leading indentation
+  on the new line; also wired for =evil='s =o=/=O=.  Block comments
+  (={- -}=) and code are unaffected.
 - *Send the current line or definition to the REPL.*  =C-c C-e=
-  (=haskell-ts-send-line=) sends the line at point verbatim, and
-  =C-M-x= (=haskell-ts-send-defun=) sends the definition at point --
-  found the same way =treesit-defun-name-function= and imenu find it,
-  so it follows the same top-level-binding-or-local-=where=/=let=-bind
-  notion of "definition" -- wrapped in GHCi's =:{=/=:}= like
-  =C-c C-c= already does for a region.  Complements =C-c C-c= (region
-  or whole-file reload) and =C-c C-l= (load file), which previously
-  had no equivalent for a single line or definition.
-- *Comment continuation on newline.*  Breaking the line inside a =--=
-  comment (plain or Haddock) now repeats the marker on the next line
-  instead of leaving the comment, e.g. =-- Comment= + newline gives
-  =-- Comment= / =-- =.  This covers plain =RET= (=newline= itself is
-  advised rather than a key rebound) and, via a second, dedicated
-  advice on =evil-insert-newline-above=/=evil-insert-newline-below=,
-  Evil's =o=/=O= as well — those insert their line with a plain
-  =insert= rather than calling =newline=, so they need their own hook.
-  The continuation is inserted directly instead of delegating to
-  =default-indent-new-line=, whose =delete-horizontal-space= calls
-  would strip a bare marker's trailing space before it could be
-  repeated.  Block comments (={- -}=) and code are unaffected.
-- *=evil= bundled into the flake's dev-shell Emacs.*  The
-  evil-integration tests in =tests/haskell-ts-mode-tests.el= now run
-  (rather than skip) under =nix develop=/=nix flake check=;
-  =HASKELL_TS_EVIL_PATH= remains for exercising them outside the flake.
-- *=make format=, gating =make check=.* Runs =indent-region= over source files
-  and the test suite, failing if any file is not already in its formatted state;
-  see =tests/format.el=.
-- *GitHub Actions CI.*  =.github/workflows/ci.yml= runs =nix flake
-  check= (byte-compile, =make format=, and the ERT suite) on
-  push and pull request.
-- *=make checkdoc= now gates =make check=.*  Documented the previously
-  undocumented internal helpers that =checkdoc= flagged (font-lock and
-  imenu predicates in =haskell-ts-mode.el=, the paragraph/newline advice
-  in =haskell-ts-navigation.el=), then set
-  =HASKELL_TS_CHECKDOC_STRICT=1= for the =checkdoc= step of =make
-  check= only — a standalone =make checkdoc= stays informational; see
-  =tests/checkdoc.el=.
-- *=make package-lint=, gating =make check=.*  Lints package headers,
-  dependencies and naming conventions via =epkgs.package-lint= (added to
-  the flake's dev-shell Emacs); see =tests/package-lint.el=.  Its
-  =with-eval-after-load= check is disabled for this package: the two
-  call sites it flags in =haskell-ts-navigation.el= defer =evil=
-  text-object/newline advice until =evil= is actually loaded, since
-  those advised symbols do not exist otherwise — the standard, intended
-  use of =with-eval-after-load=, not the user-configuration-only misuse
-  the check exists to catch.
-- *=make check= banners each step.*  =compile=/=format=/=checkdoc=/
-  =package-lint=/=test= now each print a =+= (or =x= on failure)
-  section marker, plus a final "All checks passed" once every step has.
-  Colour is used only when make's own stdout is a terminal (GNU Make
-  sets =MAKE_TERMOUT= in that case), so piped/logged runs (CI, =nix
-  flake check=) stay plain text.
-- *=make relint=, gating =make check=.*  Lints regexps for
-  correctness/efficiency via =epkgs.relint= (added to the flake's
-  dev-shell Emacs); no complaints found in the existing source, so it
-  runs via =relint-batch= directly with no bespoke wrapper (contrast
-  =tests/package-lint.el=).
-- *More keywords highlighted.*  =forall=, =pattern= (pattern
-  synonyms), the deriving-strategy keywords =via=/=stock=/=anyclass=,
-  the fixity keywords =infix=/=infixl=/=infixr=, and the
-  arrow-notation keywords =mdo=/=rec= now get
-  =font-lock-keyword-face=, like the rest of the =:feature 'keyword=
-  token list.
-- *Do-notation bind arrow (=<-=) highlighted.*  The =bind= node's
-  =arrow= field is now fontified the same way as the list
-  comprehension generator's =<-= (=:feature 'match=), removing an
-  inconsistency between two syntactically identical tokens.
+  (=haskell-ts-send-line=) sends the line at point, and =C-M-x=
+  (=haskell-ts-send-defun=) sends the definition at point -- the same
+  definition imenu and =which-function-mode= use -- complementing
+  =C-c C-c= (region or reload) and =C-c C-l= (load file).
+- *Cabal component selection for =cabal repl=.*  When the current file
+  is shared by several cabal components, starting the REPL now prompts
+  for one instead of aborting; the choice is remembered per buffer.  A
+  prefix argument (=C-u C-c C-r=) forces the pick even for an
+  unambiguous file, offering the project's components as candidates
+  (an empty entry clears the override).
+- *More keywords highlighted.*  =forall=, =pattern=, the
+  deriving-strategy keywords =via=/=stock=/=anyclass=, the fixity
+  keywords =infix=/=infixl=/=infixr=, and the arrow-notation keywords
+  =mdo=/=rec= now get =font-lock-keyword-face=.
+- *Do-notation bind arrow (=<-=) highlighted*, matching the list
+  comprehension generator's =<-=.
+- *Development tooling.*  =make check= now also runs =make format=
+  (=indent-region= over the sources), =checkdoc=, =package-lint= and
+  =relint=, each printing a section banner; GitHub Actions CI runs =nix
+  flake check= on push and pull request; and =evil= is bundled into the
+  flake's dev-shell Emacs so the evil-integration tests run rather than
+  skip.
 
 ** Changed
 
-- *=delete-region= advice no longer installed for non-=evil= users.*
-  The marker-aware sentence-deletion advice on =delete-region= (a hot
-  editing primitive) is now added under =with-eval-after-load 'evil=
-  rather than globally, since =evil-delete= is the only caller that can
-  reach its marker-aware path; a session without =evil= now leaves
-  =delete-region= unadvised entirely.  The remaining global advice
-  (=newline=, =kill-region=, paragraph motion) stays installed but inert
-  outside =haskell-ts-mode= — the intended, documented footprint (see
-  =haskell-ts-navigation.el='s Commentary); no buffer-local mechanism
-  exists for these primitives.  Landed with a source-module code review
-  (no bugs found) and assorted docstring/style fixes.
-- *Minimum Emacs bumped from 29.3 to 30.1.*  =haskell-ts-navigation.el=
-  (unconditionally =require=d) already called Emacs-30-only functions
-  (=treesit-forward-sentence=, =forward-sentence-default-function=)
-  with no version guard, so the previous =Package-Requires= understated
-  the real floor; =package-lint= caught the mismatch.
-- *Customization group renamed =haskell-ts-mode= to =haskell-ts=.*
-  =package-lint= flags a group ending in =-mode= as bad practice unless
-  the un-suffixed name would conflict with an existing group; it does
-  not here.  Anyone who ran =M-x customize-group RET haskell-ts-mode=
-  needs =haskell-ts= instead.
-- *Face renamed =haskell-constructor-face= to =haskell-ts-constructor-face=*
-  to carry the package's =haskell-ts= prefix, per =package-lint=.
-  Anyone theming =haskell-constructor-face= directly needs to update to
-  the new name.
-- *Sexp/prose navigation and text objects split into =haskell-ts-navigation.el=.*
-  =haskell-ts-sexp=, =haskell-ts-thing-settings=, comment-aware sentence
-  motion (=haskell-ts--forward-sentence= and its helpers), the paragraph
-  text-object confinement advice for a comment glued to code, and the
-  =RET=/Evil =o=/=O= comment-continuation advice all moved out of
-  =haskell-ts-mode.el= into the new file, =require=d by it.  No behaviour
-  change; a package manager or build script that only compiled/loaded
-  =haskell-ts-mode.el= directly (bypassing =Makefile=/=require=) now needs
-  =haskell-ts-navigation.el= alongside it.
-- *GHCi REPL integration split into =haskell-ts-repl.el=.*  The
-  customisation variables (=haskell-ts-ghci=, =haskell-ts-cabal=,
-  =haskell-ts-use-cabal=, ...), cabal project/target detection, and
-  every REPL command (=haskell-ts-run=, =haskell-ts-show-repl=,
-  =haskell-ts-compile-region-and-go=, =haskell-ts-load-file=,
-  =haskell-ts-inferior-mode=) moved out of =haskell-ts-mode.el= into the
-  new file, =require=d by it, alongside =haskell-ts-navigation.el=. No
-  behaviour change; a package manager or build script that only
-  compiled/loaded =haskell-ts-mode.el= directly now also needs
-  =haskell-ts-repl.el=.
-- *Exact comment-marker bounds for sentence navigation.*  The grammar
-  now splits =comment=/=haddock= nodes into a =marker= child (=--=,
-  =-- |=, =-- ^=, ={-=, ...) and a =content= child holding the body;
-  =haskell-ts--forward-sentence= uses the =content= field directly
-  instead of guessing the marker's shape with a regexp
-  (=haskell-ts--comment-marker-regexp=, now removed).
-- *String prose motion strips the surrounding quotes.*  Sentence/text
-  motion inside a string literal now treats its interior as prose the
-  same way a =--= marker is stripped from a comment, so a sentence no
-  longer includes the opening ="=.
-- *Dropped the unused =string= entry from =haskell-ts-thing-settings=.*
-  Nothing referenced the =(string "string")= thing; the =text= thing
-  already covers strings for sentence motion, and removing it leaves
-  =forward-sexp= behaviour unchanged.
+- *Minimum Emacs bumped from 29.3 to 30.1.*  The navigation code
+  already called Emacs-30-only functions unconditionally, so the old
+  floor understated the real requirement.
+- *Customization group renamed =haskell-ts-mode= → =haskell-ts=.*  Use
+  =M-x customize-group RET haskell-ts= instead.
+- *Face renamed =haskell-constructor-face= → =haskell-ts-constructor-face=.*
+  Update any theming of the old name.
+- *Source split into =haskell-ts-navigation.el= and =haskell-ts-repl.el=*,
+  both =require=d by =haskell-ts-mode.el=.  No behaviour change, but a
+  build script that loaded =haskell-ts-mode.el= alone now needs the two
+  new files alongside it.
 
 ** Fixed
 
-- *Sentence deletion (=kill-sentence=/=backward-kill-sentence=, =evil='s
-  =d a s=/=d i s=/=c a s=/=c i s=) across a comment continuation line.*
-  A sentence spanning onto a continuation line has its end, once mapped
-  back from the dedented copy =haskell-ts--forward-sentence= runs prose
-  motion on, land past that line's own repeated marker; deleting the
-  raw buffer text between the sentence's start and that point used to
-  take the marker along with it, silently merging the two comment lines
-  into one.  =kill-region=/=delete-region= are now advised to remove
-  only the sentence's actual prose and leave any marker (and its
-  leading whitespace) it straddles in place, but only while a
-  =kill-sentence=-style command is in flight — dynamically scoped via
-  =haskell-ts--sentence-deletion-active= — so an ordinary =kill-line=,
-  manual =C-w=, or linewise =evil= delete (=dd=, ...) is unaffected and
-  still removes a straddled marker along with the rest of the line, as
-  before.
-- *Paragraph breaks inside a multi-line =--=/Haddock comment.*  The
-  grammar folds a run of adjacent =--= lines with no intervening blank
-  code line into a single =comment=/=haddock= node, so a =--=-only line
-  meant to separate two paragraphs of the same comment was not a real
-  blank line in the buffer and did not register as a paragraph break;
-  sentence/paragraph motion (and =evil='s =d a s=/=d i s=) ran straight
-  through it into the next paragraph.  =haskell-ts--forward-sentence=
-  now runs prose motion on a dedented copy of the comment's text —
-  each continuation line's repeated marker stripped — and maps the
-  result back onto the real buffer, so a marker-only line reads as
-  blank like it would in plain prose.
-- *Paragraph text objects (=evil='s =v a p=/=d a p=) spanning a
-  =--=-only line.*  Unlike sentence motion, =forward-paragraph=/
-  =backward-paragraph= work directly off =paragraph-start=/
-  =paragraph-separate= rather than through
-  =haskell-ts--forward-sentence='s dedented copy, so the same
-  marker-only line within one multi-line comment did not register as
-  a paragraph break there either.  Both variables now also match a
-  line consisting solely of dashes and whitespace — always a
-  marker-only comment line, never code.
-- *Paragraph text objects (=evil='s =v a p=/=d a p=) spanning into
-  code around a comment with no blank line of its own.*  A =--=/
-  Haddock comment glued directly to code above and/or below it has no
-  blank line for =paragraph-start=/=paragraph-separate= to stop at
-  either, so the object spilled into the surrounding function(s) too.
-  =evil-select-an-object=/=evil-select-inner-object= are now advised to
-  narrow the buffer to the comment first when it is so glued, one side
-  at a time — narrowing (rather than clamping each individual
-  =forward-paragraph=/=start-of-paragraph-text= call) is needed because
-  =evil= detects a trailing/leading blank line to add to the selection
-  by moving forward then back (or vice versa) and falling back to
-  =point-max=/=point-min= when that round trip makes no net progress;
-  a clamped call can hit that same "no progress" case at the comment's
-  boundary without actually being at =point-max=/=point-min=, and
-  narrowing is what makes those two coincide correctly.  Plain
-  =forward-paragraph=/=start-of-paragraph-text= (hence =M-}=/=M-{= and
-  =mark-paragraph=, and =evil='s own =d a s=-style motions that end up
-  calling them) are separately clamped to the same comment, without
-  needing the narrowing trick, since none of them do that round trip.
-  The forward clamp/narrowing bound is one past the node's own end, not
-  the end itself: a comment's text excludes its trailing newline, but
-  =forward-paragraph= normally consumes it as part of the paragraph, so
-  clamping to the tighter bound left point exactly at the comment's
-  last character with nothing beyond to move into within the clamp --
-  indistinguishable from already being past the object's end, which
-  made =evil= decide the comment was not the object at point after all
-  and fall back to selecting from the start of the buffer whenever a
-  comment was glued to code on one side only (e.g. a Haddock comment
-  preceded by a blank line but glued to the next binding below).
-  Separately, that same per-call clamp also fired for point in plain
-  *code* glued to an unrelated comment elsewhere in the buffer: while
-  computing an object's bounds, `bounds-of-thing-at-point'/=evil='s
-  whitespace-detection helpers re-probe =forward-paragraph=/
-  =start-of-paragraph-text= from intermediate positions found *during*
-  that computation, which need not be anywhere near the object's actual
-  start -- one probe could land inside some other comment and get
-  clamped to its bounds while another, from the object's real start,
-  did not, breaking the invariant that motion reaches the same end
-  from any point within one object.  =evil= again concluded there was
-  no consistent object and fell back to the start of the buffer.  The
-  per-call clamp now stays out of the way for the whole
-  =evil-select-an-object=/=evil-select-inner-object= call
-  (`haskell-ts--confining-evil-paragraph-object'), deferring entirely
-  to that call's own, single, consistent narrowing.
-- *Paragraph motion (=evil='s =}=/={=) spilling into code around a
-  glued comment.*  Unlike =a p=/=i p=, =evil-forward-paragraph=/
-  =evil-backward-paragraph= first nudge point onto the neighbouring
-  line before ever calling =forward-paragraph=/=start-of-paragraph-text=
-  -- forward via =evil-forward-end= stepping one character past the
-  thing's end, backward via =evil-backward-paragraph='s own leading
-  =(forward-line)= -- so that nudge alone could already land outside a
-  glued comment's node before the existing per-call clamp (which only
-  fires while point is still *inside* the node) ever got a chance to
-  trigger; backward was broken from any position inside such a
-  comment, not just at its edge.  =evil-forward-paragraph=/
-  =evil-backward-paragraph= are now narrowed the same way =a p=/=i p=
-  already are, via a helper
-  (`haskell-ts--confine-evil-paragraph-in-node') shared with that
-  fix.  Narrowing the whole call can make =evil-signal-at-bob-or-eob=
-  -- run before any motion -- mistake the node's own edge for the real
-  buffer's when point already sits there; that case now falls back to
-  an unnarrowed retry instead of raising a spurious =beginning-of-buffer=/
-  =end-of-buffer= error.
-- *Spurious comment continuation on a blank line below a buffer-final
-  comment.*  =treesit-node-at= returns the *previous* node, not =nil=,
-  when a position sits in whitespace covered by no node and nothing
-  follows to fall forward to — e.g. the blank line right after a
-  comment at the end of the buffer — mirroring the already-handled
-  case of a blank line *above* a comment (where it returns the
-  *following* node instead).  =haskell-ts--text-node-at= now also
-  rejects a node that ends at or before point, so =RET= on such a
-  line leaves it blank instead of continuing the comment.
-- *Spurious =end-of-buffer= from =forward-sentence= inside a comment.*
-  Prose motion runs in a scratch buffer holding only the comment's
-  text, so reaching the comment's first/last sentence and moving again
-  raised a buffer-edge signal.  Unlike at the real buffer's edge that
-  fired mid-file, breaking plain =M-e=/=kill-sentence= on a comment
-  glued to code.  The signal is now caught: motion stops at the
-  comment boundary instead.  (Letting it *fall through* into the
-  surrounding code is tracked in =TODO.org=.)
-- *=newline= repeat count dropped inside a comment.*  =C-u N RET= (and
-  any =(newline N)=) continued the comment on a single line instead of
-  =N=; the advice now honours the count.
-- *Sentence motion in code crossing a paragraph boundary.*
-  =treesit-forward-sentence= treats a function equation (a =match=
-  node) as a sentence and hunts for the next/previous one across any
-  number of blank lines and comments, so =M-e=/=M-a= — and =evil='s
-  =v a s= — from, say, a =data= declaration ran clear past the blank
-  line and comment below it into the following binding.
-  =haskell-ts--forward-sentence= now clamps each code step to the
-  current paragraph — a run of consecutive non-blank code lines,
-  bounded by a blank line or a comment glued to it with no blank line
-  of its own — keeping treesit's equation-level granularity within the
-  paragraph but never crossing out of it.  (The paragraph bound is used
-  rather than =forward-sentence-default-function= so that, with
-  =sentence-end-double-space= nil, a period inside a string literal
-  does not split an equation into two sentences.)
-- *Coarse top-level =forward-sexp=.*  From column 0 of a top-level
-  binding, =forward-sexp= jumped to the end of the buffer (and
-  =backward-sexp= from the last binding's end to the start) instead of
-  stepping over one binding: the whole-buffer root (=haskell=) node and
-  the top-level =declarations= wrapper both matched =haskell-ts-sexp=,
-  so with no enclosing thing to bound it =treesit-forward-sexp= took
-  the entire declarations run as the next sexp.  =haskell-ts-sexp= now
-  excludes both node types; motion inside a =let=/=where= block (a
-  =local_binds= node, bounded by its enclosing binding) was unchanged.
-- *Coarse =forward-sexp= over a =let=/=where= block's local bindings,
-  in one layout.*  The fix above left one case: when the block's own
-  bindings start on a new line (=where= with nothing after it on its
-  line, then each binding indented below), the leading newline and
-  indentation belong to the =where=/=let= keyword rather than to
-  =local_binds=, so =local_binds= starts exactly where its first
-  binding does — the same column-0 alignment that made =declarations=
-  get picked as the coarse sexp at the top level.  (An inline layout,
-  =where a = 1= on one line, does not hit this, since the space
-  between the keyword and the first binding is part of =local_binds=
-  there.)  =haskell-ts-sexp= now excludes =local_binds= unconditionally;
-  the inline layout's motion is unchanged since a nested run is already
-  bounded by its enclosing binding either way.
+- *Coarse =forward-sexp=/=backward-sexp= over top-level and
+  =let=/=where= bindings.*  From column 0, =forward-sexp= jumped to the
+  end of the buffer (and =backward-sexp= to its start) instead of
+  stepping over one binding; =backward-sexp= could also stall at, or
+  swallow the binding enclosing, a =let=/=where= block's last local
+  binding.  Motion now steps over exactly one binding.
 - *=haskell-ts-defun-name= showed the whole pattern for an infix-headed
-  definition.*  For =a <+> b = ...= it returned the entire left-hand
-  =infix= node (="a <+> b"=) rather than the operator, so
-  which-function-mode and other =treesit-defun-name-function= users
-  displayed the pattern instead of =<+>=.  It now reduces an infix head
-  to just its operator, and =haskell-ts--imenu-node-name= (which already
-  did this for imenu) delegates to it, so the two share one
-  implementation.
-- *Imenu mislabelled or omitted =data=/=newtype= declarations with a
-  leading keyword pair.*  The name extractor assumed exactly one
-  leading keyword before the name (=treesit-node-child node 1=): the
-  =TypeData= extension's =type data Foo = ...= has two (=type= then
-  =data=), so imenu showed "data" instead of "Foo".  It now reads the
-  =name= field instead of a fixed position
-  (=haskell-ts--imenu-data-type-name=).  Separately, a =data instance=/
-  =newtype instance= family instance parses as a =data_type=/=newtype=
-  node wrapped in an outer =data_instance= node, so the top-level check
-  (which required the node's direct parent to be =declarations=)
-  silently dropped these from imenu entirely; =haskell-ts-imenu-node-p=
-  now also accepts a =data_type=/=newtype= node one level inside such a
-  wrapper.
-- *=backward-sexp= stalled, or swallowed the wrong binding, at a
-  =where=/=let= block's last local binding.*  With point exactly at the
-  end of the file's last top-level binding, =treesit-node-at= there
-  resolves to the enclosing =declarations= node rather than to the
-  binding (its own end coincides with point, and nothing follows for
-  =treesit-node-at= to fall forward to instead — the same
-  half-open-range situation =haskell-ts--text-node-at= already works
-  around for =text= nodes, one level up the tree), and
-  =treesit-thing-prev= cannot step backward from =declarations= at all,
-  so =backward-sexp= silently did not move.  The same stall happens one
-  level down, at a =where=/=let= block's last local binding, when the
-  block is also the last thing in the file: its =local_binds= wrapper
-  and the enclosing top-level binding both end at the same position as
-  the local binding, and =local_binds= is excluded from =haskell-ts-sexp=
-  (see above), so the same coincidence-of-ends applies one level
-  further out.  =haskell-ts--forward-sexp= (now =forward-sexp-function=)
-  recovers by finding the binding directly via
-  =haskell-ts--sexp-at-end=, which walks up through ancestors with
-  =treesit-parent-while= rather than =treesit-node-top-level=, stopping
-  at the first ancestor that is not itself a =sexp= (=local_binds=)
-  instead of climbing past it to the enclosing top-level binding.  A
-  second, related bug surfaced in the same area: when that local
-  binding is *not* also the last thing in the file, =treesit-node-at=
-  resolves fine and =treesit-forward-sexp= does move — just to the
-  start of the *enclosing* top-level binding, swallowing its =where=/
-  =let= keyword, header, and every local binding in one step, because
-  =treesit-thing-prev= uses =treesit-node-top-level= internally, which
-  has the same climb-past-=local_binds= behaviour regardless of
-  whether point sits at the buffer's end.  =haskell-ts--forward-sexp=
-  now always prefers =haskell-ts--sexp-at-end='s answer over
-  =treesit-forward-sexp='s own for a plain =backward-sexp=, rather than
-  only when the latter made no progress at all, fixing both cases the
-  same way.
+  definition.*  For =a <+> b = ...= it now reports =<+>= rather than
+  ="a <+> b"=, so =which-function-mode= and imenu agree.
+- *Imenu mislabelled or omitted =data=/=newtype= declarations.*  A
+  =type data Foo= (two leading keywords) showed as "data" instead of
+  "Foo", and =data=/=newtype instance= family instances were dropped
+  entirely; both are now handled.
 
 ** Removed
 
 - *Tree-sitter indentation support.*  =haskell-ts-use-indent=,
   =haskell-ts-indent-rules= and =haskell-ts-indent-after-newline= are
-  gone.  The rule set was disabled by default and, per its own
-  comments, an unmaintainable hack; nothing in the mode depended on it.
-  =haskell-ts--stand-alone-parent=, its only caller, is removed as
-  well.  =haskell-ts--ignore-types= is kept — it is also used by
-  structural navigation.
+  gone -- the rule set was disabled by default and, per its own
+  comments, an unmaintainable hack that nothing else depended on.
 
 * 1.4 — 2026-06-17
 
