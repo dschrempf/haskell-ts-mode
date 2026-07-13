@@ -36,3 +36,7 @@ Review the REPL module in detail. Use [[file:.ai/review.md]]!
 
 * TODO [#B] Review main module
 Review the main module in detail. Use [[file:.ai/review.md]]!
+
+* TODO [#C] User-facing documentation
+- Condense Changelog (especially fixes)
+- Improve Readme

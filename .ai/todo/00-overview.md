@@ -51,7 +51,13 @@ fontifiers. Correct that imbalance first.
    **Done** (2026-07-13, moved to `.ai/done/`): asserted `:{`/`:}` in
    `haskell-ts-test-send-defun` (confirmed to fail when either delimiter
    is dropped) and added `haskell-ts-test-load-file-sends-load`.
-3. [`03-prose-motion-gaps.md`](03-prose-motion-gaps.md) — string last sentence, inline comment.
+3. [`03-prose-motion-gaps.md`](../done/03-prose-motion-gaps.md) — string last sentence, inline comment.
+   **Done** (2026-07-13, moved to `.ai/done/`): asserted the string's last
+   sentence (`"Third."`) in `haskell-ts-test-sentence-motion-in-string`, and
+   added `haskell-ts-test-sentence-code-ignores-inline-comment`
+   (`forward-sentence 2` runs through the inline `-- note` into the next
+   equation — confirmed to fail once the actual landing point was measured;
+   the todo's suggested assertion point was wrong).
 4. [`04-mode-wiring-coverage.md`](04-mode-wiring-coverage.md) — prettify, haskell-mode parent, defun motion.
 5. [`05-test-quality.md`](05-test-quality.md) — mirror constant, dead λ branch, redundancy.
 6. [`06-property-tests.md`](06-property-tests.md) — virtual-text mapping.
