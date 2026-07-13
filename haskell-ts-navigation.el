@@ -27,6 +27,20 @@
 ;; `haskell-ts-mode', plus the `RET'/Evil `o'/`O' comment-continuation
 ;; commands that share their notion of what a `--'/Haddock comment's
 ;; text actually is.  Required by `haskell-ts-mode.el'.
+;;
+;; Several of these features are implemented as `:around' advice on
+;; functions used well outside this mode -- `newline', `kill-region',
+;; `kill-sentence'/`backward-kill-sentence', and paragraph motion
+;; (`forward-paragraph'/`start-of-paragraph-text'), plus Evil's own
+;; motion/deletion commands under `with-eval-after-load'.  Emacs advice
+;; on a named function is global (there is no buffer-local
+;; `forward-paragraph-function' etc. to set instead), so each advice is
+;; installed globally but written to be inert outside `haskell-ts-mode':
+;; it either checks `derived-mode-p' up front or gates on a dynamic
+;; variable (`haskell-ts--sentence-deletion-active') bound only by this
+;; package's own commands.  `delete-region', the hottest primitive of
+;; the set, is advised only when Evil is loaded, since Evil is the only
+;; caller that can ever trigger its marker-aware path.
 
 ;;; Code:
 
@@ -396,9 +410,12 @@ into the next/previous paragraph instead of sticking."
                     (max (if moved ts limit) limit))))
         (when (= res start)             ; nothing left in this paragraph
           (setq res (save-excursion
+                      ;; Only the buffer-edge signal is expected here (as at
+                      ;; the scratch-buffer motion in `haskell-ts--forward-sentence');
+                      ;; let any other error through rather than masking a bug.
                       (condition-case nil
                           (forward-sentence-default-function step)
-                        (error nil))
+                        ((beginning-of-buffer end-of-buffer) nil))
                       (point))))
         (goto-char res)))))
 
@@ -477,7 +494,7 @@ tracked in TODO.org."
 instead of by prose sentence, spilling into surrounding code.")
 
 (defun haskell-ts--node-glued-p (pos dir)
-  "Non-nil if NODE's boundary at POS abuts real code, not a blank line.
+  "Non-nil if the node boundary sitting at POS abuts real code, not a blank line.
 DIR is the direction the boundary faces: positive for a node's end
 \(check the line *after* it), negative for its start (check the line
 *before* it).  Used to tell a comment glued directly to code -- no
@@ -807,12 +824,21 @@ above make that particular kill marker-aware."
   "Around advice for `delete-region', which is used by `evil-delete'.
 See `haskell-ts--kill-region-marker-aware', its `kill-region'
 counterpart: delegates BEG and END the same way, falling back to
-ORIG-FUN on BEG and END otherwise."
+ORIG-FUN on BEG and END otherwise.
+
+Installed only alongside the `evil-delete' advice below (under
+`with-eval-after-load' `evil'), never for plain Emacs.
+`haskell-ts--sentence-deletion-active' -- the gate this checks -- is
+bound in only two places: `haskell-ts--kill-sentence', whose
+`kill-region' path is served by the `kill-region' advice and never
+reaches `delete-region' (`kill-region' deletes via
+`delete-and-extract-region'), and `haskell-ts--evil-delete-marker-aware'.
+So a non-`evil' session has no path that both sets the gate and calls
+`delete-region', and advising this hot primitive globally there would
+only add a per-call check that can never fire."
   (or (and haskell-ts--sentence-deletion-active
            (haskell-ts--marker-aware-delete beg end nil))
       (funcall orig-fun beg end)))
-
-(advice-add 'delete-region :around #'haskell-ts--delete-region-marker-aware)
 
 (defun haskell-ts--evil-delete-marker-aware (orig-fun beg end type &rest args)
   "Around advice for `evil-delete', called with BEG, END, TYPE and ARGS.
@@ -829,6 +855,11 @@ along with the rest of the line is exactly what is wanted."
     (apply orig-fun beg end type args)))
 
 (with-eval-after-load 'evil
+  ;; `delete-region' is advised here, not globally: it is a hot editing
+  ;; primitive, and the only path that both sets
+  ;; `haskell-ts--sentence-deletion-active' and reaches it is
+  ;; `evil-delete' -- see `haskell-ts--delete-region-marker-aware'.
+  (advice-add 'delete-region :around #'haskell-ts--delete-region-marker-aware)
   (advice-add 'evil-delete :around #'haskell-ts--evil-delete-marker-aware))
 
 (provide 'haskell-ts-navigation)

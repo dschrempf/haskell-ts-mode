@@ -86,6 +86,17 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 
 ** Changed
 
+- *=delete-region= advice no longer installed for non-=evil= users.*
+  The marker-aware sentence-deletion advice on =delete-region= (a hot
+  editing primitive) is now added under =with-eval-after-load 'evil=
+  rather than globally, since =evil-delete= is the only caller that can
+  reach its marker-aware path; a session without =evil= now leaves
+  =delete-region= unadvised entirely.  The remaining global advice
+  (=newline=, =kill-region=, paragraph motion) stays installed but inert
+  outside =haskell-ts-mode= — the intended, documented footprint (see
+  =haskell-ts-navigation.el='s Commentary); no buffer-local mechanism
+  exists for these primitives.  Landed with a source-module code review
+  (no bugs found) and assorted docstring/style fixes.
 - *Minimum Emacs bumped from 29.3 to 30.1.*  =haskell-ts-navigation.el=
   (unconditionally =require=d) already called Emacs-30-only functions
   (=treesit-forward-sentence=, =forward-sentence-default-function=)
