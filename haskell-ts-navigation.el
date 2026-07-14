@@ -56,6 +56,7 @@
 (declare-function treesit-node-match-p "treesit.c")
 (declare-function treesit-node-at "treesit.c")
 (declare-function treesit-forward-sentence "treesit.c")
+(declare-function evil-visual-state-p "evil-states")
 
 (defun haskell-ts-sexp (node)
   "Return non-nil when NODE is a sexp for `forward-sexp'/`backward-sexp'.
@@ -336,19 +337,31 @@ Only a comment that begins a line qualifies: an inline trailing
 comment (`f = x -- note') is part of its code line, not a paragraph
 break, and `treesit-forward-sentence' already stops at the equation's
 end before it.  Strings are excluded for the same reason -- inline
-code, not prose."
-  (let* ((node (treesit-node-at (point)))
+code, not prose.
+
+The result must lie strictly on DIR's side of point; otherwise nil.
+Point is assumed to be in code, but a caller can violate that (e.g. on
+a blank line between two nodes), where `treesit-node-at' resolves to
+the node *following* point and the backward search then latches onto
+that same following node -- yielding an edge ahead of point for a
+backward search.  Rejecting a wrong-side edge keeps such a stray
+result from being taken as the current paragraph's boundary."
+  (let* ((orig (point))
+         (node (treesit-node-at orig))
          (found (and node (treesit-search-forward
                            node haskell-ts--comment-node-regexp (< dir 0)))))
     (when found
       (save-excursion
         (goto-char (treesit-node-start found))
         (when (bolp)                    ; own-line comment only
-          (if (> dir 0)
-              (and (not (bobp)) (1- (point)))
-            (goto-char (treesit-node-end found))
-            (unless (bolp) (forward-line 1))
-            (point)))))))
+          (let ((edge (if (> dir 0)
+                          (and (not (bobp)) (1- (point)))
+                        (goto-char (treesit-node-end found))
+                        (unless (bolp) (forward-line 1))
+                        (point))))
+            (and edge
+                 (if (> dir 0) (> edge orig) (< edge orig))
+                 edge)))))))
 
 (defun haskell-ts--code-blank-line-limit (dir)
   "Return the current code paragraph's blank-line boundary in direction DIR.
@@ -379,6 +392,24 @@ a code sentence must not cross either."
     (if comment
         (if (> dir 0) (min blank comment) (max blank comment))
       blank)))
+
+(defun haskell-ts--code-paragraph-clamp (dir)
+  "Return the comment edge bounding the code paragraph at point in DIR, or nil.
+Non-nil only when a `--'/Haddock comment is glued directly to the code
+paragraph on DIR's side, with no blank line between them: the
+comment/code boundary is then a paragraph boundary that plain
+paragraph motion (working off `paragraph-start'/`paragraph-separate')
+does not see.  Nil when a blank line or the buffer edge already bounds
+that side, since ordinary motion stops there unaided -- clamping there
+would only interfere.  \"Glued\" is decided by comparing the nearest
+comment edge (`haskell-ts--adjacent-comment-edge') with the blank-line
+boundary (`haskell-ts--code-blank-line-limit'): the comment counts as
+glued only when its edge is the nearer of the two."
+  (let ((comment (haskell-ts--adjacent-comment-edge dir))
+        (blank (haskell-ts--code-blank-line-limit dir)))
+    (and comment
+         (if (> dir 0) (<= comment blank) (>= comment blank))
+         comment)))
 
 (defun haskell-ts--forward-sentence-in-code (arg)
   "Move point by ARG sentences in code, confined to the current paragraph.
@@ -609,7 +640,7 @@ a paragraph via `start-of-paragraph-text' directly."
 (advice-add 'forward-paragraph :around #'haskell-ts--confine-forward-paragraph)
 (advice-add 'start-of-paragraph-text :around #'haskell-ts--confine-start-of-paragraph-text)
 
-(defun haskell-ts--confine-evil-paragraph-in-node (orig-fun args)
+(defun haskell-ts--confine-evil-paragraph-in-node (orig-fun args &optional confine-code)
   "Run ORIG-FUN with ARGS narrowed to the glued sides of the node at point.
 Shared by `haskell-ts--confine-evil-paragraph-object' (`a p'/`i p') and
 `haskell-ts--confine-evil-paragraph-motion' (`}'/`{'): both need the
@@ -618,32 +649,48 @@ individual `forward-paragraph'/`start-of-paragraph-text' call clamped
 -- see `haskell-ts--confine-evil-paragraph-object''s docstring for why
 clamping call by call is not enough.
 
+With point in a `text' node the narrowing is to that node's glued
+side(s), as above.  With CONFINE-CODE non-nil and point instead in
+code, it is to the code paragraph's glued-comment boundaries
+\(`haskell-ts--code-paragraph-clamp'), so a paragraph text object in
+code does not spill into a comment glued to it -- the comment/code
+boundary is a paragraph boundary in both directions.  `}'/`{' motions
+pass CONFINE-CODE nil: unlike the text object they are cursor motions,
+free to move across that boundary onto the blank line beyond, per
+plain paragraph motion (see
+`haskell-ts-test-evil-backward-paragraph-from-code-unaffected').
+
 Binds `haskell-ts--confining-evil-paragraph-object' for the whole
 call, node found or not: bounds may end up computed via an
 intermediate position far from where this call started (e.g. some
 other, unrelated comment elsewhere in the buffer), and any node found
 there must not trigger `haskell-ts--confine-paragraph-motion''s own
 clamp -- see that variable's docstring for why."
-  (let ((haskell-ts--confining-evil-paragraph-object t)
-        (node (haskell-ts--text-node-at (point))))
-    (if (not node)
+  (let* ((haskell-ts--confining-evil-paragraph-object t)
+         (node (haskell-ts--text-node-at (point)))
+         (lo (cond (node (or (haskell-ts--node-backward-clamp node) (point-min)))
+                   (confine-code (or (haskell-ts--code-paragraph-clamp -1) (point-min)))))
+         (hi (cond (node (or (haskell-ts--node-forward-clamp node) (point-max)))
+                   (confine-code (or (haskell-ts--code-paragraph-clamp 1) (point-max))))))
+    (if (not (or node confine-code))
         (apply orig-fun args)
-      (let ((lo (or (haskell-ts--node-backward-clamp node) (point-min)))
-            (hi (or (haskell-ts--node-forward-clamp node) (point-max))))
-        (condition-case nil
-            (save-restriction
-              (narrow-to-region lo hi)
-              (apply orig-fun args))
-          ;; Point already sat at the narrowed edge (LO or HI), so
-          ;; `evil-signal-at-bob-or-eob' -- run by `evil-forward-paragraph'/
-          ;; `evil-backward-paragraph' before any motion, so nothing to
-          ;; undo here -- mistook the node's edge for the real buffer's.
-          ;; That is not "spilling past the comment" (point was never
-          ;; going to move *within* it); fall back to ORIG-FUN unnarrowed,
-          ;; which signals for real only if LO/HI also happen to be the
-          ;; real buffer edges.
-          ((beginning-of-buffer end-of-buffer)
-           (apply orig-fun args)))))))
+      ;; With CONFINE-CODE but no glued comment on either side, LO/HI are
+      ;; point-min/max, i.e. no real narrowing -- harmless, identical to
+      ;; running ORIG-FUN unnarrowed.
+      (condition-case nil
+          (save-restriction
+            (narrow-to-region lo hi)
+            (apply orig-fun args))
+        ;; Point already sat at the narrowed edge (LO or HI), so
+        ;; `evil-signal-at-bob-or-eob' -- run by `evil-forward-paragraph'/
+        ;; `evil-backward-paragraph' before any motion, so nothing to
+        ;; undo here -- mistook the node's edge for the real buffer's.
+        ;; That is not "spilling past the comment" (point was never
+        ;; going to move *within* it); fall back to ORIG-FUN unnarrowed,
+        ;; which signals for real only if LO/HI also happen to be the
+        ;; real buffer edges.
+        ((beginning-of-buffer end-of-buffer)
+         (apply orig-fun args))))))
 
 (defun haskell-ts--confine-evil-paragraph-object (orig-fun thing &rest args)
   "Around advice for `evil-select-an-object'/`evil-select-inner-object'.
@@ -663,10 +710,15 @@ real buffer's, not the node's.  Narrowing to the glued side(s) of the
 enclosing node for the whole call, rather than clamping call by call,
 fixes this at the source: within the narrowing, `point-max'/`point-min'
 *are* the node's boundary, so the fallback is correct either way.
-`haskell-ts--confine-evil-paragraph-in-node' does the narrowing."
+`haskell-ts--confine-evil-paragraph-in-node' does the narrowing.
+
+Passes CONFINE-CODE non-nil so that `a p'/`i p' from *code* glued to a
+comment is likewise confined to the code side of that boundary, not
+just from *inside* a comment -- otherwise the object spills up (or
+down) into the neighbouring comment paragraph."
   (if (not (and (derived-mode-p 'haskell-ts-mode) (eq thing 'evil-paragraph)))
       (apply orig-fun thing args)
-    (haskell-ts--confine-evil-paragraph-in-node orig-fun (cons thing args))))
+    (haskell-ts--confine-evil-paragraph-in-node orig-fun (cons thing args) t)))
 
 (defun haskell-ts--confine-evil-paragraph-motion (orig-fun &rest args)
   "Around advice for `evil-forward-paragraph'/`evil-backward-paragraph'.
@@ -848,8 +900,18 @@ only add a per-call check that can never fire."
 around the call to ORIG-FUN lets the `delete-region' advice above make
 its own deletion marker-aware.  Left unbound for a linewise/block TYPE
 \(`dd', a visual block delete, ...), where deleting a straddled marker
-along with the rest of the line is exactly what is wanted."
-  (if (and (derived-mode-p 'haskell-ts-mode) (memq type '(inclusive exclusive)))
+along with the rest of the line is exactly what is wanted.
+
+Also left unbound for a delete issued from visual state (`v'-then-`x'/
+`d'): there the region is exactly what the user selected and saw
+highlighted, so it is removed verbatim -- marker included -- rather
+than second-guessed.  Marker awareness is meant only for the sentence
+*text objects* (`d a s' and friends, run from operator-pending, not
+visual, state), whose range is computed by `haskell-ts--forward-sentence'
+and can land past a continuation marker the user never pointed at."
+  (if (and (derived-mode-p 'haskell-ts-mode)
+           (memq type '(inclusive exclusive))
+           (not (evil-visual-state-p)))
       (let ((haskell-ts--sentence-deletion-active t))
         (apply orig-fun beg end type args))
     (apply orig-fun beg end type args)))
