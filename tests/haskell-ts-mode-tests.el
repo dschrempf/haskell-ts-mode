@@ -1512,6 +1512,33 @@ before the `--' instead of the next equation's end."
       (forward-sentence 2)
       (should (= (point) second-line-end)))))
 
+(ert-deftest haskell-ts-test-sentence-backward-from-blank-into-comment ()
+  "`backward-sentence' from a blank line between two comments moves up
+into the comment above, not forward past the comment below into code.
+Regression test for TODO.org's \"Move forward sentence jumps to end of
+file\": on the blank line `treesit-node-at' resolves to the *following*
+comment's marker, so `haskell-ts--adjacent-comment-edge' latched onto
+that following comment and returned an edge ahead of point, which
+`haskell-ts--forward-sentence-in-code' then took as the backward
+paragraph bound -- sending `backward-sentence' forward, down onto the
+`data Data' line.  A wrong-side edge is now rejected."
+  (haskell-ts-tests--with-temp-hs
+      "{-------------------------------------------------------------------------------
+  Section
+-------------------------------------------------------------------------------}
+
+-- | Haddock
+data Data
+"
+    (goto-char (point-min))
+    (search-forward "-------}\n")        ; the blank line between the comments
+    (let ((start (point))
+          (block-end (save-excursion (goto-char (point-min))
+                                     (search-forward "-------}") (point))))
+      (backward-sentence)
+      (should (< (point) start))         ; moved up, not down into `data Data'
+      (should (<= (point) block-end))))) ; landed within the block comment above
+
 ;;; `kill-sentence'/`backward-kill-sentence' marker awareness
 
 (ert-deftest haskell-ts-test-kill-sentence-preserves-continuation-marker ()
@@ -1882,6 +1909,35 @@ take their markers with them."
     (evil-delete (point-min) (point-max) 'line)
     (should (equal (buffer-string) ""))))
 
+(ert-deftest haskell-ts-test-evil-visual-delete-not-marker-aware ()
+  "A charwise delete from *visual* state (`v'-then-`x') removes the
+selected region verbatim, merging across a straddled continuation
+marker rather than preserving it -- unlike an operator-driven `d a s'.
+Regression test for TODO.org's \"Deleting a comment doesn't delete the
+comment delimiters\": marker awareness fired on any charwise
+`evil-delete', so visually selecting across a continuation line and
+deleting left that line's `--' marker behind as an empty comment line
+instead of removing the line.  Marker awareness is now gated to
+operator-pending (non-visual) state, where the range is computed --
+and can land past a marker -- rather than seen and selected."
+  (haskell-ts-tests--with-temp-hs-evil
+      "--
+-- Two line sentence goes on for a long time, and still needs more words to
+-- break the line.
+--
+"
+    (goto-char (point-min))
+    (search-forward "sentence ")         ; selection start, at "goes"
+    (let ((b (point)))
+      (search-forward "break the line.")  ; selection end, just past the period
+      (let ((e (point)))
+        (evil-visual-state)
+        (evil-visual-select b e 'inclusive)
+        (goto-char e)
+        (call-interactively #'evil-delete-char)))
+    ;; The whole third line is gone; line two keeps only its own marker.
+    (should (equal (buffer-string) "--\n-- Two line sentence \n--\n"))))
+
 (ert-deftest haskell-ts-test-evil-a-sentence-paragraph-inside-comment ()
   "`d a s' on a comment's first paragraph never reaches into a later
 paragraph of the same multi-line comment.
@@ -1973,24 +2029,22 @@ g = id
 
 (ert-deftest haskell-ts-test-evil-a-paragraph-from-code-glued-to-comment ()
   "`d a p' from *code* glued to a comment above it (no blank line
-there) stays within that code+comment pair -- it must not reach into
-a second, unrelated comment+code pair elsewhere in the buffer.
-Regression test: `bounds-of-thing-at-point' and `evil''s
-whitespace-detection helpers re-probe with `forward-paragraph'/
-`start-of-paragraph-text' from intermediate positions found while
-computing an object's bounds -- here, from point in \"f = id\", one
-such probe lands on the *first character* of the unrelated \"-- | Hello\"
-comment.  `haskell-ts--confine-paragraph-motion' used to clamp that
-probe to `--| Hello''s own bounds regardless of where the object being
-computed actually started, breaking the invariant `evil' relies on
-that `forward-paragraph' reaches the same end from any point within an
-object -- one probe got clamped, another (from \"f = id\" itself) did
-not, and `evil' concluded there was no consistent object at point at
-all, falling back to selecting from the start of the buffer.
-`haskell-ts--confining-evil-paragraph-object' now suppresses that
-per-call clamp for the whole `evil-select-an-object' call, deferring
-entirely to the buffer-narrowing `haskell-ts--confine-evil-paragraph-object'
-already applies once, consistently, for the object's own start."
+there) selects only the code paragraph, stopping at the comment/code
+boundary -- it neither swallows the comment above nor reaches into a
+second, unrelated comment+code pair elsewhere in the buffer.
+Regression test, two behaviours in one:
+- The comment/code boundary is a paragraph boundary in both
+  directions, so `a p' from `f = id' stays on the code side of the
+  glued `-- | Hello' above (see TODO.org's \"Paragraph detection fails
+  sometimes\"); `haskell-ts--confine-evil-paragraph-object' now passes
+  CONFINE-CODE, narrowing to the code paragraph's glued-comment bounds.
+- It must not reach the unrelated `-- | Test.'/`g = id' pair below
+  either: `bounds-of-thing-at-point' and `evil''s whitespace helpers
+  re-probe `forward-paragraph'/`start-of-paragraph-text' from
+  intermediate positions during one object computation, and
+  `haskell-ts--confining-evil-paragraph-object' suppresses the per-call
+  clamp for the whole call so those probes stay consistent, deferring
+  to the single whole-call narrowing."
   (haskell-ts-tests--with-temp-hs-evil
       "-- | Hello
 f = id
@@ -1998,9 +2052,28 @@ f = id
 -- | Test.
 g = id
 "
-    (should (equal "-- | Hello\nf = id\n\n"
+    (should (equal "f = id\n\n"
                    (haskell-ts-tests--evil-object-at
                     "id" #'evil-select-an-object 'evil-paragraph t)))))
+
+(ert-deftest haskell-ts-test-evil-a-paragraph-from-code-not-into-multi-para-comment ()
+  "`a p' from code glued below a multi-paragraph comment selects only
+the code, never the comment's last paragraph.
+Regression test for TODO.org's \"Paragraph detection fails sometimes\":
+a `--'-only line splits the comment above into two paragraphs, and its
+last paragraph (`-- > ...') is glued to the code with no separator, so
+plain paragraph motion merged the two and `v a p' from the code also
+marked that last comment line.  The comment/code boundary is now a
+paragraph boundary, so `a p' stays on the code side of it."
+  (haskell-ts-tests--with-temp-hs-evil
+      "-- | Block
+--
+-- > newtype VarCounter = VarCounter (Block (CInt -> IO CInt))
+newtype Block t = Block (Ptr ())
+"
+    (should (equal "newtype Block t = Block (Ptr ())\n"
+                   (haskell-ts-tests--evil-object-at
+                    "newtype Block t" #'evil-select-an-object 'evil-paragraph t)))))
 
 ;;; `evil-forward-paragraph'/`evil-backward-paragraph' (`}'/`{') confined
 ;;; to a glued comment, the same way `a p'/`i p' already are above.
