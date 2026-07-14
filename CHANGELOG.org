@@ -6,6 +6,24 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 
 * Unreleased
 
+** Fixed
+
+- *Paragraph text object spilled across the comment/code boundary.*  With
+  point in code glued directly below a comment, =v a p=/=a p= reached up
+  into the comment's last paragraph (and, with the comment split into
+  several paragraphs, only that last one); the comment/code boundary is
+  now a paragraph boundary in both directions, so a paragraph object in
+  code stays in the code.
+- *=backward-sentence= from a blank line between two comments jumped
+  down into the code below* instead of up into the comment above, because
+  the adjacent-comment lookup latched onto the following comment.  It now
+  moves up as expected.
+- *Deleting a visual selection across a comment continuation line left
+  the =--= marker behind.*  Marker-aware sentence deletion now applies
+  only to the sentence text objects (=d a s= and friends), not to a
+  charwise delete issued from visual state (=v … x=/=d=), which removes
+  exactly what was selected.
+
 * 1.5 — 2026-07-13
 
 ** Added
