@@ -41,3 +41,35 @@ data Data
 
 Cursor at _, pressing `(` moves cursor down to the `data Data` line; BAD. The
 cursor should move up into the comment block `Section`.
+
+
+* TODO [#B] Deleting a comment doesn't delete the comment delimiters
+
+#+begin_src haskell
+--
+-- Two line sentence _1goes on for a long time, and still needs more words to
+-- break the line._2
+--
+#+end_src
+
+Evil visual mode, marked from _1 to _2. Pressing `x` deletes the marked region,
+but _does not delete the comment delimiters_.
+
+That is, after `x` I observe:
+
+#+begin_src haskell
+--
+-- Two line sentence
+--
+--
+#+end_src
+
+It SHOULD BE:
+
+#+begin_src haskell
+--
+-- Two line sentence
+--
+#+end_src
+
+(one line completely removed).
