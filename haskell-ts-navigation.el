@@ -588,6 +588,91 @@ tracked in TODO.org."
               (setq vpoint (point)))
             (goto-char (haskell-ts--virtual-to-real vpoint table))))))))
 
+(defun haskell-ts--comment-sentence-step (node pos dir)
+  "Return where a single prose sentence step from POS lands, toward DIR.
+NODE is the `text' node (a `--'/Haddock/block comment or a string)
+enclosing POS.  Reproduces one step of `haskell-ts--forward-sentence''s
+motion in a scratch buffer: normalize NODE (strip markers, per
+`haskell-ts--text-node-segments'), map POS into that copy, run stock
+`forward-sentence-default-function' there, and map the result back.  A
+backward step from a stripped marker does not move -- there is no
+prose before it -- matching that command's own guard."
+  (let* ((segments (haskell-ts--text-node-segments node))
+         (text-and-table (haskell-ts--virtual-text-and-table segments))
+         (vtext (car text-and-table))
+         (table (cdr text-and-table))
+         (loc (haskell-ts--real-to-virtual pos table)))
+    (if (and (< dir 0) (cdr loc))
+        pos
+      (let ((vpoint (car loc)))
+        (with-temp-buffer
+          (setq-local sentence-end-double-space nil)
+          (insert vtext)
+          (goto-char vpoint)
+          ;; As in `haskell-ts--forward-sentence': the virtual text's edge
+          ;; is the node boundary, not the real buffer's, so its
+          ;; buffer-edge signal is caught rather than propagated.
+          (condition-case nil
+              (forward-sentence-default-function dir)
+            ((beginning-of-buffer end-of-buffer) nil))
+          (setq vpoint (point)))
+        (haskell-ts--virtual-to-real vpoint table)))))
+
+(defun haskell-ts--code-sentence-step (pos dir)
+  "Return where a single code sentence step from POS lands, toward DIR.
+Reproduces one iteration of `haskell-ts--forward-sentence-in-code':
+step by `treesit-forward-sentence' (function equations) clamped to the
+current paragraph (`haskell-ts--code-paragraph-limit'), falling back to
+`forward-sentence-default-function' only when the clamp alone would
+leave point put."
+  (save-excursion
+    (goto-char pos)
+    (let* ((step (if (< dir 0) -1 1))
+           (start (point))
+           (limit (haskell-ts--code-paragraph-limit step))
+           (ts (save-excursion (treesit-forward-sentence step) (point)))
+           (moved (if (> step 0) (> ts start) (< ts start)))
+           (res (if (> step 0)
+                    (min (if moved ts limit) limit)
+                  (max (if moved ts limit) limit))))
+      (when (= res start)               ; nothing left in this paragraph
+        (setq res (save-excursion
+                    (condition-case nil
+                        (forward-sentence-default-function step)
+                      ((beginning-of-buffer end-of-buffer) nil))
+                    (point))))
+      res)))
+
+(defun haskell-ts--sentence-step (pos dir)
+  "Return where a single sentence step from POS lands, toward DIR.
+Dispatches on the region at POS: prose inside a `text' node
+\(`haskell-ts--comment-sentence-step') or code
+\(`haskell-ts--code-sentence-step'), the same split
+`haskell-ts--forward-sentence' makes on `haskell-ts--text-node-at'."
+  (let ((node (haskell-ts--text-node-at pos)))
+    (if node
+        (haskell-ts--comment-sentence-step node pos dir)
+      (haskell-ts--code-sentence-step pos dir))))
+
+(defun haskell-ts--prose-bounds (pos unit)
+  "Return (BEG . END), the bounds of the UNIT enclosing POS.
+UNIT is `sentence' (the only one supported yet; `paragraph' is added
+with the paragraph-motion rewrite).  BEG and END are computed
+independently by stepping backward and forward from POS -- never by
+chaining one from the other's result, which can land on a comment
+node's end boundary where `treesit-node-at' misresolves (see
+`haskell-ts-tests--sentence-at-point').  Motion picks the end for its
+direction: forward uses END, backward uses BEG.
+
+This is the single bounds primitive the sentence-motion, sentence
+text-object and marker-aware deletion paths are being rebuilt on -- see
+the file Commentary and TODO.org's navigation-refactor item.  It is
+pure: it computes and returns, moving neither point nor match data."
+  (pcase unit
+    ('sentence (cons (haskell-ts--sentence-step pos -1)
+                     (haskell-ts--sentence-step pos 1)))
+    (_ (error "Unsupported `haskell-ts--prose-bounds' unit: %S" unit))))
+
 (defvar haskell-ts-thing-settings
   `((haskell
      (sexp haskell-ts-sexp)

@@ -157,9 +157,32 @@ behaviour-preserving refactor):
   later own-line comment is a tiny behaviour change for that (untested) corner;
   leave it for step 3, where the motion is actually rewritten, and add a test.
 
+## Re-slice (steps 2 vs 4)
+
+The sketch bundled "generalize the segment/virtual-text engine to emit
+region-boundary blank lines" and *both* prose units into step 2. Split instead:
+
+- **Step 2 = sentence unit only.** Code *sentences* are treesit-equation-based
+  (period-driven prose motion cannot reproduce equation granularity — see
+  `haskell-ts-test-sentence-in-code-keeps-equation-granularity`), so the
+  "normalize-and-map for both code and comments" idea only really applies to
+  *paragraphs*. `--prose-bounds POS 'sentence` therefore dispatches: prose region
+  → existing scratch engine; code region → treesit + paragraph clamp — no engine
+  generalization needed, and it stays exactly parity-testable against
+  `--forward-sentence`.
+- **Step 4 = paragraph unit + engine generalization.** Emit region-boundary
+  blank lines and add `--prose-bounds POS 'paragraph`, validated when the clamp
+  helpers are rewritten onto it (paragraph bounds have no standalone command to
+  test against — they live in the advice).
+
+Also: `--prose-bounds` takes `(POS UNIT)`, not `(POS UNIT DIR)`. Bounds are
+direction-independent; motion picks car (backward) or cdr (forward). DIR may
+return for paragraph in step 4 if a boundary case needs it.
+
 ## Action items
 
 - [x] Step 1: `--region-at` + agreement tests. *(done; `make check` green, 135 tests)*
+- [x] Step 2: `--prose-bounds` (sentence) + parity tests. *(done; `make check` green, 136 tests)*
 - [ ] Step 2: generalize mapping engine; add `--prose-bounds` + parity tests.
 - [ ] Step 3: rewrite sentence motion over `--prose-bounds`; drop code-limit helpers.
 - [ ] Step 4: rewrite clamp/narrowing over the new primitives; drop node-clamp helpers.

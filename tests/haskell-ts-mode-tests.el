@@ -1608,6 +1608,58 @@ line between two comments."
     (haskell-ts-tests--with-temp-hs fixture
       (haskell-ts-tests--check-region-at-agrees))))
 
+;;; `haskell-ts--prose-bounds' parity with `haskell-ts--forward-sentence'
+
+(defun haskell-ts-tests--check-prose-bounds-agrees ()
+  "Assert `haskell-ts--prose-bounds' reproduces `haskell-ts--forward-sentence'.
+Swept at every position and in both directions: the sentence bound the
+new primitive reports (END forward, BEG backward) must equal where the
+live sentence-motion command lands, so the step-3 wrapper built on it
+preserves behaviour exactly."
+  (cl-loop
+   for pos from (point-min) to (point-max) do
+   (dolist (dir '(1 -1))
+     (let ((expected (save-excursion
+                       (goto-char pos)
+                       (haskell-ts--forward-sentence dir)
+                       (point)))
+           (bounds (haskell-ts--prose-bounds pos 'sentence)))
+       (should (= expected (if (> dir 0) (cdr bounds) (car bounds))))))))
+
+(ert-deftest haskell-ts-test-prose-bounds-agrees-with-forward-sentence ()
+  "`haskell-ts--prose-bounds' matches the motion it will replace.
+Additive step of the navigation bounds refactor (TODO.org): the new
+bounds primitive is not wired into any motion yet, so this pins that
+its sentence bounds reproduce `haskell-ts--forward-sentence' on every
+prose fixture -- code, `--'/Haddock/block comments, strings, glued and
+blank-separated boundaries, and a comment's first/last sentence."
+  (dolist (fixture
+           '(;; Code directly above and below a `--' comment.
+             "module Main where\n\ngreeting :: String\ngreeting = \"hi\"\n\
+-- Hello. This is a sentence.\nmain :: IO ()\nmain = putStrLn greeting\n"
+             ;; Haddock, code, and a plain comment with blank lines.
+             "-- | Module bla.\n\nx :: Int\nx = 10\n\n-- Hello. This is a sentence.\n"
+             ;; Multi-line Haddock with a marker-only paragraph break.
+             "-- | Hello\n--\n-- Second paragraph here.\nmodule Test () where\n"
+             ;; String interior as prose.
+             "x = \"First. Second. Third.\"\n"
+             ;; `{- -}' block comment glued to code below.
+             "{- First. Second. -}\nx = 1\n"
+             ;; Comment glued directly below code.
+             "data X = X\n-- c.\nf = id\n"
+             ;; Comment glued directly above code.
+             "-- c.\ndata X = X\n"
+             ;; Inline trailing comment: part of its code line.
+             "f = x  -- note\ng = y\n"
+             ;; Two adjacent equations, no blank line: separate sentences.
+             "f = id\ng = id\n"
+             ;; Plain code split into paragraphs by a blank line.
+             "f = id\n\ng = id\n"
+             ;; A comment ending the buffer, glued to code above.
+             "-- One sentence.\nmain = putStrLn x\n"))
+    (haskell-ts-tests--with-temp-hs fixture
+      (haskell-ts-tests--check-prose-bounds-agrees))))
+
 ;;; `kill-sentence'/`backward-kill-sentence' marker awareness
 
 (ert-deftest haskell-ts-test-kill-sentence-preserves-continuation-marker ()
