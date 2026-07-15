@@ -188,6 +188,40 @@ Also: `--prose-bounds` takes `(POS UNIT)`, not `(POS UNIT DIR)`. Bounds are
 direction-independent; motion picks car (backward) or cdr (forward). DIR may
 return for paragraph in step 4 if a boundary case needs it.
 
+## Step 4 starting point (current state after step 3)
+
+The clamp/narrowing layer is untouched and still works off the pre-refactor
+node/comment helpers — step 4 rebuilds it on `--region-at`/`--prose-bounds`.
+
+**Helpers step 4 folds away** (line numbers as of `47c7044`, will drift):
+- `--code-paragraph-clamp` (432) — *already rerouted in step 3* to source from
+  `--code-region-edge` (not the deleted `--adjacent-comment-edge`); still called
+  by `--confine-evil-paragraph-in-node`. Fold into `--prose-bounds POS 'paragraph`.
+- `--node-glued-p` (580), `--node-forward-clamp` (595), `--node-backward-clamp`
+  (611) — the per-node paragraph clamps; replace with paragraph bounds from
+  `--region-at`/`--prose-bounds`.
+- Consumers to re-point, **not** restructure: `--confine-paragraph-motion` (640),
+  `--confine-evil-paragraph-in-node` (696), `--confine-evil-paragraph-object`
+  (748), `--confine-evil-paragraph-motion` (776). Change their *inputs* only.
+
+**New work:** add `--prose-bounds POS 'paragraph`; generalize the segment/
+virtual-text engine (`--text-node-segments` → `--virtual-text-and-table`) to
+emit a region-boundary blank line at the comment/code (and buffer) edge, so
+stock `forward-paragraph` stops there. `--code-blank-line-limit` stays (the
+blank-line edge is prose analysis, intersected with the region bound, per the
+step-1 identity).
+
+**Landmine — run these 22 evil tests after *every* move, not just at the end**
+(the narrowing has broken ~4 times; change inputs, never the *strategy* — see
+`NOTES.org` and the Risks section): the `haskell-ts-test-evil-*paragraph*`
+family at tests lines 2098–2320 (`a p`/`i p`: `-a-paragraph-inside-comment`,
+`-glued-to-code`, `-glued-to-code-below-only`, `-from-code-glued-to-comment`,
+`-from-code-not-into-multi-para-comment`; `}`/`{`: `-forward-paragraph-*`,
+`-backward-paragraph-*`, `-paragraph-motion-not-glued-unaffected`,
+`-paragraph-motion-glued-edge-no-error`). `grep -n "ert-deftest.*evil" tests/`
+lists all 22. Paragraph bounds have no standalone command to assert against —
+these advice-level tests are the only validation.
+
 ## Action items
 
 - [x] Step 1: `--region-at` + agreement tests. *(done; `make check` green, 135 tests)*
