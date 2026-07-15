@@ -158,6 +158,21 @@ behaviour-preserving refactor):
   own-line comment, so that comment now bounds the code paragraph. Pinned by
   `haskell-ts-test-sentence-code-continues-past-inline-comment`. This is the one
   intended behaviour change of the refactor; everything else is preserved.
+- **Engine generalization dropped from step 4 — not needed.** The sketch called
+  for generalizing the segment/virtual-text engine to emit region-boundary blank
+  lines so stock `forward-paragraph` stops at the comment/code edge. It turned out
+  unnecessary: the mode already extends `paragraph-start`/`paragraph-separate`
+  (`haskell-ts-mode.el`) to treat a `--'-only line as a separator, so stock
+  paragraph motion sees *in-comment* paragraph breaks on the real buffer
+  unaided. The only thing it can't see is the *outer* comment↔code glued
+  boundary, and the evil consumers confine at the *node* level (narrow to the
+  whole comment) and let stock motion find paragraphs within. So
+  `--prose-bounds POS 'paragraph` computes region-confinement bounds *directly*
+  (`--paragraph-edge`: node glued edges for a comment/string, region-edge∩blank
+  for code) rather than running stock motion on a normalized copy — the
+  sentence unit's scratch-buffer engine stays sentence-only. The buffer edge
+  (`point-max`/`point-min`) is returned on any non-glued side, so both consumers
+  clamp/narrow uniformly and a non-glued side is a no-op.
 - **Two additive pins are now (partly) tautological.** Once `--forward-sentence`
   wraps `--prose-bounds` and `--code-paragraph-limit`/`--code-paragraph-clamp`
   source from `--code-region-edge`, `haskell-ts-test-prose-bounds-agrees-with-forward-sentence`
@@ -230,7 +245,11 @@ these advice-level tests are the only validation.
   region bound from `--code-region-edge`; drop `--adjacent-comment-edge` and
   `--forward-sentence-in-code`; take the inline-comment divergence + test.
   *(done; `make check` green, 137 tests)*
-- [ ] Step 4: rewrite clamp/narrowing over the new primitives; drop node-clamp helpers.
+- [x] Step 4: `--prose-bounds` (paragraph) via `--paragraph-edge`; re-pointed
+  `--confine-paragraph-motion` + `--confine-evil-paragraph-in-node` onto it;
+  dropped `--node-glued-p`/`--node-forward-clamp`/`--node-backward-clamp`/
+  `--code-paragraph-clamp`. Engine generalization dropped as unnecessary (see
+  Progress notes). *(done; `make check` green, 137 tests — all 22 evil tests incl.)*
 - [ ] Step 5: rewrite marker-aware delete over segment pieces.
 - [ ] Step 6: cleanup + docs (Commentary, `CLAUDE.md`).
 - [ ] (Optional, separate) `thingatpt` provider + evil text-object remap.
