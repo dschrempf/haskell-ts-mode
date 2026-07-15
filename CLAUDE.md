@@ -44,7 +44,7 @@ Split across two files. `haskell-ts-navigation.el` holds sexp/prose navigation a
 
 3. **Imenu** (`haskell-ts-imenu-*-p` predicates, in `haskell-ts-mode.el`): Predicate functions identify functions, type signatures, data type declarations, and type aliases for the imenu outline. `haskell-ts--imenu-node-name` extracts display names.
 
-4. **Mode definition** (`haskell-ts-mode`, in `haskell-ts-mode.el`): Derives from `prog-mode`; on Emacs 30+ additionally derives from `haskell-mode` for compatibility. No indentation support is configured — `treesit-simple-indent-rules` is left unset, so Emacs falls back to its default behavior.
+4. **Mode definition** (`haskell-ts-mode`, in `haskell-ts-mode.el`): Derives from `prog-mode`, and additionally from `haskell-mode` via `derived-mode-add-parents` (unconditionally — that function is Emacs 30.1, the package floor) so third-party config keyed on `haskell-mode` applies. No indentation support is configured — `treesit-simple-indent-rules` is left unset, so Emacs falls back to its default behavior.
 
 5. **REPL** (`haskell-ts-run`, `haskell-ts-compile-region-and-go`, `haskell-ts-load-file`, in `haskell-ts-mode.el`): `comint`-based GHCi integration. An active region is sent verbatim wrapped in GHCi's `:{`/`:}` multiline delimiters (guarding against a standalone `:}` line, which GHCi cannot escape); with no region, `:r` reloads. `haskell-ts-load-file` (`C-c C-l`) loads the current buffer's file: it starts a session if none is running, saves the buffer, and sends `:load "<absolute-path>"`.
 
