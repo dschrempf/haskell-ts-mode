@@ -1878,9 +1878,8 @@ real `haskell-ts-mode' buffer; it needs the grammar to activate the mode."
       (should (assoc "forall" prettify-symbols-alist)))))
 
 (ert-deftest haskell-ts-test-derived-from-haskell-mode ()
-  "On Emacs 30+, `haskell-ts-mode' is recognised as a `haskell-mode' derivative.
+  "`haskell-ts-mode' is recognised as a `haskell-mode' derivative.
 Matters for third-party config keyed on `haskell-mode'."
-  (skip-unless (fboundp 'provided-mode-derived-p))
   (haskell-ts-tests--with-temp-hs "x = 1\n"
     (should (provided-mode-derived-p 'haskell-ts-mode 'haskell-mode))))
 

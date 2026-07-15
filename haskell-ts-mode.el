@@ -458,8 +458,9 @@ child."
 
 (provide 'haskell-ts-mode)
 
-;; derive from `haskell-mode' on emacs v30+
-(when (functionp 'derived-mode-add-parents)
-  (derived-mode-add-parents 'haskell-ts-mode '(haskell-mode)))
+;; Recognised as a `haskell-mode' derivative so third-party config keyed on
+;; `haskell-mode' applies.  `derived-mode-add-parents' is Emacs 30.1, this
+;; package's floor, so no guard is needed.
+(derived-mode-add-parents 'haskell-ts-mode '(haskell-mode))
 
 ;;; haskell-ts-mode.el ends here
