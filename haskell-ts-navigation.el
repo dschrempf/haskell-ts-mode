@@ -327,14 +327,16 @@ so consecutive segments' virtual ranges never touch or overlap."
 (cl-defstruct (haskell-ts--region
                (:constructor haskell-ts--make-region)
                (:copier nil))
-  "A syntactic region of the buffer: its KIND and buffer bounds.
+  "A syntactic region of the buffer: its KIND, buffer bounds and node.
 KIND is one of `code', `comment', `haddock' or `string'.  BEG and END
-are buffer positions delimiting the region.  This is the single
-classification `haskell-ts--region-at' returns; the prose/paragraph
-helpers are being migrated onto it as their one source of truth for
-\"what region is point in, and where are its bounds\" -- see the file
-Commentary and TODO.org's navigation-refactor item."
-  kind beg end)
+are buffer positions delimiting the region.  NODE is the enclosing
+`text' node for a comment/string region (its stripped-marker prose
+segments back marker-aware deletion) and nil for `code'.  This is the
+single classification `haskell-ts--region-at' returns; the
+prose/paragraph helpers are being migrated onto it as their one source
+of truth for \"what region is point in, and where are its bounds\" --
+see the file Commentary and TODO.org's navigation-refactor item."
+  kind beg end node)
 
 (defun haskell-ts--code-region-edge (pos dir)
   "Return the code region's edge from POS in DIR (+1 forward, -1 back).
@@ -395,7 +397,8 @@ with this region's bound."
                  ("haddock" 'haddock)
                  (_ 'comment))
          :beg (treesit-node-start node)
-         :end (treesit-node-end node))
+         :end (treesit-node-end node)
+         :node node)
       (haskell-ts--make-region
        :kind 'code
        :beg (haskell-ts--code-region-edge pos -1)
@@ -868,26 +871,33 @@ deletion.")
 (defun haskell-ts--marker-aware-delete (start end kill)
   "Delete the region between START and END, preserving markers it spans.
 Return non-nil if handled; nil if [START,END) is not entirely within
-one `text' node (a `--'/Haddock comment) or does not straddle one of
+one prose region (a `--'/Haddock comment) or does not straddle one of
 its continuation markers, in which case the caller must fall back to
-its own ordinary deletion.  Only the buffer ranges making up
-`haskell-ts--text-node-segments' -- prose, never a stripped
-continuation marker or its leading whitespace -- are actually removed,
-so the newline and marker on any line the deleted text continues onto
-survive, leaving that line a validly marked comment line rather than
-merged into the one above.  When KILL is non-nil, the removed pieces
-are joined with a newline (mirroring how `haskell-ts--virtual-text-and-table'
-represents them) and pushed onto the kill ring -- a plain `kill-new',
-not `kill-region''s consecutive-kill append behaviour, since this path
-only runs for the rare case of a kill straddling a marker."
+its own ordinary deletion.
+
+The region and its bounds come from `haskell-ts--region-at' -- the one
+classifier for what syntactic region point is in -- and the pieces to
+remove are that region's prose segments (`haskell-ts--text-node-segments',
+the same stripped-marker ranges the sentence engine maps motion over)
+intersected with [START,END).  The range straddles a continuation
+marker exactly when that intersection yields more than one piece; only
+those prose pieces -- never a stripped marker or its leading
+whitespace -- are removed, so the newline and marker on any line the
+deleted text continues onto survive, leaving that line a validly marked
+comment line rather than merged into the one above.  When KILL is
+non-nil, the removed pieces are joined with a newline (mirroring how
+`haskell-ts--virtual-text-and-table' represents them) and pushed onto
+the kill ring -- a plain `kill-new', not `kill-region''s
+consecutive-kill append behaviour, since this path only runs for the
+rare case of a kill straddling a marker."
   (when (> start end)
     (let ((tmp start)) (setq start end end tmp)))
-  (let* ((node (haskell-ts--text-node-at start))
+  (let* ((region (haskell-ts--region-at start))
          (pieces nil))
-    (when (and node
-               (<= (treesit-node-start node) start)
-               (<= end (treesit-node-end node)))
-      (dolist (seg (haskell-ts--text-node-segments node))
+    (when (and (not (eq (haskell-ts--region-kind region) 'code))
+               (<= (haskell-ts--region-beg region) start)
+               (<= end (haskell-ts--region-end region)))
+      (dolist (seg (haskell-ts--text-node-segments (haskell-ts--region-node region)))
         (let ((s (max start (car seg))) (e (min end (cdr seg))))
           (when (< s e) (push (cons s e) pieces))))
       (setq pieces (nreverse pieces)))

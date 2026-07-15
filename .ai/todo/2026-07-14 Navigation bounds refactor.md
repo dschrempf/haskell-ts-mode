@@ -173,6 +173,23 @@ behaviour-preserving refactor):
   sentence unit's scratch-buffer engine stays sentence-only. The buffer edge
   (`point-max`/`point-min`) is returned on any non-glued side, so both consumers
   clamp/narrow uniformly and a non-glued side is a no-op.
+- **Step 5's anticipated "shrink" was already realized — before the refactor.**
+  The table row predicted `--marker-aware-delete` would shrink from "re-deriving
+  the pieces from two points" to "segments intersected with the range, ≥2-pieces
+  test." But `72dc805` (the original marker-aware-delete) was *already*
+  segment-based with the `(> (length pieces) 1)` test — the sketch's mental model
+  of "today" was one version stale. So step 5's real substance is *classifier
+  alignment*: the delete now asks `--region-at` "what region is point in, and
+  where are its bounds" instead of calling `--text-node-at` + comparing raw
+  `treesit-node-start`/`-end`. To avoid a redundant `--text-node-at` fetch (the
+  segments need the node's fields, which the region deliberately didn't carry), a
+  `node` slot was added to `haskell-ts--region` (nil for `code`); `--region-at`
+  stashes the node it already looks up. This revises the step-1 "kind/beg/end
+  only" note additively — the classification contract is unchanged; the node is
+  an internal accessor for consumers that need field access. `--sentence-step`
+  and `--comment-continuation-prefix` still call `--text-node-at` directly; a
+  step-6 (optional) cleanup could re-point them onto `--region-node` to make
+  `--region-at` the sole `--text-node-at` caller.
 - **Two additive pins are now (partly) tautological.** Once `--forward-sentence`
   wraps `--prose-bounds` and `--code-paragraph-limit`/`--code-paragraph-clamp`
   source from `--code-region-edge`, `haskell-ts-test-prose-bounds-agrees-with-forward-sentence`
@@ -250,7 +267,10 @@ these advice-level tests are the only validation.
   dropped `--node-glued-p`/`--node-forward-clamp`/`--node-backward-clamp`/
   `--code-paragraph-clamp`. Engine generalization dropped as unnecessary (see
   Progress notes). *(done; `make check` green, 137 tests — all 22 evil tests incl.)*
-- [ ] Step 5: rewrite marker-aware delete over segment pieces.
+- [x] Step 5: route marker-aware delete's classification/containment through
+  `--region-at`; added a `node` slot to `haskell-ts--region` so segments come
+  from the region (no redundant `--text-node-at` fetch). *(done; `make check`
+  green, 137 tests — all marker-aware/evil-delete tests incl.)*
 - [ ] Step 6: cleanup + docs (Commentary, `CLAUDE.md`).
 - [ ] (Optional, separate) `thingatpt` provider + evil text-object remap.
 - [ ] (Optional, separate) evaluate dropping evil `}`/`{`/`a p`/`i p` confinement.
