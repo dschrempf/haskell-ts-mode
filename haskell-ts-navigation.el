@@ -44,6 +44,7 @@
 
 ;;; Code:
 
+(require 'cl-lib)
 (require 'treesit)
 
 (declare-function treesit-node-start "treesit.c")
@@ -322,6 +323,80 @@ so consecutive segments' virtual ranges never touch or overlap."
 
 (defconst haskell-ts--comment-node-regexp (regexp-opt '("comment" "haddock"))
   "Regexp matching the tree-sitter node types of a Haskell comment.")
+
+(cl-defstruct (haskell-ts--region
+               (:constructor haskell-ts--make-region)
+               (:copier nil))
+  "A syntactic region of the buffer: its KIND and buffer bounds.
+KIND is one of `code', `comment', `haddock' or `string'.  BEG and END
+are buffer positions delimiting the region.  This is the single
+classification `haskell-ts--region-at' returns; the prose/paragraph
+helpers are being migrated onto it as their one source of truth for
+\"what region is point in, and where are its bounds\" -- see the file
+Commentary and TODO.org's navigation-refactor item."
+  kind beg end)
+
+(defun haskell-ts--code-region-edge (pos dir)
+  "Return the code region's edge from POS in DIR (+1 forward, -1 back).
+Forward: the end of the code line just above the nearest own-line
+comment below POS.  Backward: the start of the code line just below
+the nearest own-line comment above POS.  When no own-line comment
+bounds that side -- none at all, an inline or `string' node is the
+nearest one, or the computed edge falls on the wrong side of POS (as
+on a blank line between two comments, where `treesit-node-at'
+resolves to the following node) -- the buffer edge
+\(`point-max'/`point-min') is returned instead.
+
+This casts `haskell-ts--adjacent-comment-edge''s notion of a glued
+own-line comment boundary as a `haskell-ts--region' bound (the former
+returns nil where this returns the buffer edge); the two are asserted
+equivalent by the tests, ahead of folding the former away."
+  (save-excursion
+    (goto-char pos)
+    (let* ((node (treesit-node-at pos))
+           (found (and node (treesit-search-forward
+                             node haskell-ts--comment-node-regexp (< dir 0))))
+           (edge (and found
+                      (progn
+                        (goto-char (treesit-node-start found))
+                        (when (bolp)    ; own-line comment only
+                          (if (> dir 0)
+                              (and (not (bobp)) (1- (treesit-node-start found)))
+                            (goto-char (treesit-node-end found))
+                            (unless (bolp) (forward-line 1))
+                            (point)))))))
+      (if (and edge (if (> dir 0) (> edge pos) (< edge pos)))
+          edge
+        (if (> dir 0) (point-max) (point-min))))))
+
+(defun haskell-ts--region-at (pos)
+  "Return the `haskell-ts--region' enclosing POS.
+When POS is at or inside a `comment'/`haddock'/`string' `text' node
+\(via `haskell-ts--text-node-at'), the region is that node: KIND names
+which of the three it is, and BEG/END are its bounds.  Otherwise POS
+is in code -- KIND is `code' and the region spans from the nearest
+own-line comment above to the nearest one below, or the buffer edges
+\(`haskell-ts--code-region-edge').  An inline trailing comment or an
+in-line string literal is part of code, not a boundary.
+
+Intentionally pure: it computes and returns, moving neither point nor
+match data.  Blank lines that subdivide a code region into paragraphs
+are deliberately *not* boundaries here -- that is prose analysis, left
+to the sentence/paragraph layer, which intersects its blank-line limit
+with this region's bound."
+  (let ((node (haskell-ts--text-node-at pos)))
+    (if node
+        (haskell-ts--make-region
+         :kind (pcase (treesit-node-type node)
+                 ("string" 'string)
+                 ("haddock" 'haddock)
+                 (_ 'comment))
+         :beg (treesit-node-start node)
+         :end (treesit-node-end node))
+      (haskell-ts--make-region
+       :kind 'code
+       :beg (haskell-ts--code-region-edge pos -1)
+       :end (haskell-ts--code-region-edge pos 1)))))
 
 (defun haskell-ts--adjacent-comment-edge (dir)
   "Return the code-side edge of the nearest own-line comment in DIR, or nil.

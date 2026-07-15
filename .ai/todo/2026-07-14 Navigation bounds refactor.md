@@ -136,9 +136,30 @@ behaviour-preserving refactor):
   helpers — either would let the paragraph advice be de-globalized, changing the
   calculus of the evil-bridge follow-ups above.
 
+## Progress / decisions taken
+
+- **Return shape:** a `cl-defstruct haskell-ts--region` (`kind` / `beg` / `end`),
+  not the sketched `(KIND . (BEG . END))` cons — matches the "named record over a
+  multi-field tuple" style. `kind` ∈ `code`|`comment`|`haddock`|`string` (haddock
+  kept distinct from comment, since their font lock differs; prose motion still
+  treats the two alike via `(not (eq kind 'code))`).
+- **Blank lines stay out of `--region-at`** (it is pure syntactic
+  classification). The step-1 agreement test pins the identity this rests on:
+  `--code-paragraph-limit dir` = intersect(`--code-blank-line-limit dir`,
+  region bound). Holds at *every* position across all prose fixtures, including
+  the blank-line-between-two-comments case (there the region bound degrades to
+  the buffer edge, exactly as `--adjacent-comment-edge` returns nil).
+- **Deferred, flagged divergence:** `--code-region-edge` reproduces
+  `--adjacent-comment-edge` *faithfully*, including its "look at the nearest
+  comment only" behaviour — so an inline comment nearer than an own-line comment
+  in the same non-blank stretch yields no region bound (falls to blank/buffer).
+  Treating inline comments as fully within code and *continuing* past them to a
+  later own-line comment is a tiny behaviour change for that (untested) corner;
+  leave it for step 3, where the motion is actually rewritten, and add a test.
+
 ## Action items
 
-- [ ] Step 1: `--region-at` + agreement tests.
+- [x] Step 1: `--region-at` + agreement tests. *(done; `make check` green, 135 tests)*
 - [ ] Step 2: generalize mapping engine; add `--prose-bounds` + parity tests.
 - [ ] Step 3: rewrite sentence motion over `--prose-bounds`; drop code-limit helpers.
 - [ ] Step 4: rewrite clamp/narrowing over the new primitives; drop node-clamp helpers.
