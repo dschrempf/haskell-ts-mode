@@ -15,14 +15,3 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   unspent, delegate the remainder to =treesit-forward-sentence= from the
   mapped-back real boundary — verify against the evil text-object tests
   first.
-
-* TODO [#C] Refactor navigation onto a region/bounds model  :navigation:refactor:
-  The comment/code prose helpers have grown into a zoo of overlapping
-  edge/limit/clamp functions, and the motion-based (not bounds-based) API
-  forces the marker-aware-delete hack.  Behaviour-preserving refactor to
-  one classifier (=--region-at=) + bounds function (=--prose-bounds=),
-  reusing the existing normalize-and-map engine for both code and
-  comments.  Full sketch, migration steps and risks in
-  =.ai/todo/2026-07-14 Navigation bounds refactor.md=.  Only safe now
-  because the 134-test suite pins current behaviour — keep it green at
-  every step.

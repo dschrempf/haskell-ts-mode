@@ -187,16 +187,31 @@ behaviour-preserving refactor):
   stashes the node it already looks up. This revises the step-1 "kind/beg/end
   only" note additively — the classification contract is unchanged; the node is
   an internal accessor for consumers that need field access. `--sentence-step`
-  and `--comment-continuation-prefix` still call `--text-node-at` directly; a
-  step-6 (optional) cleanup could re-point them onto `--region-node` to make
-  `--region-at` the sole `--text-node-at` caller.
-- **Two additive pins are now (partly) tautological.** Once `--forward-sentence`
-  wraps `--prose-bounds` and `--code-paragraph-limit`/`--code-paragraph-clamp`
-  source from `--code-region-edge`, `haskell-ts-test-prose-bounds-agrees-with-forward-sentence`
-  is fully tautological and the *code arm* of
-  `haskell-ts-test-region-at-agrees-with-legacy-helpers` is too (both sides now
-  compute `min/max(blank, --code-region-edge)`). They still guard against
-  crashes and the prose-arm bounds; fold/repurpose them in step 6.
+  and `--comment-continuation-prefix` still call `--text-node-at` directly.
+- **Step 6 kept those two on `--text-node-at` deliberately.** Re-pointing
+  `--sentence-step`/`--comment-continuation-prefix` onto `--region-node` to make
+  `--region-at` the sole `--text-node-at` caller was evaluated and rejected:
+  `--region-at` *eagerly* computes `--code-region-edge` (two treesit searches)
+  for a code position, but both callers only need "am I in a text node," which
+  `--text-node-at` answers without that work — on the hot code-sentence-step path
+  and the common RET-in-code path. The layering is legitimate rather than a wart:
+  `--text-node-at` is the low-level "in a text node?" primitive, `--region-at`
+  the fuller one (adds code bounds) built on it; classification-only callers use
+  the former. So the `node` slot is used only by marker-aware delete (which needs
+  the region's code-bound containment check anyway).
+- **Two additive pins repurposed in step 6.** Once `--forward-sentence` wraps
+  `--prose-bounds` and `--code-paragraph-limit`/`--code-paragraph-clamp` source
+  from `--code-region-edge`, the parity-with-legacy purpose of
+  `haskell-ts-test-prose-bounds-agrees-with-forward-sentence` and the *code arm*
+  of the region-at pin became tautological (both sides now compute
+  `min/max(blank, --code-region-edge)`). Rather than delete them, step 6 reframed
+  each from a *migration* check into a *steady-state drift guard*: the prose one
+  now pins that `--forward-sentence` stays a faithful `--prose-bounds` wrapper (a
+  future divergence fails it); the region one was renamed
+  `haskell-ts-test-region-at-classification-and-code-bound` and pins the
+  text-node classification plus the code-bound identity the refactor rests on.
+  Docstrings updated to say so; assertions kept (they still guard drift + crashes
+  over the whole position sweep).
 
 ## Re-slice (steps 2 vs 4)
 
@@ -271,6 +286,12 @@ these advice-level tests are the only validation.
   `--region-at`; added a `node` slot to `haskell-ts--region` so segments come
   from the region (no redundant `--text-node-at` fetch). *(done; `make check`
   green, 137 tests — all marker-aware/evil-delete tests incl.)*
-- [ ] Step 6: cleanup + docs (Commentary, `CLAUDE.md`).
+- [x] Step 6: no dead helpers remained (steps 3–4 removed them as they landed);
+  repurposed the two now-tautological pins into steady-state drift guards
+  (renamed the region one); added a region/bounds-model paragraph to the file
+  Commentary; refreshed the `CLAUDE.md` navigation notes (region/bounds model,
+  marker-aware delete now implemented, deleted-helper names replaced). Kept
+  `--sentence-step`/`--comment-continuation-prefix` on `--text-node-at` (see
+  Progress note). *(done; `make check` green, 137 tests)*
 - [ ] (Optional, separate) `thingatpt` provider + evil text-object remap.
 - [ ] (Optional, separate) evaluate dropping evil `}`/`{`/`a p`/`i p` confinement.

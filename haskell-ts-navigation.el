@@ -28,6 +28,19 @@
 ;; commands that share their notion of what a `--'/Haddock comment's
 ;; text actually is.  Required by `haskell-ts-mode.el'.
 ;;
+;; Prose motion is built on two pure primitives, the single source of
+;; truth for "what region is point in, and where are its bounds":
+;; `haskell-ts--region-at' classifies a position as `code', `comment',
+;; `haddock' or `string' and returns the region's bounds (and, for a
+;; text node, the node itself); `haskell-ts--prose-bounds' returns the
+;; bounds of the sentence or paragraph enclosing a position, confined
+;; to its region.  Sentence motion (`haskell-ts--forward-sentence'),
+;; the paragraph clamps/narrowing, and marker-aware deletion
+;; (`haskell-ts--marker-aware-delete') are all thin consumers of these.
+;; In-comment prose analysis runs on a dedented, marker-stripped copy
+;; of the node's text mapped back onto the buffer -- see
+;; `haskell-ts--text-node-segments' and `haskell-ts--virtual-text-and-table'.
+;;
 ;; Several of these features are implemented as `:around' advice on
 ;; functions used well outside this mode -- `newline', `kill-region',
 ;; `kill-sentence'/`backward-kill-sentence', and paragraph motion

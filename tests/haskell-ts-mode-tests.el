@@ -1560,17 +1560,19 @@ data Data
       (should (< (point) start))         ; moved up, not down into `data Data'
       (should (<= (point) block-end))))) ; landed within the block comment above
 
-;;; `haskell-ts--region-at' agreement with the pre-refactor helpers
+;;; `haskell-ts--region-at' classification and the code-bound identity
 
-(defun haskell-ts-tests--check-region-at-agrees ()
-  "Assert `haskell-ts--region-at' matches the legacy helpers everywhere.
+(defun haskell-ts-tests--check-region-at ()
+  "Assert `haskell-ts--region-at' classifies POS and holds the code identity.
 Swept at every position in the current buffer: at a prose position it
-must report the same `text' node (kind and bounds) as
-`haskell-ts--text-node-at'; at a code position it must report kind
+must report the enclosing `text' node's kind and bounds (matching
+`haskell-ts--text-node-at'); at a code position it must report kind
 `code' and a bound whose intersection with the blank-line paragraph
-limit reproduces `haskell-ts--code-paragraph-limit' -- the identity the
-bounds refactor rests on (region supplies the comment/buffer edge,
-the prose layer keeps the blank-line edge)."
+limit equals `haskell-ts--code-paragraph-limit' -- the identity the
+whole bounds refactor rests on (region supplies the comment/buffer
+edge, the prose layer keeps the blank-line edge).  Now that the
+pre-refactor helpers are gone this is a drift guard on that identity,
+not the migration check it started as."
   (cl-loop
    for pos from (point-min) to (point-max) do
    (goto-char pos)
@@ -1593,14 +1595,14 @@ the prose layer keeps the blank-line edge)."
                   (max (haskell-ts--code-blank-line-limit -1)
                        (haskell-ts--region-beg r))))))))
 
-(ert-deftest haskell-ts-test-region-at-agrees-with-legacy-helpers ()
-  "`haskell-ts--region-at' agrees with the helpers it will replace.
-Additive step of the navigation bounds refactor (TODO.org): the new
-classifier is not wired into any motion yet, so this pins that it
-reproduces the current notion of region/bounds on every fixture the
-prose helpers are tested against, across code, `--'/Haddock/block
-comments, strings, glued and blank-separated boundaries, and a blank
-line between two comments."
+(ert-deftest haskell-ts-test-region-at-classification-and-code-bound ()
+  "`haskell-ts--region-at' classifies POS and preserves the code-bound identity.
+Navigation bounds refactor (TODO.org): `--region-at' is the single
+classifier the prose/paragraph helpers and marker-aware deletion build
+on, so this pins its `text'-node classification and the
+`--code-paragraph-limit' identity on every fixture -- code,
+`--'/Haddock/block comments, strings, glued and blank-separated
+boundaries, and a blank line between two comments."
   (dolist (fixture
            '(;; Code directly above and below a `--' comment.
              "module Main where\n\ngreeting :: String\ngreeting = \"hi\"\n\
@@ -1627,16 +1629,18 @@ line between two comments."
 -------------------------------------------------------------------------------}\n\n\
 -- | Haddock\ndata Data\n"))
     (haskell-ts-tests--with-temp-hs fixture
-      (haskell-ts-tests--check-region-at-agrees))))
+      (haskell-ts-tests--check-region-at))))
 
-;;; `haskell-ts--prose-bounds' parity with `haskell-ts--forward-sentence'
+;;; `haskell-ts--forward-sentence' delegates to `haskell-ts--prose-bounds'
 
 (defun haskell-ts-tests--check-prose-bounds-agrees ()
-  "Assert `haskell-ts--prose-bounds' reproduces `haskell-ts--forward-sentence'.
+  "Assert `haskell-ts--forward-sentence' stays a faithful `--prose-bounds' wrapper.
 Swept at every position and in both directions: the sentence bound the
-new primitive reports (END forward, BEG backward) must equal where the
-live sentence-motion command lands, so the step-3 wrapper built on it
-preserves behaviour exactly."
+primitive reports (END forward, BEG backward) must equal where the
+live sentence-motion command lands.  Since step 3 made the command a
+thin wrapper over the primitive, this now guards that the wrapper keeps
+delegating -- a future change to `haskell-ts--forward-sentence' that
+diverged from the bounds primitive would fail here."
   (cl-loop
    for pos from (point-min) to (point-max) do
    (dolist (dir '(1 -1))
@@ -1648,12 +1652,12 @@ preserves behaviour exactly."
        (should (= expected (if (> dir 0) (cdr bounds) (car bounds))))))))
 
 (ert-deftest haskell-ts-test-prose-bounds-agrees-with-forward-sentence ()
-  "`haskell-ts--prose-bounds' matches the motion it will replace.
-Additive step of the navigation bounds refactor (TODO.org): the new
-bounds primitive is not wired into any motion yet, so this pins that
-its sentence bounds reproduce `haskell-ts--forward-sentence' on every
-prose fixture -- code, `--'/Haddock/block comments, strings, glued and
-blank-separated boundaries, and a comment's first/last sentence."
+  "`haskell-ts--forward-sentence' delegates faithfully to `haskell-ts--prose-bounds'.
+Navigation bounds refactor (TODO.org): the command is now a thin
+wrapper over the bounds primitive, so this pins that its sentence
+bounds equal the command's landing point on every prose fixture --
+code, `--'/Haddock/block comments, strings, glued and blank-separated
+boundaries, and a comment's first/last sentence."
   (dolist (fixture
            '(;; Code directly above and below a `--' comment.
              "module Main where\n\ngreeting :: String\ngreeting = \"hi\"\n\
