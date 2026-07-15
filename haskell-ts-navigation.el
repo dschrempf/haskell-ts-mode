@@ -429,25 +429,6 @@ and the code region's glued-comment/buffer edge
         (region (haskell-ts--code-region-edge (point) dir)))
     (if (> dir 0) (min blank region) (max blank region))))
 
-(defun haskell-ts--code-paragraph-clamp (dir)
-  "Return the comment edge bounding the code paragraph at point in DIR, or nil.
-Non-nil only when a `--'/Haddock comment is glued directly to the code
-paragraph on DIR's side, with no blank line between them: the
-comment/code boundary is then a paragraph boundary that plain
-paragraph motion (working off `paragraph-start'/`paragraph-separate')
-does not see.  Nil when a blank line or the buffer edge already bounds
-that side, since ordinary motion stops there unaided -- clamping there
-would only interfere.  \"Glued\" is decided by comparing the code
-region's edge (`haskell-ts--code-region-edge') with the blank-line
-boundary (`haskell-ts--code-blank-line-limit'): a comment bounds the
-region (the edge is not the buffer edge) and its edge is the nearer of
-the two."
-  (let ((region (haskell-ts--code-region-edge (point) dir))
-        (blank (haskell-ts--code-blank-line-limit dir)))
-    (and (if (> dir 0) (< region (point-max)) (> region (point-min)))
-         (if (> dir 0) (<= region blank) (>= region blank))
-         region)))
-
 (defun haskell-ts--forward-sentence (&optional arg)
   "`forward-sentence-function' for `haskell-ts-mode'.
 Move point by ARG sentences (`forward-sentence-default-function''s
@@ -546,24 +527,78 @@ Dispatches on the region at POS: prose inside a `text' node
         (haskell-ts--comment-sentence-step node pos dir)
       (haskell-ts--code-sentence-step pos dir))))
 
+(defun haskell-ts--paragraph-edge (region pos dir)
+  "Return REGION's paragraph confinement edge at POS toward DIR.
+DIR is +1 (forward) or -1 (backward).  The result is where paragraph
+motion must be confined so it does not cross the comment/code boundary
+that plain `forward-paragraph'/`start-of-paragraph-text' cannot see --
+or the buffer edge (`point-max'/`point-min') when no such boundary
+applies on that side, meaning \"no confinement needed, ordinary motion
+already stops on its own.\"  So callers narrow or clamp to the returned
+point uniformly, glued or not.
+
+For a code REGION, the glued comment edge (`haskell-ts--code-region-edge')
+when a comment is glued to the code paragraph -- it bounds the region
+short of the buffer edge and is the nearer of the two against the
+blank-line limit (`haskell-ts--code-blank-line-limit') -- else the
+buffer edge.  For a comment/string REGION, the node's own glued edge
+when it abuts a non-separator line: forward, one past `region' END
+\(`forward-paragraph' stops one line below a paragraph's last line, and
+a comment node excludes its trailing newline, so its own END would
+leave point at the last character with nothing beyond to move into --
+which `evil-select-an-object' reads as \"already past the object\");
+backward, `region' BEG itself (a paragraph's start needs no offset).
+
+Not applying `save-match-data' here: `haskell-ts--prose-bounds' and the
+paragraph consumers do not rely on match data across the call."
+  (let ((buffer-edge (if (> dir 0) (point-max) (point-min))))
+    (if (eq (haskell-ts--region-kind region) 'code)
+        (save-excursion
+          (goto-char pos)
+          (let ((edge (haskell-ts--code-region-edge pos dir))
+                (blank (haskell-ts--code-blank-line-limit dir)))
+            (if (and (if (> dir 0) (< edge buffer-edge) (> edge buffer-edge))
+                     (if (> dir 0) (<= edge blank) (>= edge blank)))
+                edge
+              buffer-edge)))
+      (let* ((node-edge (if (> dir 0) (haskell-ts--region-end region)
+                          (haskell-ts--region-beg region)))
+             (glued (save-excursion
+                      (goto-char node-edge)
+                      (and (not (if (> dir 0) (eobp) (bobp)))
+                           (progn (forward-line dir)
+                                  (not (looking-at-p paragraph-separate)))))))
+        (if glued (if (> dir 0) (1+ node-edge) node-edge) buffer-edge)))))
+
 (defun haskell-ts--prose-bounds (pos unit)
   "Return (BEG . END), the bounds of the UNIT enclosing POS.
-UNIT is `sentence' (the only one supported yet; `paragraph' is added
-with the paragraph-motion rewrite).  BEG and END are computed
+UNIT is `sentence' or `paragraph'.  BEG and END are computed
 independently by stepping backward and forward from POS -- never by
 chaining one from the other's result, which can land on a comment
 node's end boundary where `treesit-node-at' misresolves (see
 `haskell-ts-tests--sentence-at-point').  Motion picks the end for its
 direction: forward uses END, backward uses BEG.
 
-This is the single bounds primitive sentence motion now runs on
-\(`haskell-ts--forward-sentence'); the sentence text-object and
-marker-aware deletion paths are being rebuilt on it too -- see the
-file Commentary and TODO.org's navigation-refactor item.  It is pure:
-it computes and returns, moving neither point nor match data."
+For `sentence', prose inside a `text' node runs over a dedented copy
+of the node's text and code steps by `treesit-forward-sentence' (see
+the step helpers above).  For `paragraph', the bounds are the region's
+confinement edges (`haskell-ts--paragraph-edge'): stock paragraph
+motion already sees blank lines and -- via the mode's extended
+`paragraph-separate' -- a `--'-only line inside a comment, so a
+paragraph unit needs only the outer comment/code (or buffer) boundary,
+not the normalize-and-map engine the sentence unit uses.
+
+This is the single bounds primitive sentence and paragraph motion run
+on; the sentence text-object and marker-aware deletion paths are being
+rebuilt on it too -- see the file Commentary and TODO.org's
+navigation-refactor item.  It is pure: it computes and returns, moving
+neither point nor match data."
   (pcase unit
     ('sentence (cons (haskell-ts--sentence-step pos -1)
                      (haskell-ts--sentence-step pos 1)))
+    ('paragraph (let ((region (haskell-ts--region-at pos)))
+                  (cons (haskell-ts--paragraph-edge region pos -1)
+                        (haskell-ts--paragraph-edge region pos 1))))
     (_ (error "Unsupported `haskell-ts--prose-bounds' unit: %S" unit))))
 
 (defvar haskell-ts-thing-settings
@@ -576,45 +611,6 @@ it computes and returns, moving neither point nor match data."
 `haskell-ts--forward-sentence' treats point inside a comment as
 \"inside code\" and jumps by the `sentence' thing (a `match' node)
 instead of by prose sentence, spilling into surrounding code.")
-
-(defun haskell-ts--node-glued-p (pos dir)
-  "Non-nil if the node boundary sitting at POS abuts real code, not a blank line.
-DIR is the direction the boundary faces: positive for a node's end
-\(check the line *after* it), negative for its start (check the line
-*before* it).  Used to tell a comment glued directly to code -- no
-blank line separating them, so `paragraph-start'/`paragraph-separate'
-see nothing there to stop paragraph motion -- from one that already
-has a real separating line, where they need no help."
-  (save-excursion
-    (goto-char pos)
-    (if (if (> dir 0) (eobp) (bobp))
-        nil
-      (forward-line dir)
-      (not (looking-at-p paragraph-separate)))))
-
-(defun haskell-ts--node-forward-clamp (node)
-  "Return where to stop forward paragraph motion confined to NODE, or nil.
-Nil means NODE's end already borders a real separator line, needing
-no clamp.  Otherwise this is one past `treesit-node-end', not
-`treesit-node-end' itself: a comment node's own text excludes its
-trailing newline, but `forward-paragraph' normally stops one line
-*below* a paragraph's last line, having consumed that newline as part
-of the paragraph -- clamping to the tighter, newline-excluded bound
-left point sitting exactly at the comment's last character with
-nothing beyond it to move into, which is indistinguishable, to code
-like `evil-select-an-object' expecting the usual convention, from
-already being past the object's end (see
-`haskell-ts--confine-evil-paragraph-object')."
-  (and (haskell-ts--node-glued-p (treesit-node-end node) 1)
-       (1+ (treesit-node-end node))))
-
-(defun haskell-ts--node-backward-clamp (node)
-  "Return where to stop backward paragraph motion confined to NODE, or nil.
-Nil means NODE's start already borders a real separator line, needing
-no clamp; otherwise `treesit-node-start' itself -- unlike the forward
-case, a paragraph's start is not offset by a newline."
-  (and (haskell-ts--node-glued-p (treesit-node-start node) -1)
-       (treesit-node-start node)))
 
 (defvar haskell-ts--confining-evil-paragraph-object nil
   "Non-nil while `haskell-ts--confine-evil-paragraph-object' runs.
@@ -638,35 +634,39 @@ where it (re)starts from, and this per-call clamp would only add back
 the same inconsistency it narrowed to avoid.")
 
 (defun haskell-ts--confine-paragraph-motion (orig-fun args dir)
-  "Run ORIG-FUN, then clamp point to the `text' node enclosing the start.
+  "Run ORIG-FUN, then clamp point to the `text' region enclosing the start.
 DIR is the motion's direction: positive for `forward-paragraph',
-negative for `start-of-paragraph-text' (always backward).  Only
-intervenes when the relevant boundary is glued to code with no blank
-line of its own to stop at (`haskell-ts--node-forward-clamp'/
-`haskell-ts--node-backward-clamp' return non-nil); when a real blank
-\(or `--'-only) line already borders the node, ORIG-FUN already stops
-there unaided, and clamping would be actively wrong -- it would
-short-circuit the round trip `evil' uses (moving forward then back,
-or vice versa) to detect whitespace *beyond* the node, e.g. between
-two comments separated by a blank line, mistaking \"clamped, so no
-progress\" for \"nothing further to find\" and swallowing everything up
-to `point-max'/`point-min' instead.  Also stays out of the way while
+negative for `start-of-paragraph-text' (always backward).  Clamps to
+the paragraph edge `haskell-ts--prose-bounds' reports for the region
+at point in DIR, which is a real clamp only when that boundary is
+glued to code with no blank line of its own to stop at; otherwise it
+is `point-max'/`point-min', making the clamp a no-op.  Clamping short
+of a real blank (or `--'-only) line would be actively wrong -- it
+would short-circuit the round trip `evil' uses (moving forward then
+back, or vice versa) to detect whitespace *beyond* the node, e.g.
+between two comments separated by a blank line, mistaking \"clamped, so
+no progress\" for \"nothing further to find\" and swallowing everything
+up to `point-max'/`point-min' instead -- but the buffer-edge value on
+a non-glued side avoids that by leaving ORIG-FUN's result untouched.
+Only acts inside a comment/string region: code paragraph motion is
+left to ORIG-FUN so `}'/`{' from code can cross a glued boundary onto
+the blank line beyond.  Also stays out of the way while
 `haskell-ts--confining-evil-paragraph-object' is non-nil, for the same
 underlying reason -- see its docstring.
-ORIG-FUN runs unmodified outside a comment/string, or at one not
-glued to code, adding no behaviour of its own there.  Returns
-ORIG-FUN's own result unchanged, even when clamping, so callers that
-inspect it (e.g. `evil-motion-loop', via how many paragraphs were
-*not* traversed) see the traversal ORIG-FUN actually performed rather
-than the buffer position `goto-char' would otherwise return.
+ORIG-FUN runs unmodified outside a comment/string, adding no behaviour
+of its own there.  Returns ORIG-FUN's own result unchanged, even when
+clamping, so callers that inspect it (e.g. `evil-motion-loop', via how
+many paragraphs were *not* traversed) see the traversal ORIG-FUN
+actually performed rather than the buffer position `goto-char' would
+otherwise return.
 ARGS are passed to ORIG-FUN unmodified."
-  (let* ((node (and (not haskell-ts--confining-evil-paragraph-object)
-                    (derived-mode-p 'haskell-ts-mode)
-                    (haskell-ts--text-node-at (point))))
-         (clamp (and node
-                     (if (> dir 0)
-                         (haskell-ts--node-forward-clamp node)
-                       (haskell-ts--node-backward-clamp node)))))
+  (let* ((region (and (not haskell-ts--confining-evil-paragraph-object)
+                      (derived-mode-p 'haskell-ts-mode)
+                      (haskell-ts--region-at (point))))
+         (clamp (and region
+                     (not (eq (haskell-ts--region-kind region) 'code))
+                     (let ((bounds (haskell-ts--prose-bounds (point) 'paragraph)))
+                       (if (> dir 0) (cdr bounds) (car bounds))))))
     (if (not clamp)
         (apply orig-fun args)
       (let ((result (apply orig-fun args)))
@@ -694,7 +694,7 @@ a paragraph via `start-of-paragraph-text' directly."
 (advice-add 'start-of-paragraph-text :around #'haskell-ts--confine-start-of-paragraph-text)
 
 (defun haskell-ts--confine-evil-paragraph-in-node (orig-fun args &optional confine-code)
-  "Run ORIG-FUN with ARGS narrowed to the glued sides of the node at point.
+  "Run ORIG-FUN with ARGS narrowed to the region's paragraph bounds at point.
 Shared by `haskell-ts--confine-evil-paragraph-object' (`a p'/`i p') and
 `haskell-ts--confine-evil-paragraph-motion' (`}'/`{'): both need the
 *whole* call narrowed to a `text' node glued to code, not merely each
@@ -702,38 +702,39 @@ individual `forward-paragraph'/`start-of-paragraph-text' call clamped
 -- see `haskell-ts--confine-evil-paragraph-object''s docstring for why
 clamping call by call is not enough.
 
-With point in a `text' node the narrowing is to that node's glued
+With point in a `text' region the narrowing is to that node's glued
 side(s), as above.  With CONFINE-CODE non-nil and point instead in
-code, it is to the code paragraph's glued-comment boundaries
-\(`haskell-ts--code-paragraph-clamp'), so a paragraph text object in
-code does not spill into a comment glued to it -- the comment/code
-boundary is a paragraph boundary in both directions.  `}'/`{' motions
-pass CONFINE-CODE nil: unlike the text object they are cursor motions,
-free to move across that boundary onto the blank line beyond, per
-plain paragraph motion (see
+code, it is to the code paragraph's glued-comment boundaries, so a
+paragraph text object in code does not spill into a comment glued to
+it -- the comment/code boundary is a paragraph boundary in both
+directions.  Either way the bounds come from
+`haskell-ts--prose-bounds' UNIT `paragraph', which yields the buffer
+edge on any side with no glued boundary, i.e. no real narrowing there.
+`}'/`{' motions pass CONFINE-CODE nil: unlike the text object they are
+cursor motions, free to move across that boundary onto the blank line
+beyond, per plain paragraph motion (see
 `haskell-ts-test-evil-backward-paragraph-from-code-unaffected').
 
 Binds `haskell-ts--confining-evil-paragraph-object' for the whole
-call, node found or not: bounds may end up computed via an
+call, in a text region or not: bounds may end up computed via an
 intermediate position far from where this call started (e.g. some
 other, unrelated comment elsewhere in the buffer), and any node found
 there must not trigger `haskell-ts--confine-paragraph-motion''s own
 clamp -- see that variable's docstring for why."
   (let* ((haskell-ts--confining-evil-paragraph-object t)
-         (node (haskell-ts--text-node-at (point)))
-         (lo (cond (node (or (haskell-ts--node-backward-clamp node) (point-min)))
-                   (confine-code (or (haskell-ts--code-paragraph-clamp -1) (point-min)))))
-         (hi (cond (node (or (haskell-ts--node-forward-clamp node) (point-max)))
-                   (confine-code (or (haskell-ts--code-paragraph-clamp 1) (point-max))))))
-    (if (not (or node confine-code))
+         (in-text (not (eq (haskell-ts--region-kind (haskell-ts--region-at (point)))
+                           'code))))
+    (if (not (or in-text confine-code))
         (apply orig-fun args)
       ;; With CONFINE-CODE but no glued comment on either side, LO/HI are
       ;; point-min/max, i.e. no real narrowing -- harmless, identical to
       ;; running ORIG-FUN unnarrowed.
       (condition-case nil
-          (save-restriction
-            (narrow-to-region lo hi)
-            (apply orig-fun args))
+          (let* ((bounds (haskell-ts--prose-bounds (point) 'paragraph))
+                 (lo (car bounds)) (hi (cdr bounds)))
+            (save-restriction
+              (narrow-to-region lo hi)
+              (apply orig-fun args)))
         ;; Point already sat at the narrowed edge (LO or HI), so
         ;; `evil-signal-at-bob-or-eob' -- run by `evil-forward-paragraph'/
         ;; `evil-backward-paragraph' before any motion, so nothing to
