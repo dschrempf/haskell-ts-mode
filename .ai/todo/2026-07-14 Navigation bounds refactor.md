@@ -149,13 +149,22 @@ behaviour-preserving refactor):
   region bound). Holds at *every* position across all prose fixtures, including
   the blank-line-between-two-comments case (there the region bound degrades to
   the buffer edge, exactly as `--adjacent-comment-edge` returns nil).
-- **Deferred, flagged divergence:** `--code-region-edge` reproduces
-  `--adjacent-comment-edge` *faithfully*, including its "look at the nearest
-  comment only" behaviour — so an inline comment nearer than an own-line comment
-  in the same non-blank stretch yields no region bound (falls to blank/buffer).
-  Treating inline comments as fully within code and *continuing* past them to a
-  later own-line comment is a tiny behaviour change for that (untested) corner;
-  leave it for step 3, where the motion is actually rewritten, and add a test.
+- **Flagged divergence — taken in step 3.** `--code-region-edge` originally
+  reproduced `--adjacent-comment-edge` *faithfully*, including its "look at the
+  nearest comment only" behaviour — so an inline comment nearer than an own-line
+  comment in the same non-blank stretch yielded no region bound (fell to
+  blank/buffer). Step 3 changed `--code-region-edge` to *skip* inline
+  comments/strings (they are code, not boundaries) and continue to the next
+  own-line comment, so that comment now bounds the code paragraph. Pinned by
+  `haskell-ts-test-sentence-code-continues-past-inline-comment`. This is the one
+  intended behaviour change of the refactor; everything else is preserved.
+- **Two additive pins are now (partly) tautological.** Once `--forward-sentence`
+  wraps `--prose-bounds` and `--code-paragraph-limit`/`--code-paragraph-clamp`
+  source from `--code-region-edge`, `haskell-ts-test-prose-bounds-agrees-with-forward-sentence`
+  is fully tautological and the *code arm* of
+  `haskell-ts-test-region-at-agrees-with-legacy-helpers` is too (both sides now
+  compute `min/max(blank, --code-region-edge)`). They still guard against
+  crashes and the prose-arm bounds; fold/repurpose them in step 6.
 
 ## Re-slice (steps 2 vs 4)
 
@@ -183,8 +192,10 @@ return for paragraph in step 4 if a boundary case needs it.
 
 - [x] Step 1: `--region-at` + agreement tests. *(done; `make check` green, 135 tests)*
 - [x] Step 2: `--prose-bounds` (sentence) + parity tests. *(done; `make check` green, 136 tests)*
-- [ ] Step 2: generalize mapping engine; add `--prose-bounds` + parity tests.
-- [ ] Step 3: rewrite sentence motion over `--prose-bounds`; drop code-limit helpers.
+- [x] Step 3: rewrite sentence motion over `--prose-bounds`; source the code
+  region bound from `--code-region-edge`; drop `--adjacent-comment-edge` and
+  `--forward-sentence-in-code`; take the inline-comment divergence + test.
+  *(done; `make check` green, 137 tests)*
 - [ ] Step 4: rewrite clamp/narrowing over the new primitives; drop node-clamp helpers.
 - [ ] Step 5: rewrite marker-aware delete over segment pieces.
 - [ ] Step 6: cleanup + docs (Commentary, `CLAUDE.md`).

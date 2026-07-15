@@ -340,31 +340,34 @@ Commentary and TODO.org's navigation-refactor item."
   "Return the code region's edge from POS in DIR (+1 forward, -1 back).
 Forward: the end of the code line just above the nearest own-line
 comment below POS.  Backward: the start of the code line just below
-the nearest own-line comment above POS.  When no own-line comment
-bounds that side -- none at all, an inline or `string' node is the
-nearest one, or the computed edge falls on the wrong side of POS (as
-on a blank line between two comments, where `treesit-node-at'
-resolves to the following node) -- the buffer edge
+the nearest own-line comment above POS.  An inline trailing comment or
+a `string' node is part of code, not a boundary, so the search skips
+past it and keeps looking for an own-line comment.  When none bounds
+that side -- no own-line comment at all, or the computed edge falls on
+the wrong side of POS (as on a blank line between two comments, where
+`treesit-node-at' resolves to the following node) -- the buffer edge
 \(`point-max'/`point-min') is returned instead.
 
-This casts `haskell-ts--adjacent-comment-edge''s notion of a glued
-own-line comment boundary as a `haskell-ts--region' bound (the former
-returns nil where this returns the buffer edge); the two are asserted
-equivalent by the tests, ahead of folding the former away."
+This is the code arm of `haskell-ts--region-at'.  It supersedes
+`haskell-ts--adjacent-comment-edge', which stopped at the *first*
+comment in DIR and yielded no bound when that comment was inline;
+continuing past an inline comment to a later own-line one is a
+deliberate behaviour change for that corner -- see
+`haskell-ts-test-sentence-code-continues-past-inline-comment'."
   (save-excursion
-    (goto-char pos)
-    (let* ((node (treesit-node-at pos))
-           (found (and node (treesit-search-forward
-                             node haskell-ts--comment-node-regexp (< dir 0))))
-           (edge (and found
-                      (progn
-                        (goto-char (treesit-node-start found))
-                        (when (bolp)    ; own-line comment only
-                          (if (> dir 0)
-                              (and (not (bobp)) (1- (treesit-node-start found)))
-                            (goto-char (treesit-node-end found))
-                            (unless (bolp) (forward-line 1))
-                            (point)))))))
+    (let ((node (treesit-node-at pos))
+          (back (< dir 0))
+          (edge nil))
+      (while (and node (not edge)
+                  (setq node (treesit-search-forward
+                              node haskell-ts--comment-node-regexp back)))
+        (goto-char (treesit-node-start node))
+        (when (bolp)                    ; own-line comment: a region bound
+          (setq edge (if (> dir 0)
+                         (and (not (bobp)) (1- (treesit-node-start node)))
+                       (goto-char (treesit-node-end node))
+                       (unless (bolp) (forward-line 1))
+                       (point)))))
       (if (and edge (if (> dir 0) (> edge pos) (< edge pos)))
           edge
         (if (> dir 0) (point-max) (point-min))))))
@@ -398,46 +401,6 @@ with this region's bound."
        :beg (haskell-ts--code-region-edge pos -1)
        :end (haskell-ts--code-region-edge pos 1)))))
 
-(defun haskell-ts--adjacent-comment-edge (dir)
-  "Return the code-side edge of the nearest own-line comment in DIR, or nil.
-DIR is +1 (forward: the end of the code line just above the comment)
-or -1 (backward: the start of the code line just below it).  Point is
-assumed to be in code, not already inside a comment.  A comment on its
-own line is a paragraph boundary even when glued directly to code with
-no blank line between, which `forward-sentence-default-function' does
-not see; the edge is line-based (like the blank-line boundary) so the
-clamped sentence excludes the newline adjoining the comment.
-
-Only a comment that begins a line qualifies: an inline trailing
-comment (`f = x -- note') is part of its code line, not a paragraph
-break, and `treesit-forward-sentence' already stops at the equation's
-end before it.  Strings are excluded for the same reason -- inline
-code, not prose.
-
-The result must lie strictly on DIR's side of point; otherwise nil.
-Point is assumed to be in code, but a caller can violate that (e.g. on
-a blank line between two nodes), where `treesit-node-at' resolves to
-the node *following* point and the backward search then latches onto
-that same following node -- yielding an edge ahead of point for a
-backward search.  Rejecting a wrong-side edge keeps such a stray
-result from being taken as the current paragraph's boundary."
-  (let* ((orig (point))
-         (node (treesit-node-at orig))
-         (found (and node (treesit-search-forward
-                           node haskell-ts--comment-node-regexp (< dir 0)))))
-    (when found
-      (save-excursion
-        (goto-char (treesit-node-start found))
-        (when (bolp)                    ; own-line comment only
-          (let ((edge (if (> dir 0)
-                          (and (not (bobp)) (1- (point)))
-                        (goto-char (treesit-node-end found))
-                        (unless (bolp) (forward-line 1))
-                        (point))))
-            (and edge
-                 (if (> dir 0) (> edge orig) (< edge orig))
-                 edge)))))))
-
 (defun haskell-ts--code-blank-line-limit (dir)
   "Return the current code paragraph's blank-line boundary in direction DIR.
 DIR is +1 (forward: the end of the last line before the next blank
@@ -460,13 +423,11 @@ blank one).  A run of consecutive non-blank lines is one paragraph."
 (defun haskell-ts--code-paragraph-limit (dir)
   "Return the current code paragraph's boundary in direction DIR.
 The nearer of the blank-line boundary (`haskell-ts--code-blank-line-limit')
-and the nearest glued comment edge (`haskell-ts--adjacent-comment-edge'):
-a code sentence must not cross either."
+and the code region's glued-comment/buffer edge
+\(`haskell-ts--code-region-edge'): a code sentence must not cross either."
   (let ((blank (haskell-ts--code-blank-line-limit dir))
-        (comment (haskell-ts--adjacent-comment-edge dir)))
-    (if comment
-        (if (> dir 0) (min blank comment) (max blank comment))
-      blank)))
+        (region (haskell-ts--code-region-edge (point) dir)))
+    (if (> dir 0) (min blank region) (max blank region))))
 
 (defun haskell-ts--code-paragraph-clamp (dir)
   "Return the comment edge bounding the code paragraph at point in DIR, or nil.
@@ -476,117 +437,45 @@ comment/code boundary is then a paragraph boundary that plain
 paragraph motion (working off `paragraph-start'/`paragraph-separate')
 does not see.  Nil when a blank line or the buffer edge already bounds
 that side, since ordinary motion stops there unaided -- clamping there
-would only interfere.  \"Glued\" is decided by comparing the nearest
-comment edge (`haskell-ts--adjacent-comment-edge') with the blank-line
-boundary (`haskell-ts--code-blank-line-limit'): the comment counts as
-glued only when its edge is the nearer of the two."
-  (let ((comment (haskell-ts--adjacent-comment-edge dir))
+would only interfere.  \"Glued\" is decided by comparing the code
+region's edge (`haskell-ts--code-region-edge') with the blank-line
+boundary (`haskell-ts--code-blank-line-limit'): a comment bounds the
+region (the edge is not the buffer edge) and its edge is the nearer of
+the two."
+  (let ((region (haskell-ts--code-region-edge (point) dir))
         (blank (haskell-ts--code-blank-line-limit dir)))
-    (and comment
-         (if (> dir 0) (<= comment blank) (>= comment blank))
-         comment)))
-
-(defun haskell-ts--forward-sentence-in-code (arg)
-  "Move point by ARG sentences in code, confined to the current paragraph.
-`treesit-forward-sentence' treats a function equation (`match' node)
-as a sentence and hunts for the next/previous one across any number of
-blank lines and comments; on its own it lets a code \"sentence\" -- and
-so `evil''s `a s' text object -- run from one paragraph clear into the
-next (e.g. from a `data' declaration down past a blank line and a
-comment into the following binding).  Each step is therefore clamped
-to the current paragraph (`haskell-ts--code-paragraph-limit'): a run
-of consecutive non-blank code lines, bounded by a blank line or a
-comment glued to it, within which treesit's equation-level granularity
-is kept.  (The paragraph limit is used rather than
-`forward-sentence-default-function' so that, with
-`sentence-end-double-space' nil, a period inside a string literal --
-which that function would treat as a sentence end -- does not split an
-equation.)  When the clamp alone would leave point put -- treesit
-found no equation to move to, or point already sits at the paragraph
-boundary -- `forward-sentence-default-function' is used to progress
-into the next/previous paragraph instead of sticking."
-  (let ((step (if (< arg 0) -1 1)))
-    (dotimes (_ (abs arg))
-      (let* ((start (point))
-             (limit (haskell-ts--code-paragraph-limit step))
-             (ts (save-excursion (treesit-forward-sentence step) (point)))
-             (moved (if (> step 0) (> ts start) (< ts start)))
-             (res (if (> step 0)
-                      (min (if moved ts limit) limit)
-                    (max (if moved ts limit) limit))))
-        (when (= res start)             ; nothing left in this paragraph
-          (setq res (save-excursion
-                      ;; Only the buffer-edge signal is expected here (as at
-                      ;; the scratch-buffer motion in `haskell-ts--forward-sentence');
-                      ;; let any other error through rather than masking a bug.
-                      (condition-case nil
-                          (forward-sentence-default-function step)
-                        ((beginning-of-buffer end-of-buffer) nil))
-                      (point))))
-        (goto-char res)))))
+    (and (if (> dir 0) (< region (point-max)) (> region (point-min)))
+         (if (> dir 0) (<= region blank) (>= region blank))
+         region)))
 
 (defun haskell-ts--forward-sentence (&optional arg)
   "`forward-sentence-function' for `haskell-ts-mode'.
 Move point by ARG sentences (`forward-sentence-default-function''s
-convention: negative for backward).  In code this steps by
-`treesit-forward-sentence' (function equations) but stays within the
-current paragraph, per `haskell-ts--forward-sentence-in-code'.  When
-point is at or inside a `text' node (a comment or a string), prose
-motion instead runs over a dedented copy of that node's text --
-continuation markers stripped, per `haskell-ts--text-node-segments' --
-in a scratch buffer, and the result is mapped back onto the real
-buffer.
+convention: negative for backward).  A thin wrapper over
+`haskell-ts--prose-bounds': each step goes to the sentence bound it
+reports for point -- END forward, BEG backward.
 
-Two problems follow from running `forward-sentence-default-function'
-on the raw buffer text instead.  It falls back to
-`paragraph-start'/`paragraph-separate' to bound a sentence search when
-it finds no sentence end, and `prog-mode' does not treat a comment
-glued to code (no blank line above or below) as its own paragraph, so
-motion overruns the comment; dedenting fixes this by making a
-marker-only line -- meant to separate paragraphs within one multi-line
-comment -- read as an actual blank line, which it is not in the real
-buffer.  And a comment's marker is otherwise just text: left in, a
-comment's first sentence starts at `--' itself.
+That primitive is the single source of truth for where a sentence
+begins and ends, and dispatches on the region at point.  In code it
+steps by `treesit-forward-sentence' (function equations) confined to
+the current paragraph, so a code \"sentence\" -- and thus `evil''s `a s'
+-- cannot run past a blank line or a glued comment into the next
+paragraph.  Inside a `text' node (a comment or string) prose motion
+runs over a dedented copy of the node's text with continuation markers
+stripped, then maps back, so a comment's first sentence excludes its
+`--' marker and reaching the node's first/last sentence stops at that
+boundary rather than spilling into surrounding code.  See
+`haskell-ts--prose-bounds' and the two step helpers under it.
 
-Dedenting does *not*, however, stop a single sentence that itself
-spans a continuation line from including that line's marker once
-mapped back to the real buffer: motion only returns a point, and the
-region between two such points is whatever real text sits between
-them, markers included.  Avoiding that would mean teaching deletion
-commands about markers, not sentence motion.
-
-Prose motion runs over the node's text alone, so reaching the node's
-first/last sentence and moving again stops at that boundary rather
-than continuing into surrounding code (the buffer-edge signal from
-the scratch buffer is caught, not propagated).  This keeps text
-objects such as `evil''s `d a s' bounded to the comment; letting
-plain motion fall through into code is a separate, riskier change
-tracked in TODO.org."
+The bounds are point-only: a sentence that itself spans a comment
+continuation line still *contains* that line's repeated marker in the
+real buffer between the two points, so preserving it across a deletion
+is handled separately (`haskell-ts--marker-aware-delete'), not here."
   (setq arg (or arg 1))
-  (let ((node (haskell-ts--text-node-at (point))))
-    (if (not node)
-        (haskell-ts--forward-sentence-in-code arg)
-      (let* ((segments (haskell-ts--text-node-segments node))
-             (text-and-table (haskell-ts--virtual-text-and-table segments))
-             (vtext (car text-and-table))
-             (table (cdr text-and-table))
-             (loc (haskell-ts--real-to-virtual (point) table)))
-        (unless (and (< arg 0) (cdr loc))
-          (let ((vpoint (car loc)))
-            (with-temp-buffer
-              (setq-local sentence-end-double-space nil)
-              (insert vtext)
-              (goto-char vpoint)
-              ;; Prose motion signals `beginning-of-buffer'/`end-of-buffer'
-              ;; at the virtual text's edge.  The real buffer usually
-              ;; continues past the node (a comment glued to code, say),
-              ;; so that signal must not escape -- stop at the node
-              ;; boundary instead (see the docstring's boundary note).
-              (condition-case nil
-                  (forward-sentence-default-function arg)
-                ((beginning-of-buffer end-of-buffer) nil))
-              (setq vpoint (point)))
-            (goto-char (haskell-ts--virtual-to-real vpoint table))))))))
+  (let ((dir (if (< arg 0) -1 1)))
+    (dotimes (_ (abs arg))
+      (let ((bounds (haskell-ts--prose-bounds (point) 'sentence)))
+        (goto-char (if (> dir 0) (cdr bounds) (car bounds)))))))
 
 (defun haskell-ts--comment-sentence-step (node pos dir)
   "Return where a single prose sentence step from POS lands, toward DIR.
@@ -620,11 +509,14 @@ prose before it -- matching that command's own guard."
 
 (defun haskell-ts--code-sentence-step (pos dir)
   "Return where a single code sentence step from POS lands, toward DIR.
-Reproduces one iteration of `haskell-ts--forward-sentence-in-code':
-step by `treesit-forward-sentence' (function equations) clamped to the
+Step by `treesit-forward-sentence' (function equations) clamped to the
 current paragraph (`haskell-ts--code-paragraph-limit'), falling back to
 `forward-sentence-default-function' only when the clamp alone would
-leave point put."
+leave point put -- treesit found no equation to move to, or point
+already sits at the paragraph boundary.  The paragraph clamp is used
+rather than plain `forward-sentence-default-function' so that, with
+`sentence-end-double-space' nil, a period inside a string literal does
+not split an equation."
   (save-excursion
     (goto-char pos)
     (let* ((step (if (< dir 0) -1 1))
@@ -664,10 +556,11 @@ node's end boundary where `treesit-node-at' misresolves (see
 `haskell-ts-tests--sentence-at-point').  Motion picks the end for its
 direction: forward uses END, backward uses BEG.
 
-This is the single bounds primitive the sentence-motion, sentence
-text-object and marker-aware deletion paths are being rebuilt on -- see
-the file Commentary and TODO.org's navigation-refactor item.  It is
-pure: it computes and returns, moving neither point nor match data."
+This is the single bounds primitive sentence motion now runs on
+\(`haskell-ts--forward-sentence'); the sentence text-object and
+marker-aware deletion paths are being rebuilt on it too -- see the
+file Commentary and TODO.org's navigation-refactor item.  It is pure:
+it computes and returns, moving neither point nor match data."
   (pcase unit
     ('sentence (cons (haskell-ts--sentence-step pos -1)
                      (haskell-ts--sentence-step pos 1)))

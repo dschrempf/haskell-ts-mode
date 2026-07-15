@@ -1501,10 +1501,10 @@ the whole equation is one sentence."
   "An inline trailing `-- note' is part of its code line, not a paragraph
 edge, so sentence motion runs through it into the next equation instead
 of stopping at the comment.
-Regression test: `haskell-ts--adjacent-comment-edge' restricts its
-own-line check to `(bolp)' so an inline comment does not count as a
-glued comment boundary; dropping that guard clamps motion to just
-before the `--' instead of the next equation's end."
+Regression test: `haskell-ts--code-region-edge' restricts its own-line
+check to `(bolp)' so an inline comment does not bound the code region;
+dropping that guard clamps motion to just before the `--' instead of
+the next equation's end."
   (haskell-ts-tests--with-temp-hs
       "f = x  -- note\ng = y\n"
     (goto-char (point-min))
@@ -1512,16 +1512,37 @@ before the `--' instead of the next equation's end."
       (forward-sentence 2)
       (should (= (point) second-line-end)))))
 
+(ert-deftest haskell-ts-test-sentence-code-continues-past-inline-comment ()
+  "An inline comment does not bound the code region: the search continues
+past it to a later own-line comment glued to the same code.
+Intended behaviour change of the navigation bounds refactor
+\(TODO.org): `haskell-ts--adjacent-comment-edge' stopped at the nearest
+comment even when inline and so reported no bound there, letting
+sentence motion cross the own-line comment below.
+`haskell-ts--code-region-edge' skips the inline comment and reports the
+own-line one as the region's edge, so it (and the paragraph limit built
+on it) stops at the code line just above that comment."
+  (haskell-ts-tests--with-temp-hs
+      "f = x  -- note\ng = y\n-- own\nh = z\n"
+    (goto-char (point-min))
+    (let ((g-eol (save-excursion (forward-line 1) (line-end-position))))
+      (should (= (haskell-ts--code-region-edge (point) 1) g-eol))
+      (should (= (haskell-ts--code-paragraph-limit 1) g-eol))
+      ;; The own-line comment now bounds sentence motion: two equations,
+      ;; then the boundary -- not on across it into `h = z'.
+      (forward-sentence 2)
+      (should (= (point) g-eol)))))
+
 (ert-deftest haskell-ts-test-sentence-backward-from-blank-into-comment ()
   "`backward-sentence' from a blank line between two comments moves up
 into the comment above, not forward past the comment below into code.
 Regression test for TODO.org's \"Move forward sentence jumps to end of
 file\": on the blank line `treesit-node-at' resolves to the *following*
-comment's marker, so `haskell-ts--adjacent-comment-edge' latched onto
-that following comment and returned an edge ahead of point, which
-`haskell-ts--forward-sentence-in-code' then took as the backward
-paragraph bound -- sending `backward-sentence' forward, down onto the
-`data Data' line.  A wrong-side edge is now rejected."
+comment's marker, so the code region's edge (`haskell-ts--code-region-edge')
+latched onto that following comment and returned an edge ahead of point,
+which the code-side sentence step then took as the backward paragraph
+bound -- sending `backward-sentence' forward, down onto the `data Data'
+line.  A wrong-side edge is now rejected."
   (haskell-ts-tests--with-temp-hs
       "{-------------------------------------------------------------------------------
   Section
