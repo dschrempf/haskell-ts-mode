@@ -1,6 +1,19 @@
 * TODO [#C] Migrate GitHub Actions CI to Codeberg                  :ci:
 We have a .github CI workflow, but the project is hosted at Codeberg.
 
+* TODO [#C] Revive the =thingatpt= paragraph provider — only if upstream unblocks it  :navigation:evil:blocked:upstream:
+  Replacing the fragile =evil= paragraph advice with Emacs 30.1
+  buffer-local =bounds-of-thing-at-point-provider-alist= /
+  =forward-thing-provider-alist= providers is *blocked upstream* and was
+  abandoned 2026-07-16 — see =NOTES.org= for the full analysis and repro.
+  Short version: =forward-thing='s provider branch returns =nil=/=t=, but
+  =evil= does =(zerop (forward-thing …))=, so a provider crashes =a p=/=}=.
+  Present in both Emacs and =evil= master.  Only actionable once either
+  Emacs's provider branch returns a leftover count (like =forward-op=) or
+  =evil= stops assuming an integer return; at that point the detailed plan
+  in =.ai/todo/2026-07-16 thingatpt paragraph provider.md= can be revisited
+  (mind its now-invalidated premise, corrected in that file's banner).
+
 * TODO [#B] Let prose motion fall through the comment↔code boundary  :navigation:prose:evil:risky:
   =haskell-ts--forward-sentence= runs prose motion over one =text= node's
   text alone, so reaching a comment's first/last sentence and moving

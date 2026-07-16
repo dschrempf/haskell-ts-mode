@@ -1,5 +1,34 @@
 # Replace the Evil paragraph-object advice with a thingatpt provider
 
+> **ABANDONED 2026-07-16 — blocked upstream. Do not implement as written.**
+>
+> A spike disproved the central premise below (the "discovery that reframes
+> this work"). The premise is right that Evil routes paragraph objects through
+> `bounds-of-thing-at-point`/`forward-thing` and that Emacs 30.1 added the
+> provider alists — but wrong that Evil *survives* going through them:
+>
+> - Emacs's `forward-thing` **provider branch returns `nil`/`t`** (moved /
+>   stopped-early), not the integer leftover count its `forward-op` branch
+>   returns. Evil's `evil-bounds-of-not-thing-at-point` and `evil-forward-end`
+>   do `(zerop (forward-thing thing …))`, so `(zerop nil)` →
+>   `(wrong-type-argument number-or-marker-p nil)`. A `forward-thing` provider
+>   for `evil-paragraph` therefore **crashes** `a p`/`i p`/`}`/`{`. So Design
+>   point 2 (the "single subtle invariant") is not the real hazard — the whole
+>   `forward-thing-provider-alist` leg is a non-starter.
+> - Registering **only** the `bounds-of-thing-at-point` provider (no
+>   `forward-thing` provider) avoids the crash but yields the *wrong bounds*:
+>   the object spills into glued code, because Evil's whitespace step re-probes
+>   `forward-thing` (→ `forward-op` → `forward-paragraph`) from intermediate
+>   positions in code that a per-call clamp can't confine — exactly the bug the
+>   whole-call narrowing advice exists to fix. Keeping the narrowing *and* a
+>   bounds provider is redundant: no simplification.
+>
+> Verified against Emacs 30.2 + Evil 1.15.0, and **unchanged on both masters**
+> (checked 2026-07-16). Revive only when Emacs's provider branch returns a
+> count, or Evil drops the `zerop` assumption. Full retrospective + minimal
+> repro in `NOTES.org`; parked action item in `TODO.org`. Everything past this
+> banner is the original (now-invalidated) plan, kept for the analysis.
+
 Detailed plan for Point 1 of the navigation refactor's optional follow-ups
 (`.ai/done/2026-07-14 Navigation bounds refactor.md`, action item "thingatpt
 provider + evil text-object remap"). Point 2 (dropping the confinement) was
