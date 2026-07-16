@@ -293,5 +293,18 @@ these advice-level tests are the only validation.
   marker-aware delete now implemented, deleted-helper names replaced). Kept
   `--sentence-step`/`--comment-continuation-prefix` on `--text-node-at` (see
   Progress note). *(done; `make check` green, 137 tests)*
-- [ ] (Optional, separate) `thingatpt` provider + evil text-object remap.
-- [ ] (Optional, separate) evaluate dropping evil `}`/`{`/`a p`/`i p` confinement.
+- [~] (Optional, separate) `thingatpt` provider + evil text-object remap.
+  *Analysed 2026-07-16 and spun out into its own detailed plan:
+  `.ai/todo/2026-07-16 thingatpt paragraph provider.md`. The analysis overturned
+  this plan's premise (lines 88–95): on the Emacs 30.1 floor, Evil resolves
+  paragraph objects through `bounds-of-thing-at-point`/`forward-thing`, and 30.1
+  added the buffer-local `bounds-of-thing-at-point-provider-alist`/
+  `forward-thing-provider-alist` this plan assumed did not exist. So the
+  narrowing advice can be replaced by a buffer-local provider outright, not
+  merely remapped. Scoped to the paragraph thing (sentence objects are already
+  bridged via `forward-sentence-function`). Not yet implemented.*
+- [x] (Optional, separate) evaluate dropping evil `}`/`{`/`a p`/`i p` confinement.
+  *Evaluated and rejected 2026-07-16: paragraph motion spilling across a
+  comment/code boundary is not acceptable, so the confinement stays. This
+  option is closed; the follow-up above keeps the behaviour while replacing its
+  fragile implementation.*
