@@ -23,6 +23,14 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   only to the sentence text objects (=d a s= and friends), not to a
   charwise delete issued from visual state (=v … x=/=d=), which removes
   exactly what was selected.
+- *=forward-sentence= at the end of a ={- -}= block comment or a string
+  literal jumped backward into it instead of stopping.*  Both trim their
+  closing marker (=-}=, a closing quote) off the comment/string's prose
+  segment, so the real position right after it -- reached whenever
+  nothing inside stops sentence motion first, e.g. a block comment with
+  no sentence-ending punctuation of its own -- fell outside that
+  segment; the virtual-text mapping then clamped it backward into the
+  segment instead of leaving point in place.
 
 * 1.5 — 2026-07-13
 

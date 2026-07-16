@@ -28,32 +28,3 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   unspent, delegate the remainder to =treesit-forward-sentence= from the
   mapped-back real boundary — verify against the evil text-object tests
   first.
-
-* TODO Sentence forward movement bug
-
-Assume the following source:
-
-#+begin_src haskell
-f = id
-
-{-------------------------------------------------------------------------------
-  Section
--------------------------------------------------------------------------------}
-
-g = id
-#+end_src
-
-Pressing `)` (`evil-forward-sentence-begin`) repeatedly, leads to the following
-cursor positions (note the order):
-
-#+begin_src haskell
-_1f _2= id
-_3
-{--_5-----------------------------------------------------------------------------
-  Section
--------------------------------------------------------------------------------}_4
-_6
-_7g = id
-#+end_src
-
-Note _4 and _5 (?).
