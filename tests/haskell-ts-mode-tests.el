@@ -1406,6 +1406,49 @@ trimmed off so it never counts as sentence text."
     (search-forward "Second")
     (should (equal "Second." (haskell-ts-tests--sentence-at-point)))))
 
+(ert-deftest haskell-ts-test-sentence-step-at-block-comment-end-does-not-reverse ()
+  "A forward sentence step from a block comment's real end must not move
+backward into the comment.
+Regression test for TODO.org's \"Sentence forward movement bug\": the
+closing `-}' is trimmed off the comment's prose segment
+\(`haskell-ts--text-node-segments'), so the node's own end -- where
+POS lands here -- falls past that segment's end.
+`haskell-ts--real-to-virtual' mapped such a POS back to the *start* of
+the virtual buffer-edge signal instead of clamping to the segment's own
+end, so a forward step from there jumped backward into the comment."
+  (haskell-ts-tests--with-temp-hs
+      "{- One sentence. -}\nmain = putStrLn x\n"
+    (let ((node-end (treesit-node-end (haskell-ts--text-node-at (point-min)))))
+      (should (= node-end (haskell-ts--sentence-step node-end 1))))))
+
+(ert-deftest haskell-ts-test-sentence-step-at-string-end-does-not-reverse ()
+  "Like `haskell-ts-test-sentence-step-at-block-comment-end-does-not-reverse',
+but for a string literal, whose closing quote is trimmed the same way."
+  (haskell-ts-tests--with-temp-hs
+      "x = \"One sentence.\"\n"
+    (let* ((pos (progn (search-forward "\"") (point)))
+           (node-end (treesit-node-end (haskell-ts--text-node-at pos))))
+      (should (= node-end (haskell-ts--sentence-step node-end 1))))))
+
+(ert-deftest haskell-ts-test-sentence-forward-past-blank-line-into-block-comment-does-not-reverse ()
+  "End-to-end regression test for TODO.org's \"Sentence forward movement
+bug\": repeatedly pressing `evil''s `)' (`forward-sentence' under the
+hood) from before a blank line followed by a `{- -}' block comment with
+no sentence-ending punctuation of its own (so plain
+`forward-sentence-default-function', run on the *real* buffer by
+`haskell-ts--code-sentence-step''s no-match fallback, lands exactly on
+the comment's own end rather than stopping inside it) used to jump
+backward into the comment on the very next step instead of staying
+put -- see `haskell-ts-test-sentence-step-at-block-comment-end-does-not-reverse'
+for the underlying cause."
+  (haskell-ts-tests--with-temp-hs
+      "f = id\n\n{---\nSection\n---}\n\ng = id\n"
+    (forward-sentence)                  ; end of "f = id"
+    (forward-sentence)                  ; lands at the block comment's real end
+    (let ((at-end (point)))
+      (forward-sentence)
+      (should (= (point) at-end)))))
+
 (ert-deftest haskell-ts-test-sentence-motion-stops-at-comment-end ()
   "`forward-sentence' at a comment's last sentence stops at the comment's
 end without signalling, even though code follows below.

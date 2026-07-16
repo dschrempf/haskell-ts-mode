@@ -304,12 +304,16 @@ it to translate points between the two."
 
 (defun haskell-ts--real-to-virtual (pos table)
   "Map real buffer POS to a point in the virtual text described by TABLE.
-Return (VPOINT . ON-MARKERP).  ON-MARKERP is non-nil when POS sits on
-a stripped marker -- the node's own opening marker (POS before the
+Return (VPOINT . ON-MARKERP).  ON-MARKERP is nil when POS sits inside a
+segment, `forward' when it sits on a stripped marker with a following
+segment to clamp to -- the node's own opening marker (POS before the
 first segment) or a continuation line's repeated one (POS between two
-segments) -- in which case VPOINT is clamped forward to the marker's
-following segment, since the marker itself has no counterpart in the
-virtual text at all."
+segments) -- and `backward' when it sits on the node's closing marker,
+past the last segment (POS after it but still within the node, e.g. a
+block comment's trailing `-}' or a string's closing quote, both
+trimmed off by `haskell-ts--text-node-segments'): there VPOINT is
+clamped backward to that segment's own end instead, since there is no
+following segment left to clamp forward to."
   (catch 'done
     (dolist (entry table)
       (let ((rstart (nth 0 entry)) (rend (nth 1 entry)) (vstart (nth 2 entry)))
@@ -317,10 +321,10 @@ virtual text at all."
          ((and (<= rstart pos) (<= pos rend))
           (throw 'done (cons (+ vstart (- pos rstart)) nil)))
          ((< pos rstart)
-          (throw 'done (cons vstart t))))))
+          (throw 'done (cons vstart 'forward))))))
     (let* ((last (car (last table)))
            (vstart (nth 2 last)))
-      (cons (+ vstart (- (nth 1 last) (nth 0 last))) nil))))
+      (cons (+ vstart (- (nth 1 last) (nth 0 last))) 'backward))))
 
 (defun haskell-ts--virtual-to-real (vpoint table)
   "Inverse of `haskell-ts--real-to-virtual': map VPOINT back via TABLE.
@@ -481,14 +485,24 @@ enclosing POS.  Reproduces one step of `haskell-ts--forward-sentence''s
 motion in a scratch buffer: normalize NODE (strip markers, per
 `haskell-ts--text-node-segments'), map POS into that copy, run stock
 `forward-sentence-default-function' there, and map the result back.  A
-backward step from a stripped marker does not move -- there is no
-prose before it -- matching that command's own guard."
+step from a stripped marker toward the direction it was clamped away
+from does not move -- there is no prose on that side of it, matching
+`forward-sentence-default-function''s own buffer-edge guard: backward
+from the opening marker (`haskell-ts--real-to-virtual' clamped VPOINT
+forward, past it), or forward from the closing one (clamped backward,
+short of it).  Without this guard the closing-marker case would run
+`forward-sentence-default-function' from the already-clamped VPOINT,
+find nothing left to move over, and land back at that clamp -- short
+of POS whenever POS itself was past it (e.g. exactly at the node's
+real end, beyond a block comment's trimmed `-}'), moving point
+*backward* into the node instead of leaving it in place."
   (let* ((segments (haskell-ts--text-node-segments node))
          (text-and-table (haskell-ts--virtual-text-and-table segments))
          (vtext (car text-and-table))
          (table (cdr text-and-table))
          (loc (haskell-ts--real-to-virtual pos table)))
-    (if (and (< dir 0) (cdr loc))
+    (if (or (and (< dir 0) (eq (cdr loc) 'forward))
+            (and (> dir 0) (eq (cdr loc) 'backward)))
         pos
       (let ((vpoint (car loc)))
         (with-temp-buffer
