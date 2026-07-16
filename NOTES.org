@@ -38,3 +38,51 @@
   that =3ap= on a single glued comment already stopped at its bounds
   before this fix, so this is an existing, shared trade-off of the
   narrowing approach itself, not a regression from extending it.
+
+* The =thingatpt= provider that was meant to replace that advice cannot work
+  The plan in =.ai/todo/2026-07-16 thingatpt paragraph provider.md= (spun
+  out of the navigation refactor's optional follow-ups) proposed deleting
+  the fragile =evil= paragraph advice above in favour of Emacs 30.1's
+  buffer-local =bounds-of-thing-at-point-provider-alist= /
+  =forward-thing-provider-alist=, backed by =haskell-ts--prose-bounds=.
+  Abandoned 2026-07-16 after a spike: the provider mechanism is
+  fundamentally incompatible with =evil=, and no partial adoption helps.
+
+  =forward-thing=, on its provider branch, returns =nil= (point moved) or
+  =t= (stopped early), *not* the integer leftover count its =forward-op=
+  branch returns.  =evil-bounds-of-not-thing-at-point= (reached by
+  =evil-select-an-object= on every linewise object's whitespace step) and
+  =evil-forward-end= both do =(zerop (forward-thing thing …))=, so
+  =(zerop nil)= → =(wrong-type-argument number-or-marker-p nil)=.
+  Registering a =forward-thing= provider for =evil-paragraph= therefore
+  crashes =a p=/=i p=/=}=/={= outright.  Minimal, mode-independent repro:
+
+  #+begin_src emacs-lisp
+  (setq-local forward-thing-provider-alist
+              '((evil-paragraph . (lambda (bw) (forward-paragraph (if bw -1 1))))))
+  (evil-select-an-object 'evil-paragraph nil nil 'inclusive 1 t)
+  ;; => (wrong-type-argument number-or-marker-p nil)
+  #+end_src
+
+  The fallback -- register only the =bounds-of-thing-at-point= provider
+  (a cons, so no return-value clash) and keep the per-call
+  =forward-paragraph= clamp so =forward-thing= still uses =forward-op= --
+  does not crash but gives the *wrong bounds*: =a p= on a glued comment
+  spills into the code below, a one-sided-glued object loses its leading
+  blank line, etc.  That is exactly what the whole-call narrowing was
+  written to fix (=evil= re-probes =forward-thing= from intermediate
+  positions that land in code, where a per-call clamp cannot fire -- the
+  same root cause as the three bugs in the entry above).  Keeping the
+  narrowing advice *and* the bounds provider is redundant, so there is no
+  net simplification either way.
+
+  Verified 2026-07-16 against Emacs 30.2 + =evil= 1.15.0, and both are
+  unchanged on *master*: Emacs master's =forward-thing= provider branch
+  is byte-for-byte the same =nil=/=t= return, and =evil= master's
+  =evil-bounds-of-not-thing-at-point= still does =(zerop (forward-thing
+  …))=.  A real fix needs one side to move first -- Emacs's provider
+  branch to return a count like =forward-op= does, or =evil= to stop
+  assuming =forward-thing= returns a number (see the TODO item).  Until
+  then the advice stays; the plan's premise ("the buffer-local hook the
+  refactor said did not exist") was correct about the *hook* but wrong
+  that =evil= survives going through it.
