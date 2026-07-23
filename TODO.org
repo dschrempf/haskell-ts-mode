@@ -28,3 +28,79 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   unspent, delegate the remainder to =treesit-forward-sentence= from the
   mapped-back real boundary — verify against the evil text-object tests
   first.
+
+* TODO [#A] Problem in export lists?
+#+begin_src haskell
+module M (
+  export -- comment_
+) where
+#+end_src
+
+cursor at _; pressing =o= leads to
+
+#+begin_src haskell
+module M (
+  export -- comment
+  export -- _
+) where
+#+end_src
+
+cursors at _.
+
+Of course, this should not be. Here, no comment should be inserted (I guess this
+may be true for all inline comments?)
+
+* TODO [#B] Problem with substitute (=S=) in comments?
+The follow cases always show
+START (cursor at _)
+AFTER pressing =S=, cursor at _
+
+The behavior is inconsistent. Either, pressing S in a comment should delete the
+comment on this line, or not. I don't know what the desired behavior should be
+(I am tending the comment should be removed, but convince me).
+
+** Example 1
+
+#+begin_src haskell
+-- Single line comment_
+#+end_src
+
+#+begin_src haskell
+_
+#+end_src
+
+** Example 2
+
+#+begin_src haskell
+--
+-- Last line in comment_
+#+end_src
+
+#+begin_src haskell
+--
+_
+#+end_src
+
+** Example 3
+
+#+begin_src haskell
+-- Not-last-line_
+--
+#+end_src
+
+#+begin_src haskell
+-- _
+--
+#+end_src
+
+** Example 4
+
+#+begin_src haskell
+-- _
+--
+#+end_src
+
+#+begin_src haskell
+-- _
+--
+#+end_src
