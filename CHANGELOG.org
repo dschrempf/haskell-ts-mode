@@ -6,6 +6,20 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 
 * Unreleased
 
+** Changed
+
+- *Evil =S=/=cc= (=evil-change-whole-line=) in a comment now clears the
+  line outright.*  It kept the =--= marker on some lines and dropped it
+  on others -- an accident of where the command's internal
+  =evil-open-above=/=evil-open-below= left point relative to the
+  surviving comment node.  Changing a comment line now consistently
+  wipes it, marker and all.
+- *Evil =I= (=evil-insert-line=) in a =--= comment lands after the
+  marker.*  Rather than stopping before =--= (its first non-blank
+  character), point is placed after the marker and its trailing space --
+  the start of the comment text -- as =I= places it before the first
+  token on a code line.
+
 ** Fixed
 
 - *=RET=/Evil =o=/=O= inside an inline comment inserted bogus text.*  An
