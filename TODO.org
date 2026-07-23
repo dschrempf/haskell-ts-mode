@@ -29,28 +29,26 @@ We have a .github CI workflow, but the project is hosted at Codeberg.
   mapped-back real boundary — verify against the evil text-object tests
   first.
 
-* TODO [#A] Problem in export lists?
-#+begin_src haskell
-module M (
-  export -- comment_
-) where
-#+end_src
-
-cursor at _; pressing =o= leads to
-
-#+begin_src haskell
-module M (
-  export -- comment
-  export -- _
-) where
-#+end_src
-
-cursors at _.
-
-Of course, this should not be. Here, no comment should be inserted (I guess this
-may be true for all inline comments?)
-
 * TODO [#B] Problem with substitute (=S=) in comments?
+  #+begin_comment
+  Root cause (found while fixing the inline-comment =o= bug, now done):
+  =evil-change-whole-line= (=S=/=cc=) does a linewise delete, then re-enters
+  insert via =evil-open-above=/=evil-open-below= — which fire our comment
+  continuation advice (=haskell-ts--evil-continue-comment=).  Whether the
+  marker survives depends only on where post-delete point lands relative to
+  the *surviving* comment node:
+  - Changing the *last* line of a multi-line comment leaves point on the
+    blank line *below* the node → not-in-comment → no continuation (marker
+    gone: Examples 1, 2).
+  - Changing a *non-last* line leaves point *inside* the surviving node →
+    in-comment → continuation fires (marker kept: Examples 3, 4).
+  So the inconsistency is an accident of open-above/below landing, not a
+  deliberate rule.  This is a *distinct* root cause from the inline-comment
+  =o= bug (that was a wrong continuation *prefix*; this is the continuation
+  firing at all during =S=).  Fixing it means first deciding the desired
+  =S=-in-comment semantics (open question below), then likely suppressing or
+  normalising continuation on the =S= path specifically.
+  #+end_comment
 The follow cases always show
 START (cursor at _)
 AFTER pressing =S=, cursor at _
