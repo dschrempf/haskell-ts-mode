@@ -2421,5 +2421,85 @@ repeated the code preceding an inline marker, so `o' inside
     (should (equal (buffer-substring-no-properties (point-min) (point-max))
                    "module M (\n  export -- comment\n\n) where\n"))))
 
+;;; `evil' `S'/`cc' change-whole-line in a comment
+
+;; `evil-change-whole-line' re-enters insert via
+;; `evil-open-above'/`evil-open-below', which fire the comment
+;; continuation advice; without the dedicated advice the marker
+;; survived or not depending only on where those left point relative
+;; to the surviving comment node.  `S' must consistently clear the
+;; line, marker and all -- see TODO.org.
+
+(ert-deftest haskell-ts-test-evil-change-whole-line-clears-single-comment ()
+  "`S' on a lone comment line leaves a blank line, marker removed."
+  (haskell-ts-tests--with-temp-hs-evil
+      "-- Single line comment"
+    (goto-char (point-max))
+    (call-interactively 'evil-change-whole-line)
+    (evil-normal-state)
+    (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                   "\n"))))
+
+(ert-deftest haskell-ts-test-evil-change-whole-line-clears-last-comment-line ()
+  "`S' on the last line of a multi-line comment removes that line's marker.
+Previously the marker survived here (continuation fired), unlike the
+single-line case -- the inconsistency this fix removes."
+  (haskell-ts-tests--with-temp-hs-evil
+      "--\n-- Last line in comment"
+    (search-forward "Last")
+    (call-interactively 'evil-change-whole-line)
+    (evil-normal-state)
+    (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                   "--\n"))))
+
+(ert-deftest haskell-ts-test-evil-change-whole-line-clears-non-last-comment-line ()
+  "`S' on a non-last comment line removes its marker too.
+Same rule as the last-line case; the two disagreed before the fix."
+  (haskell-ts-tests--with-temp-hs-evil
+      "-- Not-last-line\n--"
+    (search-forward "Not")
+    (call-interactively 'evil-change-whole-line)
+    (evil-normal-state)
+    (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                   "\n--"))))
+
+;;; `evil' `I' insert-line in a comment
+
+(ert-deftest haskell-ts-test-evil-insert-line-past-comment-marker ()
+  "`I' in a `--' comment lands after the marker, not before it."
+  (haskell-ts-tests--with-temp-hs-evil
+      "-- Comment here"
+    (search-forward "here")
+    (call-interactively 'evil-insert-line)
+    (should (equal (buffer-substring-no-properties (line-beginning-position) (point))
+                   "-- "))))
+
+(ert-deftest haskell-ts-test-evil-insert-line-past-indented-haddock-marker ()
+  "`I' skips indentation and the marker, leaving the Haddock sigil as content."
+  (haskell-ts-tests--with-temp-hs-evil
+      "    -- | Haddock text"
+    (search-forward "Haddock")
+    (call-interactively 'evil-insert-line)
+    (should (equal (buffer-substring-no-properties (line-beginning-position) (point))
+                   "    -- "))))
+
+(ert-deftest haskell-ts-test-evil-insert-line-leaves-code-alone ()
+  "`I' on a code line stops at the first non-blank as usual.
+Covers an inline comment's own line (first non-blank is code) and a
+line opening with the `-->' operator (a comment-lookalike the region
+check must classify as code, not skip into)."
+  (haskell-ts-tests--with-temp-hs-evil
+      "foo = 1 -- inline"
+    (search-forward "inline")
+    (call-interactively 'evil-insert-line)
+    (should (equal (buffer-substring-no-properties (line-beginning-position) (point))
+                   "")))
+  (haskell-ts-tests--with-temp-hs-evil
+      "x = a --> b"
+    (search-forward "-->")
+    (call-interactively 'evil-insert-line)
+    (should (equal (buffer-substring-no-properties (line-beginning-position) (point))
+                   ""))))
+
 (provide 'haskell-ts-mode-tests)
 ;;; haskell-ts-mode-tests.el ends here

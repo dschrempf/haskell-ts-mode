@@ -843,12 +843,25 @@ narrowed buffer."
   (advice-add 'evil-forward-paragraph :around #'haskell-ts--confine-evil-paragraph-motion)
   (advice-add 'evil-backward-paragraph :around #'haskell-ts--confine-evil-paragraph-motion))
 
+(defvar haskell-ts--inhibit-comment-continuation nil
+  "When non-nil, `haskell-ts--continuation-prefix' returns nil.
+Bound around `evil-change-whole-line' (`S'/`cc',
+`haskell-ts--evil-change-whole-line') so that changing a comment line
+clears it outright -- marker included -- rather than re-inserting the
+marker through the `o'/`O' comment-continuation advice that command
+reaches internally.  Wiping the whole line, comment and all, is the
+consistent `S'-in-comment behaviour; the inconsistency it replaces was
+an accident of where the internal `evil-open-above'/`evil-open-below'
+left point relative to the surviving comment node -- see TODO.org.")
+
 (defun haskell-ts--continuation-prefix ()
   "Return the `--' comment continuation prefix for point, or nil.
 Non-nil only in a `haskell-ts-mode' buffer with point inside a `--'
-comment; see `haskell-ts--comment-continuation-prefix'.  Shared by the
+comment, and only while `haskell-ts--inhibit-comment-continuation' is
+nil; see `haskell-ts--comment-continuation-prefix'.  Shared by the
 `newline' and Evil `o'/`O' advice below."
-  (and (derived-mode-p 'haskell-ts-mode)
+  (and (not haskell-ts--inhibit-comment-continuation)
+       (derived-mode-p 'haskell-ts-mode)
        (haskell-ts--comment-continuation-prefix (point))))
 
 (defun haskell-ts--newline (orig-fun &rest args)
@@ -884,9 +897,44 @@ to insert that blank line before the prefix is added."
     (when prefix
       (insert prefix))))
 
+(defun haskell-ts--evil-change-whole-line (orig-fun &rest args)
+  "Around advice for `evil-change-whole-line' (`S'/`cc').
+Change a comment line to a truly blank one -- marker and all -- rather
+than keeping the `--' marker.  `evil-change-whole-line' deletes the
+line then re-enters insert via `evil-open-above'/`evil-open-below',
+which fire the comment-continuation advice; binding
+`haskell-ts--inhibit-comment-continuation' around ORIG-FUN with ARGS
+suppresses it, so no marker is reinstated.  Outside `haskell-ts-mode'
+ORIG-FUN runs unchanged."
+  (if (derived-mode-p 'haskell-ts-mode)
+      (let ((haskell-ts--inhibit-comment-continuation t))
+        (apply orig-fun args))
+    (apply orig-fun args)))
+
+(defun haskell-ts--evil-insert-line (orig-fun &rest args)
+  "Around advice for `evil-insert-line' (`I').
+Leave point after a `--' comment's delimiters, not before them.
+`evil-insert-line' moves to the first non-blank character; on a `--'
+comment line that is the marker itself, but the useful place to insert
+is the comment text after it, so skip the marker's dashes and the
+following whitespace -- the same column the continuation prefix ends at,
+leaving any Haddock sigil (`|'/`^') as content.  Only a `--'/Haddock
+comment line is affected; on code (including an inline comment's own
+line, where the first non-blank is code) and in strings, point is left
+where ORIG-FUN put it.  ORIG-FUN is called with ARGS first, so insert
+state is already set up when point is nudged forward."
+  (apply orig-fun args)
+  (when (and (derived-mode-p 'haskell-ts-mode)
+             (memq (haskell-ts--region-kind (haskell-ts--region-at (point)))
+                   '(comment haddock))
+             (looking-at "-+[ \t]*"))
+    (goto-char (match-end 0))))
+
 (with-eval-after-load 'evil
   (advice-add 'evil-insert-newline-above :around #'haskell-ts--evil-continue-comment)
-  (advice-add 'evil-insert-newline-below :around #'haskell-ts--evil-continue-comment))
+  (advice-add 'evil-insert-newline-below :around #'haskell-ts--evil-continue-comment)
+  (advice-add 'evil-change-whole-line :around #'haskell-ts--evil-change-whole-line)
+  (advice-add 'evil-insert-line :around #'haskell-ts--evil-insert-line))
 
 (defvar haskell-ts--sentence-deletion-active nil
   "Non-nil while the current command's own region removal should be marker-aware.
