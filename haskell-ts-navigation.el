@@ -211,17 +211,24 @@ for an indented Haddock comment \"    -- | ...\", \"    -- \" (the `|'
 sigil is not repeated).  Return nil if POS is not inside a `--'
 comment (plain or Haddock): a block comment (marker `{-') and a
 string both count as `text' too, but neither has a marker starting
-with `--'."
+with `--'.
+
+Also return nil for an *inline* comment -- one whose marker follows
+code on its line -- which should not be continued at all: the text
+before the marker is code, not indentation, so repeating it would
+splice that code into the new line and start a comment where none
+belongs (see TODO.org)."
   (let* ((node (haskell-ts--text-node-at pos))
          (marker (and node (treesit-node-child-by-field-name node "marker")))
          (marker-text (and marker (treesit-node-text marker t))))
     (when (and marker-text (string-prefix-p "--" marker-text))
       (save-excursion
         (goto-char (treesit-node-start marker))
-        (concat (buffer-substring-no-properties (line-beginning-position) (point))
-                (progn (string-match "\\`-+" marker-text)
-                       (match-string 0 marker-text))
-                " ")))))
+        (when (save-excursion (skip-chars-backward " \t") (bolp))
+          (concat (buffer-substring-no-properties (line-beginning-position) (point))
+                  (progn (string-match "\\`-+" marker-text)
+                         (match-string 0 marker-text))
+                  " "))))))
 
 (defun haskell-ts--comment-line-segments (content)
   "Return CONTENT's per-line prose ranges, continuation markers stripped.

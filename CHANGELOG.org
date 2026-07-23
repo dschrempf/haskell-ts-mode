@@ -8,6 +8,11 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 
 ** Fixed
 
+- *=RET=/Evil =o=/=O= inside an inline comment inserted bogus text.*  An
+  inline comment (=export -- note=, its =--= following code) was continued
+  like an own-line one, splicing the code before the marker onto the new
+  line (=export -- =).  Only own-line comments are continued now; inline
+  ones are left alone.
 - *Paragraph text object spilled across the comment/code boundary.*  With
   point in code glued directly below a comment, =v a p=/=a p= reached up
   into the comment's last paragraph (and, with the comment split into

@@ -1833,6 +1833,19 @@ Evil's `o'/`O' use, bypassing the keymap entirely."
     (newline)
     (should (equal (buffer-string) "foo = 1\n"))))
 
+(ert-deftest haskell-ts-test-newline-leaves-inline-comment-alone ()
+  "An inline `-- ' comment (marker following code) is not continued.
+Regression test (see TODO.org): the continuation prefix took
+everything from the line start to the marker as \"indentation\", so
+for an inline comment it spliced the preceding code onto the new
+line and opened a comment where none belonged."
+  (haskell-ts-tests--with-temp-hs
+      "module M (\n  export -- comment\n) where\n"
+    (search-forward "comment")
+    (newline)
+    (should (equal (buffer-string)
+                   "module M (\n  export -- comment\n\n) where\n"))))
+
 (ert-deftest haskell-ts-test-newline-above-comment-does-not-continue-it ()
   "`newline' on a blank line above a comment does not continue it.
 Regression test: `treesit-node-at' returns the first node *after*
@@ -2394,6 +2407,19 @@ original one and point lands right after the repeated marker."
     (should (equal (buffer-substring-no-properties (point-min) (point-max))
                    "-- \n-- Comment"))
     (should (equal (buffer-substring-no-properties (point-min) (point)) "-- "))))
+
+(ert-deftest haskell-ts-test-evil-open-below-leaves-inline-comment-alone ()
+  "Evil's `o' on an inline comment opens a plain line, not a comment.
+Regression test (see TODO.org): the continuation prefix wrongly
+repeated the code preceding an inline marker, so `o' inside
+`export -- comment' inserted a bogus `export -- ' line."
+  (haskell-ts-tests--with-temp-hs-evil
+      "module M (\n  export -- comment\n) where\n"
+    (search-forward "comment")
+    (evil-open-below 1)
+    (evil-normal-state)
+    (should (equal (buffer-substring-no-properties (point-min) (point-max))
+                   "module M (\n  export -- comment\n\n) where\n"))))
 
 (provide 'haskell-ts-mode-tests)
 ;;; haskell-ts-mode-tests.el ends here
