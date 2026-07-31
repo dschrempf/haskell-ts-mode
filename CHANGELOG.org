@@ -1,6 +1,6 @@
 #+title: haskell-ts-mode changelog
 
-All notable changes to =haskell-ts-mode= are documented here.  The
+All notable changes to =haskell-ts-mode= are documented here. The
 format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], and the project aims to follow
 [[https://semver.org/][Semantic Versioning]].
 
@@ -8,29 +8,29 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 
 ** Changed
 
-- *The project moved to [[https://github.com/dschrempf/haskell-ts-mode][GitHub]].*  Codeberg restricted its terms of
+- *The project moved to [[https://github.com/dschrempf/haskell-ts-mode][GitHub]].* Codeberg restricted its terms of
   use, so the Codeberg repository is archived and GitHub is now the only
   home.
 - *Evil =S=/=cc= (=evil-change-whole-line=) in a comment now clears the
-  line outright.*  It kept the =--= marker on some lines and dropped it
+  line outright.* It kept the =--= marker on some lines and dropped it
   on others -- an accident of where the command's internal
   =evil-open-above=/=evil-open-below= left point relative to the
-  surviving comment node.  Changing a comment line now consistently
+  surviving comment node. Changing a comment line now consistently
   wipes it, marker and all.
 - *Evil =I= (=evil-insert-line=) in a =--= comment lands after the
-  marker.*  Rather than stopping before =--= (its first non-blank
+  marker.* Rather than stopping before =--= (its first non-blank
   character), point is placed after the marker and its trailing space --
   the start of the comment text -- as =I= places it before the first
   token on a code line.
 
 ** Fixed
 
-- *=RET=/Evil =o=/=O= inside an inline comment inserted bogus text.*  An
+- *=RET=/Evil =o=/=O= inside an inline comment inserted bogus text.* An
   inline comment (=export -- note=, its =--= following code) was continued
   like an own-line one, splicing the code before the marker onto the new
-  line (=export -- =).  Only own-line comments are continued now; inline
+  line (=export -- =). Only own-line comments are continued now; inline
   ones are left alone.
-- *Paragraph text object spilled across the comment/code boundary.*  With
+- *Paragraph text object spilled across the comment/code boundary.* With
   point in code glued directly below a comment, =v a p=/=a p= reached up
   into the comment's last paragraph (and, with the comment split into
   several paragraphs, only that last one); the comment/code boundary is
@@ -38,15 +38,15 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
   code stays in the code.
 - *=backward-sentence= from a blank line between two comments jumped
   down into the code below* instead of up into the comment above, because
-  the adjacent-comment lookup latched onto the following comment.  It now
+  the adjacent-comment lookup latched onto the following comment. It now
   moves up as expected.
 - *Deleting a visual selection across a comment continuation line left
-  the =--= marker behind.*  Marker-aware sentence deletion now applies
+  the =--= marker behind.* Marker-aware sentence deletion now applies
   only to the sentence text objects (=d a s= and friends), not to a
   charwise delete issued from visual state (=v … x=/=d=), which removes
   exactly what was selected.
 - *=forward-sentence= at the end of a ={- -}= block comment or a string
-  literal jumped backward into it instead of stopping.*  Both trim their
+  literal jumped backward into it instead of stopping.* Both trim their
   closing marker (=-}=, a closing quote) off the comment/string's prose
   segment, so the real position right after it -- reached whenever
   nothing inside stops sentence motion first, e.g. a block comment with
@@ -58,38 +58,38 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 
 ** Added
 
-- *Comment-aware prose navigation.*  Sentence motion (=M-e=/=M-a=,
+- *Comment-aware prose navigation.* Sentence motion (=M-e=/=M-a=,
   =kill-sentence=, =evil='s =d a s=/=a s=) inside a =--=/Haddock comment
   or a string literal now treats the interior as prose: a marker-only
   line reads as a paragraph break, sentence bounds ignore the repeated
   =--= marker, and sentence deletion leaves a straddled marker in place
   rather than merging two comment lines into one.
-- *Paragraph text objects confined to a comment.*  =evil='s =a p=/=i p=
+- *Paragraph text objects confined to a comment.* =evil='s =a p=/=i p=
   and =M-}=/=M-{= stay within a =--=/Haddock comment even when it is
   glued directly to the surrounding code, instead of spilling into the
   neighbouring binding.
-- *Comment continuation on =RET=.*  Breaking a line inside a =--=
+- *Comment continuation on =RET=.* Breaking a line inside a =--=
   comment (plain or Haddock) repeats the marker and leading indentation
-  on the new line; also wired for =evil='s =o=/=O=.  Block comments
+  on the new line; also wired for =evil='s =o=/=O=. Block comments
   (={- -}=) and code are unaffected.
-- *Send the current line or definition to the REPL.*  =C-c C-e=
+- *Send the current line or definition to the REPL.* =C-c C-e=
   (=haskell-ts-send-line=) sends the line at point, and =C-M-x=
   (=haskell-ts-send-defun=) sends the definition at point -- the same
   definition imenu and =which-function-mode= use -- complementing
   =C-c C-c= (region or reload) and =C-c C-l= (load file).
-- *Cabal component selection for =cabal repl=.*  When the current file
+- *Cabal component selection for =cabal repl=.* When the current file
   is shared by several cabal components, starting the REPL now prompts
-  for one instead of aborting; the choice is remembered per buffer.  A
+  for one instead of aborting; the choice is remembered per buffer. A
   prefix argument (=C-u C-c C-r=) forces the pick even for an
   unambiguous file, offering the project's components as candidates
   (an empty entry clears the override).
-- *More keywords highlighted.*  =forall=, =pattern=, the
+- *More keywords highlighted.* =forall=, =pattern=, the
   deriving-strategy keywords =via=/=stock=/=anyclass=, the fixity
   keywords =infix=/=infixl=/=infixr=, and the arrow-notation keywords
   =mdo=/=rec= now get =font-lock-keyword-face=.
 - *Do-notation bind arrow (=<-=) highlighted*, matching the list
   comprehension generator's =<-=.
-- *Development tooling.*  =make check= now also runs =make format=
+- *Development tooling.* =make check= now also runs =make format=
   (=indent-region= over the sources), =checkdoc=, =package-lint= and
   =relint=, each printing a section banner; GitHub Actions CI runs =nix
   flake check= on push and pull request; and =evil= is bundled into the
@@ -98,37 +98,37 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 
 ** Changed
 
-- *Minimum Emacs bumped from 29.3 to 30.1.*  The navigation code
+- *Minimum Emacs bumped from 29.3 to 30.1.* The navigation code
   already called Emacs-30-only functions unconditionally, so the old
   floor understated the real requirement.
-- *Customization group renamed =haskell-ts-mode= → =haskell-ts=.*  Use
+- *Customization group renamed =haskell-ts-mode= → =haskell-ts=.* Use
   =M-x customize-group RET haskell-ts= instead.
 - *Face renamed =haskell-constructor-face= → =haskell-ts-constructor-face=.*
   Update any theming of the old name.
 - *Source split into =haskell-ts-navigation.el= and =haskell-ts-repl.el=*,
-  both =require=d by =haskell-ts-mode.el=.  No behaviour change, but a
+  both =require=d by =haskell-ts-mode.el=. No behaviour change, but a
   build script that loaded =haskell-ts-mode.el= alone now needs the two
   new files alongside it.
 
 ** Fixed
 
 - *Coarse =forward-sexp=/=backward-sexp= over top-level and
-  =let=/=where= bindings.*  From column 0, =forward-sexp= jumped to the
+  =let=/=where= bindings.* From column 0, =forward-sexp= jumped to the
   end of the buffer (and =backward-sexp= to its start) instead of
   stepping over one binding; =backward-sexp= could also stall at, or
   swallow the binding enclosing, a =let=/=where= block's last local
-  binding.  Motion now steps over exactly one binding.
+  binding. Motion now steps over exactly one binding.
 - *=haskell-ts-defun-name= showed the whole pattern for an infix-headed
-  definition.*  For =a <+> b = ...= it now reports =<+>= rather than
+  definition.* For =a <+> b = ...= it now reports =<+>= rather than
   ="a <+> b"=, so =which-function-mode= and imenu agree.
-- *Imenu mislabelled or omitted =data=/=newtype= declarations.*  A
+- *Imenu mislabelled or omitted =data=/=newtype= declarations.* A
   =type data Foo= (two leading keywords) showed as "data" instead of
   "Foo", and =data=/=newtype instance= family instances were dropped
   entirely; both are now handled.
 
 ** Removed
 
-- *Tree-sitter indentation support.*  =haskell-ts-use-indent=,
+- *Tree-sitter indentation support.* =haskell-ts-use-indent=,
   =haskell-ts-indent-rules= and =haskell-ts-indent-after-newline= are
   gone -- the rule set was disabled by default and, per its own
   comments, an unmaintainable hack that nothing else depended on.
@@ -141,47 +141,47 @@ inferior mode), and adds a test suite.
 
 ** Added
 
-- *=cabal repl= support.*  Inside a cabal project (a =cabal.project= or
+- *=cabal repl= support.* Inside a cabal project (a =cabal.project= or
   =*.cabal= file found by walking up the directory tree) the REPL now
   starts with =cabal repl= instead of plain =ghci=, so the project's
   dependencies, default language extensions and GHC options are in
-  scope.  The current file is passed as the target so cabal opens the
-  owning component.  New options: =haskell-ts-use-cabal= (=auto= / =t= /
+  scope. The current file is passed as the target so cabal opens the
+  owning component. New options: =haskell-ts-use-cabal= (=auto= / =t= /
   =nil=, default =auto=), =haskell-ts-cabal= and
   =haskell-ts-cabal-switches=.
-- *=haskell-ts-load-file= (=C-c C-l=).*  Loads the current buffer's file
+- *=haskell-ts-load-file= (=C-c C-l=).* Loads the current buffer's file
   into the REPL with =:load "<absolute-path>"=, starting a session if
-  none is running and saving the buffer first.  Works whether GHCi is
+  none is running and saving the buffer first. Works whether GHCi is
   fresh or already has modules loaded, sidestepping the =:r= no-op on a
-  freshly started session.  The REPL is displayed without leaving the
+  freshly started session. The REPL is displayed without leaving the
   current buffer.
 - *A dedicated inferior mode, =haskell-ts-inferior-mode=* (derived from
-  =comint-mode=).  It sets a prompt regexp
+  =comint-mode=). It sets a prompt regexp
   (=haskell-ts-inferior-prompt-regexp=, matching =ghci> = / =ghci| =,
   =λ>= and the older module-qualified prompts =cabal repl= can
   produce), makes the prompt read-only, and persists input history via
-  =haskell-ts-inferior-history-file=.  Filename completion and history
+  =haskell-ts-inferior-history-file=. Filename completion and history
   navigation come from =comint-mode=.
-- *=M-x align= support* for the =​=​= sign.  A buffer-local
+- *=M-x align= support* for the =​=​= sign. A buffer-local
   =align-mode-rules-list= (from =haskell-ts-align-rules-list=) lines up
   the standalone =​=​= signs of bindings and equations in a region,
   while leaving =​==​=, =​=>​=, =​<=​=, =​>=​= and =​/=​= untouched.
-- *Test suite and development environment.*  An ERT suite under =tests/=
+- *Test suite and development environment.* An ERT suite under =tests/=
   plus a =Makefile= (=make compile= / =test= / =check= / =checkdoc=) and
   a =flake.nix= that provides an Emacs with =inheritenv= and @tek's
-  grammar wired in via =HASKELL_TS_GRAMMAR_PATH=.  =nix flake check= runs
+  grammar wired in via =HASKELL_TS_GRAMMAR_PATH=. =nix flake check= runs
   the full suite headlessly.
 
 ** Changed
 
-- *Retargeted at @tek's tree-sitter-haskell grammar.*  Font-lock and
+- *Retargeted at @tek's tree-sitter-haskell grammar.* Font-lock and
   indentation queries were adapted to @tek's node-type names (e.g.
-  =type_synomym= → =type_synonym=).  The official
+  =type_synomym= → =type_synonym=). The official
   =tree-sitter/tree-sitter-haskell= grammar is no longer supported and
-  fails silently (missing or wrong highlighting).  See the README for
+  fails silently (missing or wrong highlighting). See the README for
   manual grammar-installation instructions.
 - *Renamed =run-haskell= to =haskell-ts-run=* for prefix consistency
-  with every other public command and option.  No alias is kept.
+  with every other public command and option. No alias is kept.
 - The REPL process is now started in the project root when one is found,
   so relative =import='s and the module search path resolve from there.
 - The =.hs= =auto-mode-alist= entry is now registered unconditionally
@@ -197,10 +197,10 @@ inferior mode), and adds a test suite.
 
 - =haskell-ts-indent-after-newline= inserted whitespace equal to the
   previous line's full width (instead of its indentation) and ran on
-  every =RET= even when indentation was disabled (the default).  It now
+  every =RET= even when indentation was disabled (the default). It now
   measures the previous line's indentation and only installs itself when
   =haskell-ts-use-indent= is set.
-- Fragile GHCi multiline escaping.  The region-send path rewrote any
+- Fragile GHCi multiline escaping. The region-send path rewrote any
   =:}= line to the invalid =\:}=; since GHCi's =:{=/=:}= block has no
   escape mechanism, the region is now sent verbatim and a standalone
   =:}= line raises an explicit =user-error= rather than emitting a
