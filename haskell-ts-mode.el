@@ -27,8 +27,11 @@
 ;;; Commentary:
 
 ;; This is a major mode that uses treesitter to provide all the basic
-;; major mode stuff, like indentation, font lock, etc...
-;; It uses the grammar at: https://github.com/tek/tree-sitter-haskell
+;; major mode stuff, like font lock, navigation, imenu, etc...
+;; It requires the grammar at: https://github.com/dschrempf/tree-sitter-haskell
+;; (a fork of https://github.com/tek/tree-sitter-haskell); the font lock
+;; queries are written against its node types, and prose navigation
+;; against its `marker'/`content' fields on comment nodes.
 
 ;;; Code:
 

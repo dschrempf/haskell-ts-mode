@@ -8,7 +8,7 @@
 
 ## Development Commands
 
-`make check` (compile + format + checkdoc + package-lint + ERT suite) is the CI gate; see `Makefile` and `tests/haskell-ts-mode-tests.el`. `checkdoc` is strict (`HASKELL_TS_CHECKDOC_STRICT=1`) only under `make check`; standalone `make checkdoc` stays informational (see `tests/checkdoc.el`). `make package-lint` needs `epkgs.package-lint` on `load-path` (provided by the flake's dev shell); see `tests/package-lint.el` for how it derives `haskell-ts-navigation.el`'s expected prefix/dependencies from the main file and suppresses the `with-eval-after-load` check (intentional, for optional `evil` integration). The grammar-dependent tests need @tek's grammar, provided by `flake.nix` via `HASKELL_TS_GRAMMAR_PATH` (run under `nix develop` or `nix flake check`) — otherwise they're skipped, not failed.
+`make check` (compile + format + checkdoc + package-lint + ERT suite) is the CI gate; see `Makefile` and `tests/haskell-ts-mode-tests.el`. `checkdoc` is strict (`HASKELL_TS_CHECKDOC_STRICT=1`) only under `make check`; standalone `make checkdoc` stays informational (see `tests/checkdoc.el`). `make package-lint` needs `epkgs.package-lint` on `load-path` (provided by the flake's dev shell); see `tests/package-lint.el` for how it derives `haskell-ts-navigation.el`'s expected prefix/dependencies from the main file and suppresses the `with-eval-after-load` check (intentional, for optional `evil` integration). The grammar-dependent tests need the dschrempf fork of @tek's grammar (`flake.nix` pins it; the font-lock queries are written against its node types), provided by `flake.nix` via `HASKELL_TS_GRAMMAR_PATH` (run under `nix develop` or `nix flake check`) — otherwise they're skipped, not failed.
 
 - **Load the mode**: `M-x load-file RET haskell-ts-mode.el RET` in Emacs (loads `haskell-ts-navigation.el` via `require`)
 - **Byte-compile check**: `make compile` (or `emacs --batch -L . -f batch-byte-compile haskell-ts-navigation.el haskell-ts-mode.el`)
@@ -17,12 +17,7 @@
 
 > **Stale `.elc` trap:** `require`/`load` prefer an existing `.elc` over newer source (they only *warn* "source newer … using older file", then load the stale object). A leftover `.elc` from a previous `make compile`/`make check` therefore silently shadows just-edited source, so both `make test` and any ad-hoc `emacs -Q --batch -L . -l …` run the old code. `make test`/`make check` now `clean` first to avoid this; when loading the mode by hand after editing, byte-compile or `make clean` first.
 
-The Tree-sitter Haskell grammar must be installed before the mode works:
-```emacs-lisp
-(add-to-list 'treesit-language-source-alist
-  '(haskell . ("https://github.com/tree-sitter/tree-sitter-haskell" "v0.23.1")))
-(treesit-install-language-grammar 'haskell)
-```
+A Tree-sitter Haskell grammar must be installed before the mode works, and it must be the [dschrempf fork](https://github.com/dschrempf/tree-sitter-haskell) of @tek's grammar — the font-lock queries are written against its node types, and prose navigation reads the `marker`/`content` children it adds to `comment`/`haddock` nodes (see `e8050b4`), so the official grammar does not work. `treesit-install-language-grammar` cannot install it (it defaults to the official repository, and the fork ships no generated `src/parser.c` nor a release branch, so `tree-sitter generate` has to run first); `flake.nix` builds it for development and the test suite.
 
 ## Architecture
 

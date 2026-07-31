@@ -6,8 +6,13 @@
 development. The API may change without notice.
 
 An Emacs major mode for [[https://www.haskell.org/][Haskell]] built on [[https://tree-sitter.github.io/tree-sitter/][Tree-sitter]]. Font lock, structural
-and prose navigation, imenu and the REPL integration all work off the syntax
-tree that Emacs's built-in =treesit= keeps up to date.
+and prose navigation, =imenu= and the REPL integration all work off the syntax
+tree, which Emacs's built-in =treesit= keeps up to date.
+
+The queries and the prose navigation are written against the node types of
+[[https://github.com/dschrempf/tree-sitter-haskell][my fork of the =tree-sitter-haskell= grammar]], which this mode requires; the
+official grammar does not work. Building it is a manual step, see
+[[#grammar][Installing the grammar]].
 
 #+caption: =haskell-ts-mode= with =prettify-symbols-mode= enabled
 [[./ss.png]]
@@ -49,7 +54,7 @@ Deliberately out of scope:
 - Emacs 30.1 or newer, built with Tree-sitter support (=treesit-available-p=
   returns non-nil).
 - [[https://github.com/purcell/inheritenv][=inheritenv=]].
-- A Haskell grammar built from @tek's fork, see [[#grammar][Installing the grammar]].
+- A Haskell grammar built from [[https://github.com/dschrempf/tree-sitter-haskell][my fork]], see [[#grammar][Installing the grammar]].
 
 * Installation
 :PROPERTIES:
@@ -84,15 +89,18 @@ versions:
 - a [[https://github.com/tek/tree-sitter-haskell][fork by @tek]] (well maintained);
 - [[https://github.com/dschrempf/tree-sitter-haskell][my fork of @tek's grammar]] (well maintained, with some features not in @tek's).
 
-=haskell-ts-mode= targets @tek's grammar, which fixes node type names that the
-official grammar gets wrong (=type_synomym= → =type_synonym=, for example).
-The font lock queries rely on the corrected names, so the official grammar does
-*not* work with this mode.
+=haskell-ts-mode= requires my fork. @tek's grammar already fixes node type
+names that the official grammar gets wrong (=type_synomym= → =type_synonym=,
+for example), so the official grammar does *not* work with this mode. On top of
+that, mine splits =comment= and =haddock= nodes into a =marker= child (=--=,
+=-- |=, =-- ^=, ={-=, ...) and a =content= child holding the body, which prose
+navigation reads directly instead of guessing the marker's shape with a
+regexp.
 
 The grammar has to be installed manually. =M-x
 treesit-install-language-grammar= cannot do it: it defaults to the official
-repository, and neither @tek's repository nor mine ships a generated parser
-(=src/parser.c=) or a release branch, so the parser has to be produced with
+repository, and my repository ships neither a generated parser
+(=src/parser.c=) nor a release branch, so the parser has to be produced with
 =tree-sitter generate= before it can be compiled.
 
 Either build the shared library yourself (clone the repository, run
