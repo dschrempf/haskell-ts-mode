@@ -5,7 +5,7 @@
   abandoned 2026-07-16 — see =NOTES.org= for the full analysis and repro.
   Short version: =forward-thing='s provider branch returns =nil=/=t=, but
   =evil= does =(zerop (forward-thing …))=, so a provider crashes =a p=/=}=.
-  Present in both Emacs and =evil= master.  Only actionable once either
+  Present in both Emacs and =evil= master. Only actionable once either
   Emacs's provider branch returns a leftover count (like =forward-op=) or
   =evil= stops assuming an integer return; at that point the detailed plan
   in =.ai/todo/2026-07-16 thingatpt paragraph provider.md= can be revisited
@@ -16,12 +16,12 @@
   text alone, so reaching a comment's first/last sentence and moving
   again stops at the node boundary rather than continuing into the
   surrounding code (the scratch buffer's edge signal is now caught, not
-  propagated — see its docstring).  Confinement was only ever a means to
+  propagated — see its docstring). Confinement was only ever a means to
   get text objects working inside comments, not a goal; ideally plain
-  =M-e=/=M-a= would cross into code.  Risky, though: the fix must not let
+  =M-e=/=M-a= would cross into code. Risky, though: the fix must not let
   text objects (=evil= =d a s=, =a p=) spill past the comment, and it pokes
   the same =evil= bounds machinery that has already broken three times
-  (see =NOTES.org=).  Sketch: on the caught buffer-edge signal, if arg is
+  (see =NOTES.org=). Sketch: on the caught buffer-edge signal, if arg is
   unspent, delegate the remainder to =treesit-forward-sentence= from the
   mapped-back real boundary — verify against the evil text-object tests
   first.

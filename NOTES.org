@@ -6,14 +6,14 @@
   `evil-select-an-object'/`bounds-of-thing-at-point' repeatedly re-probe
   =forward-paragraph=/=start-of-paragraph-text= from intermediate positions
   during a single object computation, and those positions are not
-  predictable from the call site.  The current fix (narrow once, for the
+  predictable from the call site. The current fix (narrow once, for the
   whole call, based on the object's actual start; suppress the separate
   per-call clamp for that whole call so it can never fire on an unrelated
   probe) resolves the three known cases and passes an explicit stress test
   (chained comment+function pairs, point in code vs. in comment, on either
   side), but the pattern of "another `evil' internal detail invalidates the
   fix" recurring three times in a row is reason enough to distrust that
-  this is the last one.  If another case surfaces, resist patching a fourth
+  this is the last one. If another case surfaces, resist patching a fourth
   special case on top of the last three; re-derive from how `evil' actually
   computes bounds (verified empirically each time above, not from
   documentation, since `thingatpt'/`evil' source is not distributed as
@@ -25,13 +25,13 @@
   which those two run *before* any motion, unlike =a p=/=i p= -- treat
   the narrowed node's own edge as the real buffer's `bobp'/`eobp' when
   point already started there, raising a spurious error where none of
-  the three prior cases had one to raise.  Re-deriving empirically again
+  the three prior cases had one to raise. Re-deriving empirically again
   (sweeping every starting position inside several glued comments, with
   and without the fix, and diffing the resulting point) is what caught
   it, not reasoning about the advice in the abstract; a `condition-case'
   around the narrowed call, retrying unnarrowed on that specific
   false-positive, fixed it without touching the three already-working
-  cases.  The same sweep also surfaced, but did not fix, a shared
+  cases. The same sweep also surfaced, but did not fix, a shared
   limitation: narrowing the whole call means a count greater than 1
   (=2}=, =3ap=) cannot progress past the one glued node it confines to,
   identically for =}=/={= and for =a p=/=i p= -- confirmed by checking
@@ -50,12 +50,12 @@
 
   =forward-thing=, on its provider branch, returns =nil= (point moved) or
   =t= (stopped early), *not* the integer leftover count its =forward-op=
-  branch returns.  =evil-bounds-of-not-thing-at-point= (reached by
+  branch returns. =evil-bounds-of-not-thing-at-point= (reached by
   =evil-select-an-object= on every linewise object's whitespace step) and
   =evil-forward-end= both do =(zerop (forward-thing thing …))=, so
   =(zerop nil)= → =(wrong-type-argument number-or-marker-p nil)=.
   Registering a =forward-thing= provider for =evil-paragraph= therefore
-  crashes =a p=/=i p=/=}=/={= outright.  Minimal, mode-independent repro:
+  crashes =a p=/=i p=/=}=/={= outright. Minimal, mode-independent repro:
 
   #+begin_src emacs-lisp
   (setq-local forward-thing-provider-alist
@@ -69,10 +69,10 @@
   =forward-paragraph= clamp so =forward-thing= still uses =forward-op= --
   does not crash but gives the *wrong bounds*: =a p= on a glued comment
   spills into the code below, a one-sided-glued object loses its leading
-  blank line, etc.  That is exactly what the whole-call narrowing was
+  blank line, etc. That is exactly what the whole-call narrowing was
   written to fix (=evil= re-probes =forward-thing= from intermediate
   positions that land in code, where a per-call clamp cannot fire -- the
-  same root cause as the three bugs in the entry above).  Keeping the
+  same root cause as the three bugs in the entry above). Keeping the
   narrowing advice *and* the bounds provider is redundant, so there is no
   net simplification either way.
 
@@ -80,9 +80,9 @@
   unchanged on *master*: Emacs master's =forward-thing= provider branch
   is byte-for-byte the same =nil=/=t= return, and =evil= master's
   =evil-bounds-of-not-thing-at-point= still does =(zerop (forward-thing
-  …))=.  A real fix needs one side to move first -- Emacs's provider
+  …))=. A real fix needs one side to move first -- Emacs's provider
   branch to return a count like =forward-op= does, or =evil= to stop
-  assuming =forward-thing= returns a number (see the TODO item).  Until
+  assuming =forward-thing= returns a number (see the TODO item). Until
   then the advice stays; the plan's premise ("the buffer-local hook the
   refactor said did not exist") was correct about the *hook* but wrong
   that =evil= survives going through it.
