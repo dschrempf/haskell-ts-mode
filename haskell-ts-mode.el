@@ -6,7 +6,7 @@
 ;; Author: Pranshu Sharma <pranshu@bauherren.ovh>
 ;;         Dominik Schrempf <dominik.schrempf@gmail.com>
 ;; Maintainer: Dominik Schrempf <dominik.schrempf@gmail.com>
-;; URL: https://codeberg.org/pranshu/haskell-ts-mode
+;; URL: https://github.com/dschrempf/haskell-ts-mode
 ;; Package-Requires: ((emacs "30.1") (inheritenv "0.1"))
 ;; Version: 1.5
 ;; Keywords: languages, Haskell
