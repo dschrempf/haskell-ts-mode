@@ -29,8 +29,8 @@
 ;; * Grammar-dependent integration tests open a real Haskell buffer and
 ;;   check font lock, imenu and navigation.  They are guarded with
 ;;   `skip-unless' so they are skipped — not failed — when the
-;;   tree-sitter Haskell grammar is not available.  The grammar (@tek's
-;;   variant, which this package's queries target) is provided by the
+;;   tree-sitter Haskell grammar is not available.  The grammar (the
+;;   dschrempf fork, which this package's queries target) is provided by the
 ;;   flake, so run the suite inside the dev shell to exercise them:
 ;;
 ;;     nix develop -c make test     # or just `make test' under direnv
@@ -50,7 +50,7 @@
 (require 'treesit)
 
 ;; The grammar-dependent tests need a tree-sitter Haskell grammar on
-;; `treesit-extra-load-path'.  The flake builds @tek's grammar and points
+;; `treesit-extra-load-path'.  The flake builds the dschrempf grammar and points
 ;; HASKELL_TS_GRAMMAR_PATH at the directory holding its
 ;; `libtree-sitter-haskell.so'; honour it when set so `nix develop' / `nix
 ;; flake check' find the grammar without relying on the user's own
