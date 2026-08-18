@@ -1,5 +1,6 @@
-/.ai/agent-shell/
 /.direnv/
 /.envrc
+
+/ai/agent-shell/
 
 *.elc
