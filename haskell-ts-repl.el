@@ -415,8 +415,8 @@ and made read-only.  Input history persists across sessions in
     (comint-read-input-ring t)
     (add-hook 'kill-buffer-hook #'comint-write-input-ring nil t)))
 
-(defun haskell-ts--encode-string-literal (s)
-  "Encode an Elisp string as a Haskell string literal.
+(defun haskell-ts--encode-string-literal (str)
+  "Encode an Elisp string STR as a Haskell string literal.
 
 This function does not recognise all valid Haskell string literals —
 only enough to parse completion data."
@@ -425,16 +425,16 @@ only enough to parse completion data."
                        (cond ((memq c '(?\\ ?\"))
                               (string ?\\ c))
                              (t (string c))))
-                     s)
+                     str)
           "\""))
 
-(defun haskell-ts--decode-string-literal (s)
-  "Decode a Haskell string literal into an Elisp string.
+(defun haskell-ts--decode-string-literal (str)
+  "Parse a Haskell string literal STR.
 
 This function does not recognise all valid Haskell string literals —
 only enough to parse completion data."
-  (when (string-match-p (rx bol ?\" (* any) ?\" eol) s)
-    (let ((s* (substring s 1 -1)))
+  (when (string-match-p (rx bol ?\" (* any) ?\" eol) str)
+    (let ((str-sans-quotes (substring str 1 -1)))
       (replace-regexp-in-string
        (rx (or (seq "\\x" (+ (any hex)))
                (seq "\\" (any "\"\\"))))
@@ -444,7 +444,7 @@ only enough to parse completion data."
            (let ((c (aref x 1)))
              (cond ((= c ?\") "\"")
                    ((= c ?\\) "\\")))))
-       s*
+       str-sans-quotes
        nil
        'literal))))
 
@@ -456,8 +456,17 @@ only enough to parse completion data."
          (buffer-substring-no-properties pmark pt))))
 
 (defun haskell-ts-repl--parse-completions ()
-  "Parse the output of GHCi's `:complete' command, assumed to be the
-contents of the current buffer."
+  "Parse the output of GHCi's `:complete' command.
+
+The output is assumed to be the contents of the current
+buffer.  Returns a list (PRINTED AVAILABLE PREFIX . CANDIDATES), where
+  • PRINTED is the number of completions returned,
+  • AVAILABLE is the total number of completions available,
+  • PREFIX is a string prefix common to all results,
+  • and CANDIDATES is a list of the returned completion candidates.
+
+See the GHC User's Guide for documentation on `:complete':
+https://downloads.haskell.org/ghc/latest/docs/users_guide/ghci.html#ghci-cmd-complete"
   (goto-char (point-min))
   (unless (re-search-forward
            (rx bol (group (+ digit)) " " (group (+ digit)) " "
@@ -476,8 +485,7 @@ contents of the current buffer."
                        t))))
 
 (defun haskell-ts-repl--request-completions (partial-input)
-  "Request completions for PARTIAL-INPUT from the active GHCi
-session."
+  "Request completions for PARTIAL-INPUT from the active GHCi session."
   (let ((hs (haskell-ts-haskell-session)))
     (with-temp-buffer
       (comint-redirect-send-command-to-process
@@ -494,10 +502,13 @@ session."
       (haskell-ts-repl--parse-completions))))
 
 (defun haskell-ts-repl-completion-at-point ()
-  "Offer completions for the partially-entered input between the GHCi
-prompt and point."
+  "Offer completions for the current GHCi prompt.
+
+The partially-entered input between the prompt and point is sent to
+the active GHCi process to request completions.  If point does not
+follow the prompt, return nil."
   (when-let* ((s (haskell-ts-repl--get-partial-input)))
-    (let* ((res (haskell-ts-repl--request-completions)))
+    (let* ((res (haskell-ts-repl--request-completions s)))
       (list (+ (point) (- (length (caddar res)) (length s)))
             (point)
             (cdr res)))))
