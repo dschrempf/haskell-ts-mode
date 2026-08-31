@@ -1,9 +1,3 @@
-* TODO Go through issue at Codeberg
-
-https://codeberg.org/pranshu/haskell-ts-mode/issues
-
-See what is still relevant and if/how we can fix those.
-
 * TODO [#C] Revive the =thingatpt= paragraph provider — only if upstream unblocks it :navigation:evil:blocked:upstream:
   Replacing the fragile =evil= paragraph advice with Emacs 30.1
   buffer-local =bounds-of-thing-at-point-provider-alist= /
