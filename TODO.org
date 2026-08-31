@@ -29,3 +29,5 @@
 * TODO Improve representation in mode line
 In my mode line, `haskell-ts-mode` is advertisedas "haskell ts mode". Better:
 "Haskell Tree-Sitter mode"? Or "Haskell TS mode".
+
+* TODO Check if inheritenv is really required (or if this is Nix specific)
