@@ -40,7 +40,7 @@
   narrowing approach itself, not a regression from extending it.
 
 * The =thingatpt= provider that was meant to replace that advice cannot work
-  The plan in =.ai/todo/2026-07-16 thingatpt paragraph provider.md= (spun
+  The plan in =ai/todo/2026-07-16 thingatpt paragraph provider.md= (spun
   out of the navigation refactor's optional follow-ups) proposed deleting
   the fragile =evil= paragraph advice above in favour of Emacs 30.1's
   buffer-local =bounds-of-thing-at-point-provider-alist= /
