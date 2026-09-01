@@ -53,7 +53,11 @@ Deliberately out of scope:
 
 - Emacs 30.1 or newer, built with Tree-sitter support (=treesit-available-p=
   returns non-nil).
-- [[https://github.com/purcell/inheritenv][=inheritenv=]].
+- [[https://github.com/purcell/inheritenv][=inheritenv=]], available from MELPA. The REPL needs it when
+  =process-environment= / =exec-path= are set buffer-locally rather than
+  globally, as a =direnv= integration like [[https://github.com/purcell/envrc][=envrc=]] does: neither the GHCi
+  buffer nor the temporary buffer probing =cabal repl= inherits a buffer-local
+  value.
 - A Haskell grammar built from [[https://github.com/dschrempf/tree-sitter-haskell][my fork]], see [[#grammar][Installing the grammar]].
 
 * Installation

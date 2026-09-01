@@ -39,6 +39,39 @@
   before this fix, so this is an existing, shared trade-off of the
   narrowing approach itself, not a regression from extending it.
 
+* The =inheritenv= dependency is required, and its cost is acceptable
+  Checked 2026-09-01, closing the TODO item that asked whether it was only
+  needed on Nix. It is needed, and the reason has nothing to do with Nix:
+  =process-environment= and =exec-path= can be *buffer-local*, and a
+  buffer-local value is invisible in any other buffer -- which is where both
+  of the REPL's subprocesses are born (the =with-temp-buffer= running
+  =cabal repl --dry-run=, and the fresh comint buffer =make-comint-in-buffer=
+  starts GHCi in). Measured, with both variables set buffer-locally in one
+  buffer: reading them from another buffer, or running =call-process= there,
+  sees the global values; wrapping the same code in =inheritenv= sees the
+  buffer-local ones.
+
+  A plain =let= is *not* an alternative: binding a variable that is
+  buffer-local in the current buffer produces a buffer-local binding, which
+  does not survive the buffer switch (measured too). =inheritenv= instead
+  =cl-letf=s the variables' =default-value=, which is what any hand-rolled
+  replacement would have to do as well -- for six lines saved, plus losing
+  the =tramp-remote-path= / =tramp-remote-process-environment= propagation
+  it also does.
+
+  What is fair in the original suspicion is the *population*, not the
+  mechanism: the realistic way =cabal= ends up on a buffer-local =exec-path=
+  is a =direnv= integration such as =envrc=, and in Haskell that usually
+  means =use flake=. A ghcup user normally has =~/.ghcup/bin= on the global
+  =PATH= and would never notice. Two mechanisms initially cited alongside it
+  do not hold up: =.dir-locals.el= cannot set either variable without a
+  confirmation prompt (both carry =risky-local-variable=), and =buffer-env=
+  is marginal in practice.
+
+  The one real cost -- =inheritenv= is on MELPA only, so a =:vc= install
+  needs MELPA configured -- is moot: this fork is not headed for GNU or
+  NonGNU ELPA anyway. Dependency kept, question closed.
+
 * The =thingatpt= provider that was meant to replace that advice cannot work
   The plan in =ai/todo/2026-07-16 thingatpt paragraph provider.md= (spun
   out of the navigation refactor's optional follow-ups) proposed deleting
