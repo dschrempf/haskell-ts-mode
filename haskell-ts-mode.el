@@ -302,7 +302,7 @@ to the same node types."
   "C-M-x"   #'haskell-ts-send-defun)
 
 ;;;###autoload
-(define-derived-mode haskell-ts-mode prog-mode "haskell ts mode"
+(define-derived-mode haskell-ts-mode prog-mode "Haskell TS"
   "Major mode for Haskell files using tree-sitter."
   :table haskell-ts-mode-syntax-table
   (unless (treesit-ready-p 'haskell)

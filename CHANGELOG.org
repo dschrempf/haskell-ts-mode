@@ -8,6 +8,8 @@ format is based on [[https://keepachangelog.com/en/1.1.0/][Keep a Changelog]], a
 
 ** Changed
 
+- *The mode line now reads =Haskell TS=* instead of =haskell ts mode=.
+  Emacs mode-line lighters are capitalized and omit the word "mode".
 - *The project moved to [[https://github.com/dschrempf/haskell-ts-mode][GitHub]].* Codeberg restricted its terms of
   use, so the Codeberg repository is archived and GitHub is now the only
   home.
