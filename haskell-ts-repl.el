@@ -415,6 +415,104 @@ and made read-only.  Input history persists across sessions in
     (comint-read-input-ring t)
     (add-hook 'kill-buffer-hook #'comint-write-input-ring nil t)))
 
+(defun haskell-ts--encode-string-literal (str)
+  "Encode an Elisp string STR as a Haskell string literal.
+
+This function does not recognise all valid Haskell string literals —
+only enough to parse completion data."
+  (concat "\""
+          (mapconcat (lambda (c)
+                       (cond ((memq c '(?\\ ?\"))
+                              (string ?\\ c))
+                             (t (string c))))
+                     str)
+          "\""))
+
+(defun haskell-ts--decode-string-literal (str)
+  "Parse a Haskell string literal STR.
+
+This function does not recognise all valid Haskell string literals —
+only enough to parse completion data."
+  (when (string-match-p (rx bol ?\" (* any) ?\" eol) str)
+    (let ((str-sans-quotes (substring str 1 -1)))
+      (replace-regexp-in-string
+       (rx (or (seq "\\x" (+ (any hex)))
+               (seq "\\" (any "\"\\"))))
+       (lambda (x)
+         (if (string-prefix-p "\\x" x)
+             (char-to-string (string-to-number (substring x 2) 16))
+           (let ((c (aref x 1)))
+             (cond ((= c ?\") "\"")
+                   ((= c ?\\) "\\")))))
+       str-sans-quotes
+       nil
+       'literal))))
+
+(defun haskell-ts-repl--get-partial-input ()
+  "Return the partially entered GHCi input up to point."
+  (let ((pmark (process-mark (haskell-ts-haskell-session)))
+        (pt (point)))
+    (and (<= pmark pt)
+         (buffer-substring-no-properties pmark pt))))
+
+(defun haskell-ts-repl--parse-completions ()
+  "Parse the output of GHCi's `:complete' command.
+
+The output is assumed to be the contents of the current
+buffer.  Returns a list (PRINTED AVAILABLE PREFIX . CANDIDATES), where
+  • PRINTED is the number of completions returned,
+  • AVAILABLE is the total number of completions available,
+  • PREFIX is a string prefix common to all results,
+  • and CANDIDATES is a list of the returned completion candidates.
+
+See the GHC User's Guide for documentation on `:complete':
+https://downloads.haskell.org/ghc/latest/docs/users_guide/ghci.html#ghci-cmd-complete"
+  (goto-char (point-min))
+  (unless (re-search-forward
+           (rx bol (group (+ digit)) " " (group (+ digit)) " "
+               (group "\"" (* anychar) "\"") eol)
+           (pos-eol)
+           'noerror)
+    (error "Failed to parse response from GHCi's `:complete' command"))
+  (cons (list (match-string 1)
+              (match-string 2)
+              (haskell-ts--decode-string-literal (match-string 3)))
+        (mapcar
+         #'haskell-ts--decode-string-literal
+         (split-string (buffer-substring-no-properties
+                        (point) (point-max))
+                       (rx (+ (any "\n\r")))
+                       t))))
+
+(defun haskell-ts-repl--request-completions (partial-input)
+  "Request completions for PARTIAL-INPUT from the active GHCi session."
+  (let ((hs (haskell-ts-haskell-session)))
+    (with-temp-buffer
+      (comint-redirect-send-command-to-process
+       (concat ":complete repl "
+               (haskell-ts--encode-string-literal partial-input))
+       (current-buffer)
+       hs
+       nil
+       'no-display)
+      ;; Wait until the output is available.
+      (with-current-buffer (process-buffer hs)
+        (while (not (or quit-flag comint-redirect-completed))
+          (accept-process-output hs 0.2)))
+      (haskell-ts-repl--parse-completions))))
+
+(defun haskell-ts-repl-completion-at-point ()
+  "Offer completions for the current GHCi prompt.
+
+The partially-entered input between the prompt and point is sent to
+the active GHCi process to request completions.  If point does not
+follow the prompt, return nil."
+  (when-let* ((s (haskell-ts-repl--get-partial-input)))
+    (let* ((res (haskell-ts-repl--request-completions s)))
+      (list (+ (point) (- (length (caddar res)) (length s)))
+            (point)
+            (cdr res)))))
+
 ;;;###autoload
 (defun haskell-ts-run (&optional choose-component)
   "Run an inferior Haskell process.
@@ -465,6 +563,8 @@ history and the usual `comint-mode' bindings."
          (when root
            (setq default-directory (expand-file-name root)))
          (apply 'make-comint-in-buffer "Haskell" buffer program nil switches)
+         (add-hook 'comint-dynamic-complete-functions
+                   #'haskell-ts-repl-completion-at-point)
          (haskell-ts-inferior-mode)))
      (pop-to-buffer-same-window buffer))))
 
