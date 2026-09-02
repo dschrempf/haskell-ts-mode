@@ -2,9 +2,11 @@
 #
 #   make compile       byte-compile, treating warnings as errors
 #   make format        format source files
+#   make readme        regenerate README.md from README.org
+#   make readme-check  fail if README.md is not what README.org exports to
 #   make test          run the ERT test suite
-#   make check         compile + format + checkdoc + package-lint + relint + test
-#                       (the CI gate)
+#   make check         compile + format + readme-check + checkdoc +
+#                       package-lint + relint + test (the CI gate)
 #   make checkdoc      run checkdoc, failing on any complaint under `make check';
 #                       standalone (`make checkdoc') stays informational
 #   make package-lint  lint package headers/dependencies/naming (needs
@@ -53,7 +55,8 @@ step = printf '$(BOLD)$(BLUE)==> %s$(RESET)\n' "$(1)"; \
        $(2) && printf '$(BOLD)$(GREEN)+ %s$(RESET)\n\n' "$(1)" \
              || { printf '$(BOLD)$(RED)x %s$(RESET)\n\n' "$(1)"; exit 1; }
 
-.PHONY: all check compile format checkdoc package-lint relint test clean
+.PHONY: all check compile format readme readme-check checkdoc package-lint \
+        relint test clean
 
 all: check
 
@@ -61,7 +64,7 @@ all: check
 # their own prerequisites), so this only tightens `checkdoc' when it runs
 # as part of `check' -- standalone `make checkdoc' is unaffected.
 check: export HASKELL_TS_CHECKDOC_STRICT = 1
-check: compile format checkdoc package-lint relint test
+check: compile format readme-check checkdoc package-lint relint test
 	@printf '$(BOLD)$(GREEN)All checks passed$(RESET)\n'
 
 compile:
@@ -76,6 +79,16 @@ compile:
 # longer there. Same reasoning applies to `test' below.
 format: clean
 	@$(call step,format,$(BATCH) -l tests/format.el $(EL) $(TESTS))
+
+# README.org is the source; README.md is generated and committed, because
+# GitHub renders Org with org-ruby, which drops `CUSTOM_ID' anchors and
+# leaves markup inside link descriptions unrendered.  `readme-check' is
+# what keeps the two in sync -- nobody has to remember `make readme'.
+readme:
+	@$(call step,readme,$(BATCH) -l tests/readme.el)
+
+readme-check:
+	@$(call step,readme-check,$(BATCH) -l tests/readme.el --check)
 
 checkdoc:
 	@$(call step,checkdoc,$(BATCH) -l tests/checkdoc.el $(EL))

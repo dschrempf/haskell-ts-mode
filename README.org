@@ -33,7 +33,7 @@ official grammar does not work. Building it is a manual step, see
 - Imenu outline of functions, type signatures, data declarations and type
   aliases.
 - A GHCi REPL that uses =cabal repl= inside a cabal project; see [[#repl][REPL]].
-- =prettify-symbols-mode= support and an =M-x align= rule for =​=​= signs.
+- =prettify-symbols-mode= support and an =M-x align= rule for ~=~ signs.
 
 Deliberately out of scope:
 
@@ -133,7 +133,7 @@ Standard Emacs commands that become Haskell-aware in this mode:
   declarations, bindings and expressions.
 - =M-e= and =M-a= (=forward-sentence=, =backward-sentence=) move by sentence
   inside comments and strings, and by equation in code.
-- =M-x imenu= jumps to a definition, =M-x align= lines up =​=​= signs.
+- =M-x imenu= jumps to a definition, =M-x align= lines up ~=~ signs.
 
 ** Structural navigation
 :PROPERTIES:
@@ -202,11 +202,17 @@ history navigation (=TAB=, =M-p=, =M-n=) come from =comint=.
 :END:
 
 ** Font lock level
+:PROPERTIES:
+:CUSTOM_ID: font-lock-level
+:END:
 
 Set =haskell-ts-font-lock-level= to a value between 1 and 4. The default, 4,
 fontifies the most; lower it for a quieter buffer.
 
 ** Prettify Symbols mode
+:PROPERTIES:
+:CUSTOM_ID: prettify-symbols-mode
+:END:
 
 =prettify-symbols-mode= replaces common operators with unicode alternatives,
 turning =->= into =→=:
@@ -218,9 +224,12 @@ turning =->= into =→=:
 Set =haskell-ts-prettify-words= to non-nil to prettify words as well, turning
 =forall= into =∀= and =elem= into =∈=.
 
-** Aligning =​=​= signs
+** Aligning ~=~ signs
+:PROPERTIES:
+:CUSTOM_ID: aligning-equals-signs
+:END:
 
-Calling =M-x align= on a region lines up the standalone =​=​= signs of the
+Calling =M-x align= on a region lines up the standalone ~=~ signs of the
 bindings and equations it contains, for example:
 
 #+begin_example
@@ -229,8 +238,8 @@ foo = 2
 ab  = 3
 #+end_example
 
-Only an =​=​= surrounded by whitespace is aligned, so =​==​=, =​=>​=,
-=​<=​=, =​>=​= and =​/=​= are left untouched. The rule lives in
+Only an ~=~ surrounded by whitespace is aligned, so ~==~, ~=>~,
+~<=~, ~>=~ and ~/=~ are left untouched. The rule lives in
 =haskell-ts-align-rules-list=.
 
 ** Language server
@@ -244,6 +253,9 @@ keyed on =haskell-mode= applies to it. =eglot= therefore picks up
 as well.
 
 ** Other recommended packages
+:PROPERTIES:
+:CUSTOM_ID: other-recommended-packages
+:END:
 
 Unlike =haskell-mode=, this mode has limited scope. Other packages that help a
 lot with development:
@@ -271,7 +283,7 @@ Compared with =haskell-mode=, this mode:
   - the return type of a function is highlighted;
   - newly bound variables are highlighted wherever they appear, including
     generators and lambda arguments;
-  - the =​=​= of a guarded match is recognized as such, which would be
+  - the ~=~ of a guarded match is recognized as such, which would be
     stupidly hard with regular expressions;
 - is more performant, especially on long files;
 - is much, much smaller: it keeps to basic major mode functionality and leaves
@@ -284,14 +296,26 @@ Compared with =haskell-mode=, this mode:
 
 Issues and pull requests are welcome. In the flake's development shell (=nix
 develop=), =make check= byte-compiles the sources and runs the formatting
-check, =checkdoc=, =package-lint= and the ERT suite; =nix flake check= runs the
-same gate in a sandbox. Outside the development shell the tests that need the
-Tree-sitter grammar are skipped rather than failed.
+check, =checkdoc=, =package-lint=, =relint= and the ERT suite; =nix flake
+check= runs the same gate in a sandbox. Outside the development shell the
+tests that need the Tree-sitter grammar are skipped rather than failed.
+
+This file is the readme; =README.md= is generated from it by =make readme=
+and committed, because GitHub renders Org with a converter that drops custom
+ID anchors and leaves markup inside link descriptions unrendered. Edit
+=README.org=, then run =make readme= -- =make check= fails when the two have
+drifted apart.
 
 * Changelog
+:PROPERTIES:
+:CUSTOM_ID: changelog
+:END:
 
 See [[./CHANGELOG.org][CHANGELOG.org]] for the list of notable changes.
 
 * License
+:PROPERTIES:
+:CUSTOM_ID: license
+:END:
 
 GPL-3.0-or-later, see [[./LICENSE][LICENSE]].
