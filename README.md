@@ -17,6 +17,8 @@ official grammar does not work. Building it is a manual step, see
 ![img](./ss.png "`haskell-ts-mode` with `prettify-symbols-mode` enabled")
 
 
+<a id="features"></a>
+
 # Features
 
 -   Font lock at four levels of detail. Because it follows the syntax tree, only
@@ -24,8 +26,8 @@ official grammar does not work. Building it is a manual step, see
     a name.
 -   Structural navigation over declarations, bindings and expressions; see
     [Usage](#usage).
--   Comment-aware editing: sentence and paragraph motion inside `--` and Haddock
-    comments, paragraph text objects that stop at the comment/code boundary, and
+-   Comment-aware editing: sentence and paragraph motion inside comments and
+    strings, paragraph text objects that stop at the comment/code boundary, and
     marker continuation on `RET`.
 -   Imenu outline of functions, type signatures, data declarations and type
     aliases.
@@ -65,9 +67,13 @@ this into your init.el:
 (use-package haskell-ts-mode
   :vc (:url "https://github.com/dschrempf/haskell-ts-mode" :rev :newest)
   :custom
-  (haskell-ts-font-lock-level 4)
-  (haskell-ts-ghci "ghci"))
+  ;; Optional; both differ from the default.
+  (haskell-ts-font-lock-level 3)
+  (haskell-ts-prettify-symbols t))
 ```
+
+An autoload puts `.hs` files into `haskell-ts-mode`, so nothing else is needed
+to activate it.
 
 Dropping `:rev :newest` installs the last release tag instead of the latest
 commit. Note that `:ensure t` would install [Pranshu's `haskell-ts-mode`](https://codeberg.org/pranshu/haskell-ts-mode) from
@@ -239,15 +245,18 @@ fontifies the most; lower it for a quieter buffer.
 
 ## Prettify Symbols mode
 
-`prettify-symbols-mode` replaces common operators with unicode alternatives,
-turning `->` into `→`:
+With `haskell-ts-prettify-symbols` set, `prettify-symbols-mode` replaces
+common operators with unicode alternatives, turning `->` into `→`:
 
 ```emacs-lisp
+(setopt haskell-ts-prettify-symbols t)
 (add-hook 'haskell-ts-mode-hook 'prettify-symbols-mode)
 ```
 
-Set `haskell-ts-prettify-words` to non-nil to prettify words as well, turning
-`forall` into `∀` and `elem` into `∈`.
+The variable defaults to nil, in which case `prettify-symbols-mode` has
+nothing to substitute in a Haskell buffer. Setting `haskell-ts-prettify-words`
+(nil by default as well) prettifies words too, turning `forall` into `∀` and
+`elem` into `∈`.
 
 
 ## Aligning `=` signs
@@ -289,8 +298,10 @@ lot with development:
 covering all things Haskell related. Much of what it once provided is now part
 of standard Emacs. In 2018, [`haskell-tng-mode`](https://elpa.nongnu.org/nongnu/haskell-tng-mode.html) set out to solve some of
 these problems, but because of Haskell's syntax it too became complex and
-required a web of dependencies. Both modes end up practically parsing Haskell
-in order to indent it &#x2013; so why not use a parser?
+required a web of dependencies. Both end up approximating a Haskell parser in
+order to highlight and indent code &#x2013; so why not use a real one? This mode
+does, for everything it covers; indentation is the one thing it leaves out,
+see [Features](#features).
 
 Compared with `haskell-mode`, this mode:
 
@@ -310,10 +321,10 @@ Compared with `haskell-mode`, this mode:
 # Contributing
 
 Issues and pull requests are welcome. In the flake's development shell (`nix
-develop`), `make check` byte-compiles the sources and runs the formatting
-check, `checkdoc`, `package-lint`, `relint` and the ERT suite; `nix flake
-check` runs the same gate in a sandbox. Outside the development shell the
-tests that need the Tree-sitter grammar are skipped rather than failed.
+develop`), `make check` byte-compiles the sources and runs the formatting and
+readme checks, `checkdoc`, `package-lint`, `relint` and the ERT suite; `nix
+flake check` runs the same gate in a sandbox. Outside the development shell
+the tests that need the Tree-sitter grammar are skipped rather than failed.
 
 This file is the readme; `README.md` is generated from it by `make readme`
 and committed, because GitHub renders Org with a converter that drops custom
