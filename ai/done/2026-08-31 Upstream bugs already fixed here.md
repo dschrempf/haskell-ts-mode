@@ -1,5 +1,13 @@
 # Five upstream bugs this fork already fixes — pin them with tests
 
+> **Done 2026-09-02.** Five tests landed in `tests/haskell-ts-mode-tests.el`
+> (`…-font-lock-haddock-continuation-lines`, `…-font-lock-comment-above-haddock`,
+> `…-imenu-settings-have-regexp-in-regexp-slot`,
+> `…-outline-on-heading-p-runs-clean`,
+> `…-dir-locals-keyed-on-haskell-mode-apply`), each confirmed to fail when its
+> fix is mutated away. **"Afterwards" is still open**: nothing has been reported
+> back on the upstream issues.
+
 Upstream issues 57, 28, 65, 51 and 33 at
 <https://codeberg.org/pranshu/haskell-ts-mode/issues>, all still open there, all
 **verified fixed in this fork on 2026-08-31** (measurements below, taken with a

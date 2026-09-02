@@ -47,6 +47,7 @@
 
 (require 'ert)
 (require 'cl-lib)
+(require 'outline)
 (require 'treesit)
 
 ;; The grammar-dependent tests need a tree-sitter Haskell grammar on
@@ -758,6 +759,70 @@ main = putStrLn (greeting \"world\")
     (should treesit-primary-parser)
     (should (treesit-parser-p treesit-primary-parser))))
 
+(ert-deftest haskell-ts-test-imenu-settings-have-regexp-in-regexp-slot ()
+  "Every `treesit-simple-imenu-settings' entry holds a regexp in slot 1.
+Emacs documents the shape as (CATEGORY REGEXP PRED NAME-FN).  Upstream
+put the predicate symbol in the REGEXP slot, which broke every consumer
+that treats it as one -- `embark' (upstream issue \"treesit-simple-imenu
+settings puts predicate in place of regex\", #65) and
+`treesit-outline-predicate--from-imenu' (see
+`haskell-ts-test-outline-on-heading-p-runs-clean').  The imenu rewrite
+fixed the shape; this pins it."
+  (haskell-ts-tests--with-temp-hs
+      haskell-ts-tests--sample
+    (should treesit-simple-imenu-settings)
+    (dolist (setting treesit-simple-imenu-settings)
+      (should (stringp (nth 1 setting))))))
+
+(ert-deftest haskell-ts-test-outline-on-heading-p-runs-clean ()
+  "`outline-on-heading-p' runs at every line of the sample without error.
+Pins the fix for upstream issue \"Error while trying to save ediff-merge
+edits\" (#51): `treesit-outline-predicate--from-imenu' builds its
+predicate from `treesit-simple-imenu-settings' and calls `string-match'
+on the REGEXP slot, so the malformed settings raised
+`wrong-type-argument stringp haskell-ts-imenu-func-node-p' on any path
+reaching `outline-on-heading-p' -- `revert-buffer' from ediff or magit,
+in the report.  Walking the buffer is a faithful stand-in for that
+recipe and needs neither ediff nor magit nor VC."
+  (haskell-ts-tests--with-temp-hs
+      haskell-ts-tests--sample
+    (outline-minor-mode 1)
+    (goto-char (point-min))
+    (let ((headings 0))
+      (while (not (eobp))
+        (when (outline-on-heading-p)
+          (cl-incf headings))
+        (forward-line 1))
+      ;; Not merely "no error": a wiring that recognises nothing would
+      ;; also walk clean.
+      (should (> headings 0)))))
+
+(ert-deftest haskell-ts-test-dir-locals-keyed-on-haskell-mode-apply ()
+  "A `.dir-locals.el' entry keyed on `haskell-mode' applies here.
+Pins upstream issue \"dir-locals inheritance\" (#33), which is a non-bug
+on this package's Emacs floor: `hack-dir-local-variables' matches modes
+through `derived-mode-all-parents', which honours the
+`derived-mode-add-parents' call registering `haskell-mode' as a parent.
+That function is Emacs 30.1, so this test is sensitive to the package's
+version floor -- on 29 the entry would not have applied."
+  (skip-unless (treesit-ready-p 'haskell t))
+  (should (memq 'haskell-mode (derived-mode-all-parents 'haskell-ts-mode)))
+  (let ((dir (make-temp-file "haskell-ts-tests-dir-locals-" t)))
+    (unwind-protect
+        (let ((file (expand-file-name "M.hs" dir))
+              (enable-local-variables t))
+          (with-temp-file (expand-file-name ".dir-locals.el" dir)
+            (insert "((haskell-mode . ((fill-column . 42))))\n"))
+          (with-temp-file file
+            (insert "module M where\n"))
+          (let ((buffer (find-file-noselect file)))
+            (unwind-protect
+                (with-current-buffer buffer
+                  (should (eq major-mode 'haskell-ts-mode))
+                  (should (= fill-column 42)))
+              (kill-buffer buffer))))
+      (delete-directory dir t))))
+
 (ert-deftest haskell-ts-test-font-lock-applies ()
   "Fontifying the sample assigns the keyword face to `module'."
   (haskell-ts-tests--with-temp-hs
@@ -874,6 +939,61 @@ recursion into the curried return type."
     (search-forward "Bool")
     (should (eq 'font-lock-variable-name-face
                 (get-text-property (match-beginning 0) 'face)))))
+
+(ert-deftest haskell-ts-test-font-lock-haddock-continuation-lines ()
+  "Every line of a multi-line Haddock block gets `font-lock-doc-face'.
+Pins the fix for upstream issue \"Haddock documentation strings are not
+highlighted correctly\" (#57): the official grammar parsed such a block
+as `(haddock) (comment) (comment)', so only the first line was
+doc-faced and the continuation lines fell to `font-lock-comment-face'.
+The fork emits one `haddock' node for the whole block, so the
+continuation lines -- markers included -- are what this checks."
+  (haskell-ts-tests--with-temp-hs
+      "-- | First haddock line
+-- second line
+-- third line
+f = 1
+"
+    (treesit-font-lock-fontify-region (point-min) (point-max))
+    (dolist (word '("First" "second" "third"))
+      (goto-char (point-min))
+      (search-forward word)
+      (should (eq 'font-lock-doc-face
+                  (get-text-property (match-beginning 0) 'face)))
+      ;; The `--' marker of the same line, too.
+      (should (eq 'font-lock-doc-face
+                  (get-text-property (line-beginning-position) 'face))))))
+
+(ert-deftest haskell-ts-test-font-lock-comment-above-haddock ()
+  "A plain comment directly above a Haddock line keeps its own face.
+Pins the fix for upstream issue \"Weird font color at commented type
+alias\" (#28): the official grammar merged the two lines into a single
+`comment' node, so the Haddock line lost `font-lock-doc-face' (and, in
+the reporter's case, a commented-out declaration was fontified as
+code).  The fork emits `(comment) (haddock)', two nodes."
+  (haskell-ts-tests--with-temp-hs
+      "-- Comment
+-- | Test what
+f = 1
+"
+    (treesit-font-lock-fontify-region (point-min) (point-max))
+    (goto-char (point-min))
+    (search-forward "Comment")
+    (should (eq 'font-lock-comment-face
+                (get-text-property (match-beginning 0) 'face)))
+    (search-forward "Test what")
+    (should (eq 'font-lock-doc-face
+                (get-text-property (match-beginning 0) 'face))))
+  (haskell-ts-tests--with-temp-hs
+      "-- type A = Int
+f = 1
+"
+    (treesit-font-lock-fontify-region (point-min) (point-max))
+    ;; The whole commented-out declaration, `type' keyword and `Int'
+    ;; type name included, is comment.
+    (should (cl-loop for pos from (point-min) below (line-end-position)
+                     always (eq 'font-lock-comment-face
+                                (get-text-property pos 'face))))))
 
 (ert-deftest haskell-ts-test-imenu-entries ()
   "Imenu finds the top-level functions, the signature, the data type
