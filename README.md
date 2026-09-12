@@ -1,3 +1,7 @@
+NOTE: I have paused the development of `haskell-ts-mode`. I have tried to fix
+some upstream issues blocking the implementation of `haskell-ts-mode` features,
+but the LLM policy of Emacs in place blocks them from being merged.
+
 <!-- Generated from README.org by `make readme'.  Do not edit. -->
 
 [![img](https://github.com/dschrempf/haskell-ts-mode/actions/workflows/ci.yml/badge.svg)](https://github.com/dschrempf/haskell-ts-mode/actions/workflows/ci.yml)
